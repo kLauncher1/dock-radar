@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.0] - 2026-10-14
+
+### Added
+- Real-time container log streaming endpoint (`GET /api/docker/logs`) supporting both RFC 6455 WebSockets and REST JSON snapshots.
+- Pure standard library RFC 6455 WebSocket upgrader and frame serializer with zero external dependencies.
+- Docker engine log demultiplexing supporting 8-byte frame parsing (stdout vs stderr separation) and raw TTY streams.
+- High-performance, thread-safe circular ring buffer (`internal/logs/ringbuffer.go`) keeping memory utilization under 15 MB.
+- Embedded console real-time terminal widget with stream filter tabs (All, stdout, stderr, system), auto-scrolling, container selector, and live WebSocket connection indicator.
+- Individual container "Logs" action button on container radar rows for instantaneous terminal targeting.
+
+### Fixed
+- Cross-platform HTTP base URL resolution ensuring consistent Docker socket communication across Linux and Windows environments.
+
 ## [0.2.0] - 2026-10-13
 
 ### Added

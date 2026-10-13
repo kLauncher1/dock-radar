@@ -10,7 +10,7 @@
 
 **Ultra-lightweight single-binary container & system metrics monitor with embedded real-time dark-mode web dashboard.**
 
-[![Release](https://img.shields.io/badge/Release-v0.2.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
+[![Release](https://img.shields.io/badge/Release-v0.3.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg?style=flat&logo=go)](https://golang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6%2B-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
@@ -26,11 +26,12 @@
 ## ⚡ Highlights
 
 - **Single Executable Deployment**: The web dashboard is baked directly into the Go binary via `//go:embed`. No Node.js runtime, external assets, or separate frontend servers needed.
-- **Ultra-Low Memory Footprint**: Runs persistently under **15 MB of RAM**, making it ideal for low-spec VPS, Raspberry Pi, and homelab environments.
+- **Ultra-Low Memory Footprint**: Runs persistently under **15 MB of RAM** with bounded circular ring buffers, making it ideal for low-spec VPS, Raspberry Pi, and homelab environments.
+- **Real-Time Container Log Streaming**: Pure standard-library RFC 6455 WebSocket streaming (`/api/docker/logs`) with Docker multiplexed stdout/stderr demuxing and REST JSON snapshot fallback.
 - **Docker Socket Inspection & Lifecycle Controls**: Inspects active containers and provides one-click safe container restart and stop actions with confirmation dialogs.
 - **Host System Telemetry**: Tracks real-time CPU cores, goroutines, allocated RAM, GC cycles, and uptime.
 - **Security-First API Defense**: Hardened with loopback origin validation, anti-CSRF checks, strict container ID regex sanitation, and in-memory token bucket rate limiting.
-- **Dark-Mode Glassmorphism UI**: High-contrast, clean visual dashboard featuring live container inspection, action controls, and real-time event logs.
+- **Dark-Mode Glassmorphism UI**: High-contrast, clean visual dashboard featuring live container inspection, action controls, and real-time event logs with filter tabs (All, stdout, stderr, system) and auto-scroll.
 
 ---
 
@@ -78,14 +79,16 @@ PORT=8080 ./dock-radar
 │   internal/docker        │      internal/system        │
 │   • Direct Socket Client │      • Runtime Allocations  │
 │   • Lifecycle Operations │      • CPU & OS Metrics     │
+│   • Multiplex Log Demux  │                             │
+├──────────────────────────┼─────────────────────────────┤
+│   internal/security      │      internal/logs          │
+│   • Loopback Origin Gate │      • Circular Ring Buffer │
+│   • Token Bucket Limiter │      • Strict <15MB Ceiling │
 ├──────────────────────────┴─────────────────────────────┤
-│   internal/security                                    │
-│   • Loopback Origin Gate • Anti-CSRF Header Check      │
-│   • Token Bucket Limiter • Input Bounds Sanitation     │
-├────────────────────────────────────────────────────────┤
 │                 net/http HTTP Engine                   │
 │   • /api/docker          • /api/docker/restart         │
-│   • /api/docker/stop     • /api/system                 │
+│   • /api/docker/stop     • /api/docker/logs (WS/REST)  │
+│   • /api/system          • Pure RFC 6455 Upgrader      │
 ├────────────────────────────────────────────────────────┤
 │                 Embedded Web Dashboard                 │
 │         (React 19 + TypeScript / Vite Bundled)         │
@@ -101,12 +104,13 @@ PORT=8080 ./dock-radar
 
 ---
 
-## 📡 REST API Reference
+## 📡 REST & WebSocket API Reference
 
-| Endpoint | Method | Description |
+| Endpoint | Method / Protocol | Description |
 | :--- | :---: | :--- |
 | `/api/system` | `GET` | Hostname, OS/Arch, CPU cores, active goroutines, allocated MB, GC count, and uptime |
 | `/api/docker` | `GET` | Docker daemon connection status, total & running container counts, and container details |
+| `/api/docker/logs` | `WS` / `GET` | Real-time WebSocket log feed or JSON snapshot (`?id=<id>&stream=<stdout\|stderr\|system>&tail=100`) |
 | `/api/docker/restart` | `POST` | Safely restarts a container by ID or name (`{"id":"<name_or_id>","timeout":10}`) |
 | `/api/docker/stop` | `POST` | Safely stops a running container (`{"id":"<name_or_id>","timeout":10}`) |
 | `/` | `GET` | Serves the embedded single-page web dashboard |

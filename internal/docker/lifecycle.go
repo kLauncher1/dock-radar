@@ -7,7 +7,6 @@ import (
 	"io"
 	"net/http"
 	"regexp"
-	"runtime"
 	"strings"
 	"time"
 )
@@ -56,10 +55,7 @@ func (c *Client) RestartContainer(ctx context.Context, id string, timeoutSeconds
 		timeoutSeconds = 10
 	}
 
-	reqURL := fmt.Sprintf("http://localhost/v1.43/containers/%s/restart?t=%d", id, timeoutSeconds)
-	if runtime.GOOS == "windows" {
-		reqURL = fmt.Sprintf("%s/v1.43/containers/%s/restart?t=%d", c.endpoint, id, timeoutSeconds)
-	}
+	reqURL := fmt.Sprintf("%s/v1.43/containers/%s/restart?t=%d", c.BaseURL(), id, timeoutSeconds)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, nil)
 	if err != nil {
@@ -92,10 +88,7 @@ func (c *Client) StopContainer(ctx context.Context, id string, timeoutSeconds in
 		timeoutSeconds = 10
 	}
 
-	reqURL := fmt.Sprintf("http://localhost/v1.43/containers/%s/stop?t=%d", id, timeoutSeconds)
-	if runtime.GOOS == "windows" {
-		reqURL = fmt.Sprintf("%s/v1.43/containers/%s/stop?t=%d", c.endpoint, id, timeoutSeconds)
-	}
+	reqURL := fmt.Sprintf("%s/v1.43/containers/%s/stop?t=%d", c.BaseURL(), id, timeoutSeconds)
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, reqURL, nil)
 	if err != nil {
