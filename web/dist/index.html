@@ -125,6 +125,42 @@
     .status-stopped { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
     .status-standby { background: rgba(245, 158, 11, 0.15); color: var(--accent-yellow); }
 
+    .action-group { display: flex; gap: 8px; }
+    .btn-action {
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+    .btn-restart {
+      color: var(--accent-blue);
+      border-color: rgba(56, 189, 248, 0.3);
+      background: rgba(56, 189, 248, 0.06);
+    }
+    .btn-restart:hover {
+      background: rgba(56, 189, 248, 0.18);
+      border-color: var(--accent-blue);
+    }
+    .btn-stop {
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.3);
+      background: rgba(239, 68, 68, 0.06);
+    }
+    .btn-stop:hover {
+      background: rgba(239, 68, 68, 0.18);
+      border-color: var(--accent-red);
+    }
+    .btn-action:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
+
     .terminal-box {
       background: #050811;
       border: 1px solid var(--border-subtle);
@@ -139,6 +175,127 @@
     }
     .log-line { margin-bottom: 4px; color: #cbd5e1; }
     .log-ts { color: #64748b; margin-right: 8px; }
+    .log-success { color: var(--accent-green); }
+    .log-warn { color: var(--accent-yellow); }
+    .log-err { color: var(--accent-red); }
+
+    /* Modal Overlay & Card */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(9, 13, 22, 0.82);
+      backdrop-filter: blur(8px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s ease;
+      padding: 16px;
+    }
+    .modal-overlay.active {
+      opacity: 1;
+      pointer-events: auto;
+    }
+    .modal-card {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 16px;
+      padding: 24px;
+      width: 100%;
+      max-width: 440px;
+      box-shadow: 0 24px 48px rgba(0, 0, 0, 0.6);
+      transform: scale(0.95);
+      transition: transform 0.2s ease;
+    }
+    .modal-overlay.active .modal-card {
+      transform: scale(1);
+    }
+    .modal-title {
+      font-size: 17px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .modal-body {
+      font-size: 13px;
+      color: var(--text-muted);
+      line-height: 1.6;
+      margin-bottom: 24px;
+    }
+    .modal-body code {
+      color: var(--accent-blue);
+      font-family: 'JetBrains Mono', monospace;
+      background: rgba(0, 0, 0, 0.3);
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+    .btn {
+      padding: 8px 16px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      color: var(--text-muted);
+    }
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: var(--text-main);
+    }
+    .btn-primary-restart {
+      background: #0284c7;
+      border: 1px solid #38bdf8;
+      color: #fff;
+    }
+    .btn-primary-restart:hover {
+      background: #0369a1;
+    }
+    .btn-primary-stop {
+      background: #dc2626;
+      border: 1px solid #ef4444;
+      color: #fff;
+    }
+    .btn-primary-stop:hover {
+      background: #b91c1c;
+    }
+
+    /* Notification Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      padding: 12px 20px;
+      border-radius: 10px;
+      font-size: 13px;
+      color: var(--text-main);
+      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.5);
+      z-index: 2000;
+      transform: translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+      transition: all 0.25s ease;
+    }
+    .toast.show {
+      transform: translateY(0);
+      opacity: 1;
+      pointer-events: auto;
+    }
   </style>
 </head>
 <body>
@@ -192,11 +349,12 @@
           <th>State</th>
           <th>Status</th>
           <th>ID</th>
+          <th style="text-align: right;">Actions</th>
         </tr>
       </thead>
       <tbody id="containers-body">
         <tr>
-          <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">
+          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
             Scanning container sockets...
           </td>
         </tr>
@@ -211,16 +369,106 @@
     </div>
   </main>
 
+  <!-- Lifecycle Action Confirmation Modal -->
+  <div class="modal-overlay" id="confirm-modal">
+    <div class="modal-card">
+      <div class="modal-title" id="modal-title">Confirm Lifecycle Action</div>
+      <div class="modal-body" id="modal-body">
+        Are you sure you want to execute this container action?
+      </div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" id="modal-cancel">Cancel</button>
+        <button class="btn btn-primary-restart" id="modal-confirm">Confirm</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast" id="toast"></div>
+
   <script>
     const logConsole = document.getElementById('log-console');
-    function log(msg) {
+    const modal = document.getElementById('confirm-modal');
+    const modalTitle = document.getElementById('modal-title');
+    const modalBody = document.getElementById('modal-body');
+    const modalConfirmBtn = document.getElementById('modal-confirm');
+    const modalCancelBtn = document.getElementById('modal-cancel');
+    const toast = document.getElementById('toast');
+
+    let pendingAction = null;
+
+    function log(msg, type = '') {
       const now = new Date().toLocaleTimeString();
       const div = document.createElement('div');
-      div.className = 'log-line';
+      div.className = 'log-line' + (type ? ` log-${type}` : '');
       div.innerHTML = `<span class="log-ts">[${now}]</span> ${msg}`;
       logConsole.appendChild(div);
       logConsole.scrollTop = logConsole.scrollHeight;
     }
+
+    function showToast(text, duration = 3000) {
+      toast.textContent = text;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), duration);
+    }
+
+    function openActionModal(action, containerId, containerName) {
+      pendingAction = { action, containerId, containerName };
+      const isRestart = action === 'restart';
+      modalTitle.textContent = isRestart ? 'Restart Container' : 'Stop Container';
+      modalTitle.style.color = isRestart ? 'var(--accent-blue)' : 'var(--accent-red)';
+      modalBody.innerHTML = `Are you sure you want to ${action} container <code>${containerName || containerId}</code> (${containerId.substring(0, 12)})?`;
+
+      modalConfirmBtn.textContent = isRestart ? 'Confirm Restart' : 'Confirm Stop';
+      modalConfirmBtn.className = isRestart ? 'btn btn-primary-restart' : 'btn btn-primary-stop';
+      modalConfirmBtn.disabled = false;
+
+      modal.classList.add('active');
+    }
+
+    function closeModal() {
+      modal.classList.remove('active');
+      pendingAction = null;
+    }
+
+    modalCancelBtn.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && modal.classList.contains('active')) closeModal();
+    });
+
+    modalConfirmBtn.addEventListener('click', async () => {
+      if (!pendingAction) return;
+      const { action, containerId, containerName } = pendingAction;
+      modalConfirmBtn.disabled = true;
+      modalConfirmBtn.textContent = 'Executing...';
+
+      try {
+        const resp = await fetch(`/api/docker/${action}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: containerId, timeout: 10 })
+        });
+        const result = await resp.json();
+
+        if (resp.ok && result.success) {
+          log(`Container ${containerName || containerId} successfully ${action}ed.`, 'success');
+          showToast(`✓ Container ${containerName || containerId} ${action}ed`);
+          closeModal();
+          pollTelemetry();
+        } else {
+          log(`Failed to ${action} container: ${result.message || resp.statusText}`, 'err');
+          showToast(`✗ Failed to ${action}: ${result.message || 'error'}`);
+          closeModal();
+        }
+      } catch (err) {
+        log(`Network failure invoking ${action}: ${err.message}`, 'err');
+        showToast(`✗ Network error: ${err.message}`);
+        closeModal();
+      }
+    });
 
     async function pollTelemetry() {
       try {
@@ -250,26 +498,36 @@
 
         const tbody = document.getElementById('containers-body');
         if (dockRes.containers && dockRes.containers.length > 0) {
-          tbody.innerHTML = dockRes.containers.map(c => `
-            <tr>
-              <td style="font-weight: 600;">${(c.names && c.names[0]) || 'unnamed'}</td>
-              <td style="color: #94a3b8; font-family: monospace;">${c.image}</td>
-              <td><span class="status-pill status-${c.state === 'running' ? 'running' : 'stopped'}">${c.state}</span></td>
-              <td style="color: #cbd5e1;">${c.status}</td>
-              <td style="font-family: monospace; font-size: 11px; color: #64748b;">${c.id.substring(0, 12)}</td>
-            </tr>
-          `).join('');
+          tbody.innerHTML = dockRes.containers.map(c => {
+            const rawName = (c.names && c.names[0]) ? c.names[0].replace(/^\//, '') : 'unnamed';
+            const isRunning = c.state === 'running';
+            return `
+              <tr>
+                <td style="font-weight: 600;">${rawName}</td>
+                <td style="color: #94a3b8; font-family: monospace;">${c.image}</td>
+                <td><span class="status-pill status-${isRunning ? 'running' : 'stopped'}">${c.state}</span></td>
+                <td style="color: #cbd5e1;">${c.status}</td>
+                <td style="font-family: monospace; font-size: 11px; color: #64748b;">${c.id.substring(0, 12)}</td>
+                <td style="text-align: right;">
+                  <div class="action-group" style="justify-content: flex-end;">
+                    <button class="btn-action btn-restart" onclick="openActionModal('restart', '${c.id}', '${rawName}')">Restart</button>
+                    <button class="btn-action btn-stop" ${!isRunning ? 'disabled' : ''} onclick="openActionModal('stop', '${c.id}', '${rawName}')">Stop</button>
+                  </div>
+                </td>
+              </tr>
+            `;
+          }).join('');
         } else {
           tbody.innerHTML = `
             <tr>
-              <td colspan="5" style="text-align: center; color: #94a3b8; padding: 28px;">
+              <td colspan="6" style="text-align: center; color: #94a3b8; padding: 28px;">
                 ${dockRes.available ? 'No active containers found on host.' : 'Docker daemon offline. Running in Host Telemetry & Standby Mode.'}
               </td>
             </tr>
           `;
         }
       } catch (err) {
-        log(`Telemetry fetch error: ${err.message}`);
+        log(`Telemetry fetch error: ${err.message}`, 'warn');
       }
     }
 
