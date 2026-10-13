@@ -1,16 +1,20 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
+	"runtime"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/kLauncher1/dock-radar/internal/docker"
+	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/security"
 	"github.com/kLauncher1/dock-radar/internal/system"
 )
@@ -30,19 +34,29 @@ type ActionResponse struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
-// HandlerConfig encapsulates services and security policies.
+// HandlerConfig encapsulates services, buffers, and security policies.
 type HandlerConfig struct {
 	DockerClient *docker.Client
 	RateLimiter  *security.RateLimiter
+	LogBuffer    *logs.RingBuffer
 }
 
 // RegisterRoutes sets up all API endpoints and static file serving on the provided ServeMux.
 func RegisterRoutes(mux *http.ServeMux, dockerClient *docker.Client, staticFS fs.FS) {
 	// Initialize a burst of 5 actions with 1 refill per second
 	limiter := security.NewRateLimiter(5.0, 1.0)
+	ringBuffer := logs.NewRingBuffer(2000)
+	ringBuffer.Append(logs.LogEntry{
+		ID:        "system",
+		Stream:    "system",
+		Timestamp: time.Now().UTC(),
+		Message:   "Dock-Radar single-binary engine initialized.",
+	})
+
 	cfg := &HandlerConfig{
 		DockerClient: dockerClient,
 		RateLimiter:  limiter,
+		LogBuffer:    ringBuffer,
 	}
 
 	// Real-time system telemetry
@@ -54,6 +68,9 @@ func RegisterRoutes(mux *http.ServeMux, dockerClient *docker.Client, staticFS fs
 	// Container lifecycle controls
 	mux.HandleFunc("/api/docker/restart", cfg.handleContainerRestart)
 	mux.HandleFunc("/api/docker/stop", cfg.handleContainerStop)
+
+	// Real-time log streaming & WebSocket feed
+	mux.HandleFunc("/api/docker/logs", cfg.handleContainerLogs)
 
 	// Embedded Static UI
 	if staticFS != nil {
@@ -218,3 +235,153 @@ func writeJSONResponse(w http.ResponseWriter, status int, data any) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(data)
 }
+
+func (h *HandlerConfig) handleContainerLogs(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	containerID := strings.TrimSpace(r.URL.Query().Get("id"))
+	if containerID == "" {
+		containerID = "system"
+	} else if containerID != "system" {
+		if err := docker.ValidateContainerID(containerID); err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+
+	streamFilter := strings.TrimSpace(r.URL.Query().Get("stream"))
+	tail := 100
+	if tailStr := r.URL.Query().Get("tail"); tailStr != "" {
+		if t, err := strconv.Atoi(tailStr); err == nil && t > 0 {
+			tail = t
+		}
+	}
+
+	// 1. WebSocket Upgrade Path
+	if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
+		h.streamLogsWebSocket(w, r, containerID, streamFilter, tail)
+		return
+	}
+
+	// 2. Standard REST JSON Snapshot Path
+	w.Header().Set("Content-Type", "application/json")
+	var entries []logs.LogEntry
+	if containerID != "system" && h.DockerClient != nil {
+		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
+		defer cancel()
+		dockerLogs, err := h.DockerClient.FetchLogs(ctx, containerID, tail)
+		if err == nil {
+			for _, dl := range dockerLogs {
+				entry := logs.LogEntry{
+					ID:        dl.ContainerID,
+					Stream:    dl.Stream,
+					Timestamp: dl.Timestamp,
+					Message:   dl.Message,
+				}
+				entries = append(entries, entry)
+				h.LogBuffer.Append(entry)
+			}
+		}
+	}
+
+	if len(entries) == 0 {
+		entries = h.LogBuffer.Recent(tail, streamFilter)
+	}
+	_ = json.NewEncoder(w).Encode(entries)
+}
+
+func (h *HandlerConfig) streamLogsWebSocket(w http.ResponseWriter, r *http.Request, containerID, streamFilter string, tail int) {
+	ws, err := UpgradeWebSocket(w, r)
+	if err != nil {
+		http.Error(w, fmt.Sprintf("websocket upgrade failed: %v", err), http.StatusBadRequest)
+		return
+	}
+	defer ws.Close()
+
+	// Initial buffer dump
+	initial := h.LogBuffer.Recent(tail, streamFilter)
+	for _, entry := range initial {
+		data, _ := json.Marshal(entry)
+		if err := ws.WriteTextMessage(data); err != nil {
+			return
+		}
+	}
+
+	ctx, cancel := context.WithCancel(r.Context())
+	defer cancel()
+
+	clientDone := make(chan struct{})
+	go func() {
+		defer close(clientDone)
+		for {
+			_, _, err := ws.ReadFrame()
+			if err != nil {
+				cancel()
+				return
+			}
+		}
+	}()
+
+	if containerID != "system" && h.DockerClient != nil {
+		logChan := make(chan docker.LogMessage, 50)
+		go func() {
+			_ = h.DockerClient.StreamLogs(ctx, containerID, tail, logChan)
+			close(logChan)
+		}()
+
+		for {
+			select {
+			case <-clientDone:
+				return
+			case <-ctx.Done():
+				return
+			case msg, ok := <-logChan:
+				if !ok {
+					return
+				}
+				entry := logs.LogEntry{
+					ID:        msg.ContainerID,
+					Stream:    msg.Stream,
+					Timestamp: msg.Timestamp,
+					Message:   msg.Message,
+				}
+				h.LogBuffer.Append(entry)
+				if streamFilter == "" || streamFilter == "all" || strings.EqualFold(entry.Stream, streamFilter) {
+					data, _ := json.Marshal(entry)
+					if err := ws.WriteTextMessage(data); err != nil {
+						return
+					}
+				}
+			}
+		}
+	} else {
+		ticker := time.NewTicker(4 * time.Second)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-clientDone:
+				return
+			case <-ctx.Done():
+				return
+			case <-ticker.C:
+				entry := logs.LogEntry{
+					ID:        "system",
+					Stream:    "system",
+					Timestamp: time.Now().UTC(),
+					Message:   fmt.Sprintf("Dock-Radar telemetry heartbeat (Goroutines: %d)", runtime.NumGoroutine()),
+				}
+				h.LogBuffer.Append(entry)
+				if streamFilter == "" || streamFilter == "all" || streamFilter == "system" {
+					data, _ := json.Marshal(entry)
+					if err := ws.WriteTextMessage(data); err != nil {
+						return
+					}
+				}
+			}
+		}
+	}
+}
+

@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/kLauncher1/dock-radar/internal/docker"
+	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/security"
 )
 
@@ -26,6 +27,11 @@ func setupTestServer() (*http.ServeMux, *httptest.Server) {
 		}
 		if path == "/v1.43/containers/c12345678901/stop" {
 			w.WriteHeader(http.StatusNoContent)
+			return
+		}
+		if path == "/v1.43/containers/c12345678901/logs" {
+			w.Header().Set("Content-Type", "application/vnd.docker.raw-stream")
+			_, _ = w.Write([]byte("2026-10-14T05:00:00Z web server ready\n"))
 			return
 		}
 		if path == "/v1.43/containers/missing-id/restart" || path == "/v1.43/containers/missing-id/stop" {
@@ -195,3 +201,59 @@ func TestRateLimitEnforcement(t *testing.T) {
 		t.Fatalf("expected HTTP 429 on exhausted rate limit, got %d", rec2.Code)
 	}
 }
+
+func TestContainerLogsEndpoint_JSONSnapshot(t *testing.T) {
+	mux, mockDaemon := setupTestServer()
+	defer mockDaemon.Close()
+
+	// 1. Fetch system logs
+	req := httptest.NewRequest(http.MethodGet, "/api/docker/logs?id=system", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected HTTP 200, got %d", rec.Code)
+	}
+
+	var systemEntries []logs.LogEntry
+	if err := json.NewDecoder(rec.Body).Decode(&systemEntries); err != nil {
+		t.Fatalf("failed to decode system log entries: %v", err)
+	}
+	if len(systemEntries) == 0 {
+		t.Fatalf("expected at least 1 system log entry from boot")
+	}
+
+	// 2. Fetch container logs
+	req2 := httptest.NewRequest(http.MethodGet, "/api/docker/logs?id=c12345678901&tail=50", nil)
+	rec2 := httptest.NewRecorder()
+	mux.ServeHTTP(rec2, req2)
+
+	if rec2.Code != http.StatusOK {
+		t.Fatalf("expected HTTP 200, got %d", rec2.Code)
+	}
+
+	var containerEntries []logs.LogEntry
+	if err := json.NewDecoder(rec2.Body).Decode(&containerEntries); err != nil {
+		t.Fatalf("failed to decode container log entries: %v", err)
+	}
+	if len(containerEntries) != 1 {
+		t.Fatalf("expected 1 container log entry, got %d", len(containerEntries))
+	}
+	if containerEntries[0].Message != "web server ready" {
+		t.Errorf("unexpected message: %s", containerEntries[0].Message)
+	}
+}
+
+func TestContainerLogsEndpoint_InvalidID(t *testing.T) {
+	mux, mockDaemon := setupTestServer()
+	defer mockDaemon.Close()
+
+	req := httptest.NewRequest(http.MethodGet, "/api/docker/logs?id=../evil/path", nil)
+	rec := httptest.NewRecorder()
+	mux.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("expected HTTP 400 for path traversal ID, got %d", rec.Code)
+	}
+}
+

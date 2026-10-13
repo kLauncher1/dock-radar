@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"runtime"
+	"strings"
 	"time"
 )
 
@@ -38,6 +39,14 @@ type Client struct {
 	endpoint   string
 }
 
+// BaseURL returns the HTTP base URL for Docker daemon requests.
+func (c *Client) BaseURL() string {
+	if strings.HasPrefix(c.endpoint, "http://") || strings.HasPrefix(c.endpoint, "https://") {
+		return strings.TrimRight(c.endpoint, "/")
+	}
+	return "http://localhost"
+}
+
 // NewClient initializes a Docker client based on operating system socket paths.
 func NewClient() *Client {
 	endpoint := "/var/run/docker.sock"
@@ -48,10 +57,10 @@ func NewClient() *Client {
 	dialer := &net.Dialer{Timeout: 800 * time.Millisecond}
 	transport := &http.Transport{
 		DialContext: func(ctx context.Context, proto, addr string) (net.Conn, error) {
-			if runtime.GOOS != "windows" {
-				return dialer.DialContext(ctx, "unix", endpoint)
+			if strings.HasPrefix(endpoint, "http://") || strings.HasPrefix(endpoint, "https://") {
+				return dialer.DialContext(ctx, proto, addr)
 			}
-			return dialer.DialContext(ctx, proto, addr)
+			return dialer.DialContext(ctx, "unix", endpoint)
 		},
 		DisableKeepAlives: true,
 	}
@@ -71,10 +80,7 @@ func (c *Client) InspectContainers() DaemonStatus {
 		CheckedAt:  time.Now().UTC(),
 	}
 
-	reqURL := "http://localhost/v1.43/containers/json?all=1"
-	if runtime.GOOS == "windows" {
-		reqURL = fmt.Sprintf("%s/v1.43/containers/json?all=1", c.endpoint)
-	}
+	reqURL := fmt.Sprintf("%s/v1.43/containers/json?all=1", c.BaseURL())
 
 	resp, err := c.httpClient.Get(reqURL)
 	if err != nil {

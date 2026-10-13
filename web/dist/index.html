@@ -155,29 +155,156 @@
       background: rgba(239, 68, 68, 0.18);
       border-color: var(--accent-red);
     }
+    .btn-logs {
+      color: #c084fc;
+      border-color: rgba(192, 132, 252, 0.3);
+      background: rgba(192, 132, 252, 0.06);
+    }
+    .btn-logs:hover {
+      background: rgba(192, 132, 252, 0.18);
+      border-color: #c084fc;
+    }
     .btn-action:disabled {
       opacity: 0.35;
       cursor: not-allowed;
       pointer-events: none;
     }
 
-    .terminal-box {
+    .terminal-container {
       background: #050811;
       border: 1px solid var(--border-subtle);
       border-radius: 12px;
+      overflow: hidden;
+      margin-bottom: 24px;
+    }
+    .terminal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px 16px;
+      background: var(--bg-surface-elevated);
+      border-bottom: 1px solid var(--border-subtle);
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .terminal-controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .tab-group {
+      display: flex;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      padding: 2px;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      font-family: inherit;
+    }
+    .tab-btn:hover { color: var(--text-main); }
+    .tab-btn.active {
+      background: var(--bg-surface);
+      color: var(--accent-blue);
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    }
+    .container-select {
+      background: var(--bg-surface);
+      color: var(--text-main);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 11px;
+      font-family: inherit;
+      outline: none;
+      cursor: pointer;
+      max-width: 220px;
+    }
+    .container-select:focus { border-color: var(--accent-blue); }
+    .autoscroll-toggle {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+      cursor: pointer;
+      user-select: none;
+    }
+    .autoscroll-toggle input { accent-color: var(--accent-blue); }
+    .btn-clear-terminal {
+      background: transparent;
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      color: var(--text-muted);
+      padding: 4px 10px;
+      font-size: 11px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s ease;
+    }
+    .btn-clear-terminal:hover { color: var(--text-main); border-color: var(--text-muted); }
+    .ws-status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 11px;
+      color: var(--text-muted);
+      background: rgba(0, 0, 0, 0.3);
+      padding: 3px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border-subtle);
+    }
+    .ws-status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent-yellow);
+      transition: background-color 0.2s ease;
+    }
+    .ws-status-dot.connected {
+      background: var(--accent-green);
+      box-shadow: 0 0 8px var(--accent-green);
+    }
+    .ws-status-dot.disconnected {
+      background: var(--accent-red);
+    }
+
+    .terminal-box {
       padding: 16px;
       font-family: 'JetBrains Mono', monospace;
       font-size: 12px;
       color: #38bdf8;
-      max-height: 220px;
+      height: 280px;
       overflow-y: auto;
       white-space: pre-wrap;
+      word-break: break-all;
     }
-    .log-line { margin-bottom: 4px; color: #cbd5e1; }
-    .log-ts { color: #64748b; margin-right: 8px; }
-    .log-success { color: var(--accent-green); }
-    .log-warn { color: var(--accent-yellow); }
-    .log-err { color: var(--accent-red); }
+    .log-line { margin-bottom: 5px; color: #cbd5e1; display: flex; align-items: baseline; gap: 8px; }
+    .log-ts { color: #64748b; font-size: 11px; flex-shrink: 0; }
+    .log-badge {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      flex-shrink: 0;
+    }
+    .log-badge-stdout { background: rgba(56, 189, 248, 0.15); color: var(--accent-blue); }
+    .log-badge-stderr { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+    .log-badge-system { background: rgba(192, 132, 252, 0.15); color: #c084fc; }
+    .log-msg { color: #f1f5f9; flex: 1; }
 
     /* Modal Overlay & Card */
     .modal-overlay {
@@ -361,11 +488,39 @@
       </tbody>
     </table>
 
-    <div class="section-title">
-      <span>Real-Time Audit Log</span>
-    </div>
-    <div class="terminal-box" id="log-console">
-      <div class="log-line"><span class="log-ts">[BOOT]</span> Dock-Radar single-binary engine initialized.</div>
+    <div class="terminal-container" id="terminal-section">
+      <div class="terminal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 13px; font-weight: 600;">Container & Telemetry Stream</span>
+          <span class="ws-status-badge">
+            <span class="ws-status-dot" id="ws-dot"></span>
+            <span id="ws-status-text">Connecting...</span>
+          </span>
+        </div>
+        <div class="terminal-controls">
+          <div class="tab-group" id="stream-tabs">
+            <button class="tab-btn active" data-stream="all">All</button>
+            <button class="tab-btn" data-stream="stdout">stdout</button>
+            <button class="tab-btn" data-stream="stderr">stderr</button>
+            <button class="tab-btn" data-stream="system">system</button>
+          </div>
+          <select class="container-select" id="log-target-select">
+            <option value="system">Host System (dock-radar)</option>
+          </select>
+          <label class="autoscroll-toggle">
+            <input type="checkbox" id="autoscroll-check" checked>
+            <span>Auto-scroll</span>
+          </label>
+          <button class="btn-clear-terminal" id="btn-clear-logs">Clear</button>
+        </div>
+      </div>
+      <div class="terminal-box" id="log-console">
+        <div class="log-line">
+          <span class="log-ts">[BOOT]</span>
+          <span class="log-badge log-badge-system">system</span>
+          <span class="log-msg">Dock-Radar telemetry terminal online. Initializing real-time feed...</span>
+        </div>
+      </div>
     </div>
   </main>
 
@@ -394,22 +549,168 @@
     const modalConfirmBtn = document.getElementById('modal-confirm');
     const modalCancelBtn = document.getElementById('modal-cancel');
     const toast = document.getElementById('toast');
+    const wsDot = document.getElementById('ws-dot');
+    const wsStatusText = document.getElementById('ws-status-text');
+    const logTargetSelect = document.getElementById('log-target-select');
+    const streamTabs = document.getElementById('stream-tabs');
+    const autoscrollCheck = document.getElementById('autoscroll-check');
+    const btnClearLogs = document.getElementById('btn-clear-logs');
 
     let pendingAction = null;
+    let activeTarget = 'system';
+    let activeStream = 'all';
+    let wsSocket = null;
+    let reconnectTimer = null;
+
+    function escapeHTML(str) {
+      return (str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    function appendLogEntry(entry) {
+      const div = document.createElement('div');
+      div.className = 'log-line';
+      const streamName = (entry.stream || 'stdout').toLowerCase();
+      const badgeClass = `log-badge log-badge-${streamName === 'stderr' ? 'stderr' : (streamName === 'system' ? 'system' : 'stdout')}`;
+      const tsText = entry.timestamp ? new Date(entry.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
+
+      div.innerHTML = `
+        <span class="log-ts">[${tsText}]</span>
+        <span class="${badgeClass}">${streamName}</span>
+        <span class="log-msg">${escapeHTML(entry.message)}</span>
+      `;
+      logConsole.appendChild(div);
+
+      // Keep maximum 500 lines in DOM to strictly bound client-side memory
+      while (logConsole.children.length > 500) {
+        logConsole.removeChild(logConsole.firstChild);
+      }
+
+      if (autoscrollCheck.checked) {
+        logConsole.scrollTop = logConsole.scrollHeight;
+      }
+    }
 
     function log(msg, type = '') {
-      const now = new Date().toLocaleTimeString();
-      const div = document.createElement('div');
-      div.className = 'log-line' + (type ? ` log-${type}` : '');
-      div.innerHTML = `<span class="log-ts">[${now}]</span> ${msg}`;
-      logConsole.appendChild(div);
-      logConsole.scrollTop = logConsole.scrollHeight;
+      appendLogEntry({
+        stream: type === 'err' ? 'stderr' : (type === 'warn' ? 'system' : 'stdout'),
+        timestamp: new Date().toISOString(),
+        message: msg
+      });
     }
 
     function showToast(text, duration = 3000) {
       toast.textContent = text;
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), duration);
+    }
+
+    function connectLogWebSocket() {
+      if (wsSocket) {
+        try { wsSocket.close(); } catch {}
+        wsSocket = null;
+      }
+
+      wsDot.className = 'ws-status-dot';
+      wsStatusText.textContent = 'Connecting...';
+
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const targetParam = encodeURIComponent(activeTarget);
+      const streamParam = encodeURIComponent(activeStream);
+      const wsURL = `${proto}//${location.host}/api/docker/logs?id=${targetParam}&stream=${streamParam}&tail=100`;
+
+      try {
+        const ws = new WebSocket(wsURL);
+        wsSocket = ws;
+
+        ws.onopen = () => {
+          if (ws !== wsSocket) return;
+          wsDot.className = 'ws-status-dot connected';
+          wsStatusText.textContent = `Live Feed (${activeTarget === 'system' ? 'Host' : activeTarget.substring(0, 8)})`;
+          if (reconnectTimer) {
+            clearTimeout(reconnectTimer);
+            reconnectTimer = null;
+          }
+        };
+
+        ws.onmessage = (event) => {
+          if (ws !== wsSocket) return;
+          try {
+            const data = JSON.parse(event.data);
+            appendLogEntry(data);
+          } catch {}
+        };
+
+        ws.onclose = () => {
+          if (ws !== wsSocket) return;
+          wsDot.className = 'ws-status-dot disconnected';
+          wsStatusText.textContent = 'Disconnected';
+          scheduleReconnect();
+        };
+
+        ws.onerror = () => {
+          if (ws !== wsSocket) return;
+          try { ws.close(); } catch {}
+        };
+      } catch (err) {
+        wsDot.className = 'ws-status-dot disconnected';
+        wsStatusText.textContent = 'Offline';
+        scheduleReconnect();
+      }
+    }
+
+    function scheduleReconnect() {
+      if (reconnectTimer) return;
+      reconnectTimer = setTimeout(() => {
+        reconnectTimer = null;
+        connectLogWebSocket();
+      }, 3000);
+    }
+
+    // Stream tabs switching
+    streamTabs.addEventListener('click', (e) => {
+      const btn = e.target.closest('.tab-btn');
+      if (!btn) return;
+      document.querySelectorAll('#stream-tabs .tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeStream = btn.dataset.stream;
+      connectLogWebSocket();
+    });
+
+    // Container target selection
+    logTargetSelect.addEventListener('change', () => {
+      activeTarget = logTargetSelect.value;
+      connectLogWebSocket();
+    });
+
+    // Clear logs button
+    btnClearLogs.addEventListener('click', () => {
+      logConsole.innerHTML = '';
+    });
+
+    function selectContainerForLogs(containerId, containerName) {
+      activeTarget = containerId;
+      let optionExists = false;
+      for (const opt of logTargetSelect.options) {
+        if (opt.value === containerId) {
+          optionExists = true;
+          break;
+        }
+      }
+      if (!optionExists) {
+        const opt = document.createElement('option');
+        opt.value = containerId;
+        opt.textContent = `${containerName || containerId} (${containerId.substring(0, 12)})`;
+        logTargetSelect.appendChild(opt);
+      }
+      logTargetSelect.value = containerId;
+      connectLogWebSocket();
+      document.getElementById('terminal-section').scrollIntoView({ behavior: 'smooth' });
+      showToast(`Switched log terminal to ${containerName || containerId}`);
     }
 
     function openActionModal(action, containerId, containerName) {
@@ -496,6 +797,24 @@
           document.getElementById('val-containers').textContent = `0 / 0`;
         }
 
+        // Update container select dropdown dynamically
+        if (dockRes.containers && dockRes.containers.length > 0) {
+          const currentVal = logTargetSelect.value;
+          const containerIDs = new Set(dockRes.containers.map(c => c.id));
+          
+          logTargetSelect.innerHTML = '<option value="system">Host System (dock-radar)</option>';
+          for (const c of dockRes.containers) {
+            const rawName = (c.names && c.names[0]) ? c.names[0].replace(/^\//, '') : 'unnamed';
+            const opt = document.createElement('option');
+            opt.value = c.id;
+            opt.textContent = `${rawName} (${c.id.substring(0, 12)})`;
+            logTargetSelect.appendChild(opt);
+          }
+          if (containerIDs.has(currentVal) || currentVal === 'system') {
+            logTargetSelect.value = currentVal;
+          }
+        }
+
         const tbody = document.getElementById('containers-body');
         if (dockRes.containers && dockRes.containers.length > 0) {
           tbody.innerHTML = dockRes.containers.map(c => {
@@ -510,6 +829,7 @@
                 <td style="font-family: monospace; font-size: 11px; color: #64748b;">${c.id.substring(0, 12)}</td>
                 <td style="text-align: right;">
                   <div class="action-group" style="justify-content: flex-end;">
+                    <button class="btn-action btn-logs" onclick="selectContainerForLogs('${c.id}', '${rawName}')">Logs</button>
                     <button class="btn-action btn-restart" onclick="openActionModal('restart', '${c.id}', '${rawName}')">Restart</button>
                     <button class="btn-action btn-stop" ${!isRunning ? 'disabled' : ''} onclick="openActionModal('stop', '${c.id}', '${rawName}')">Stop</button>
                   </div>
@@ -533,6 +853,7 @@
 
     pollTelemetry();
     setInterval(pollTelemetry, 1500);
+    connectLogWebSocket();
   </script>
 </body>
 </html>
