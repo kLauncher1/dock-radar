@@ -1,0 +1,25 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+
+# Environment and sensitive keys
+.env
+.env.*
+*.local
+
+# Node modules
+node_modules/
+dist/
+
+# Local AI Backlogs & Logs (Internal Only)
+TASK_BACKLOG.md
+dev_logs/
+scripts/ARCHITECTURE_MAP.md
+
+# OS files
+.DS_Store
+Thumbs.db
