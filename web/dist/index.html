@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dock-Radar · Lightweight Container & System Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #090d16;
+      --bg-surface: #101726;
+      --bg-surface-elevated: #162035;
+      --border-subtle: rgba(255, 255, 255, 0.08);
+      --border-focus: #3b82f6;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --accent-blue: #38bdf8;
+      --accent-green: #10b981;
+      --accent-yellow: #f59e0b;
+      --accent-purple: #8b5cf6;
+      --accent-red: #ef4444;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      font-family: 'Inter', -apple-system, sans-serif;
+      min-height: 100vh;
+      padding: 24px;
+      line-height: 1.5;
+    }
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--border-subtle);
+      margin-bottom: 28px;
+    }
+    .logo-area { display: flex; align-items: center; gap: 12px; }
+    .logo-badge {
+      background: linear-gradient(135deg, #0284c7, #38bdf8);
+      color: #fff;
+      font-weight: 700;
+      font-size: 14px;
+      padding: 6px 12px;
+      border-radius: 8px;
+      letter-spacing: 0.5px;
+    }
+    .logo-title { font-size: 20px; font-weight: 700; }
+    .header-meta { display: flex; align-items: center; gap: 16px; font-size: 13px; color: var(--text-muted); }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background-color: var(--accent-green);
+      box-shadow: 0 0 10px var(--accent-green);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.9); }
+    }
+    .grid-stats {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      margin-bottom: 28px;
+    }
+    .card {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 18px 20px;
+      transition: transform 0.15s ease, border-color 0.15s ease;
+    }
+    .card:hover { border-color: rgba(56, 189, 248, 0.3); transform: translateY(-2px); }
+    .card-title { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px; }
+    .card-value { font-size: 24px; font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+    .card-subtext { font-size: 12px; color: var(--text-muted); margin-top: 6px; }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .containers-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 28px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .containers-table th, .containers-table td {
+      padding: 14px 18px;
+      text-align: left;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .containers-table th {
+      background: var(--bg-surface-elevated);
+      color: var(--text-muted);
+      font-weight: 600;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+    }
+    .status-pill {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .status-running { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); }
+    .status-stopped { background: rgba(239, 68, 68, 0.15); color: var(--accent-red); }
+    .status-standby { background: rgba(245, 158, 11, 0.15); color: var(--accent-yellow); }
+
+    .terminal-box {
+      background: #050811;
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #38bdf8;
+      max-height: 220px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    .log-line { margin-bottom: 4px; color: #cbd5e1; }
+    .log-ts { color: #64748b; margin-right: 8px; }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="logo-area">
+      <div class="logo-badge">DOCK-RADAR</div>
+      <div class="logo-title">Single-Binary Telemetry Monitor</div>
+    </div>
+    <div class="header-meta">
+      <span class="pulse-dot"></span>
+      <span id="daemon-badge">Scanning Daemon...</span>
+      <span>•</span>
+      <span id="host-badge">Loading...</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="grid-stats">
+      <div class="card">
+        <div class="card-title">Memory Allocation</div>
+        <div class="card-value" id="val-mem">-- MB</div>
+        <div class="card-subtext" id="sub-mem">OS Sys: -- MB</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Active Goroutines</div>
+        <div class="card-value" id="val-goroutines">--</div>
+        <div class="card-subtext" id="sub-cores">CPU Cores: --</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Docker Containers</div>
+        <div class="card-value" id="val-containers">-- / --</div>
+        <div class="card-subtext" id="sub-containers">Active / Total</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Uptime & GC</div>
+        <div class="card-value" id="val-uptime">--s</div>
+        <div class="card-subtext" id="sub-gc">Total GC Cycles: --</div>
+      </div>
+    </section>
+
+    <div class="section-title">
+      <span>Container Radar</span>
+      <span style="font-size: 12px; font-weight: 400; color: var(--text-muted);" id="poll-indicator">Live Polling (1.5s)</span>
+    </div>
+
+    <table class="containers-table">
+      <thead>
+        <tr>
+          <th>Container Name</th>
+          <th>Image</th>
+          <th>State</th>
+          <th>Status</th>
+          <th>ID</th>
+        </tr>
+      </thead>
+      <tbody id="containers-body">
+        <tr>
+          <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 24px;">
+            Scanning container sockets...
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="section-title">
+      <span>Real-Time Audit Log</span>
+    </div>
+    <div class="terminal-box" id="log-console">
+      <div class="log-line"><span class="log-ts">[BOOT]</span> Dock-Radar single-binary engine initialized.</div>
+    </div>
+  </main>
+
+  <script>
+    const logConsole = document.getElementById('log-console');
+    function log(msg) {
+      const now = new Date().toLocaleTimeString();
+      const div = document.createElement('div');
+      div.className = 'log-line';
+      div.innerHTML = `<span class="log-ts">[${now}]</span> ${msg}`;
+      logConsole.appendChild(div);
+      logConsole.scrollTop = logConsole.scrollHeight;
+    }
+
+    async function pollTelemetry() {
+      try {
+        const [sysRes, dockRes] = await Promise.all([
+          fetch('/api/system').then(r => r.json()),
+          fetch('/api/docker').then(r => r.json())
+        ]);
+
+        document.getElementById('host-badge').textContent = `${sysRes.hostname} (${sysRes.os}/${sysRes.arch})`;
+        document.getElementById('val-mem').textContent = `${sysRes.alloc_mb.toFixed(2)} MB`;
+        document.getElementById('sub-mem').textContent = `Total Sys: ${sysRes.sys_mb.toFixed(2)} MB`;
+        document.getElementById('val-goroutines').textContent = sysRes.num_goroutine;
+        document.getElementById('sub-cores').textContent = `Logical Cores: ${sysRes.num_cpu}`;
+        document.getElementById('val-uptime').textContent = `${sysRes.uptime_seconds}s`;
+        document.getElementById('sub-gc').textContent = `Total GC Cycles: ${sysRes.num_gc}`;
+
+        const daemonBadge = document.getElementById('daemon-badge');
+        if (dockRes.available) {
+          daemonBadge.textContent = 'Docker Engine: Connected';
+          daemonBadge.style.color = '#10b981';
+          document.getElementById('val-containers').textContent = `${dockRes.running_count} / ${dockRes.total_count}`;
+        } else {
+          daemonBadge.textContent = 'Docker Engine: Standby / Offline';
+          daemonBadge.style.color = '#f59e0b';
+          document.getElementById('val-containers').textContent = `0 / 0`;
+        }
+
+        const tbody = document.getElementById('containers-body');
+        if (dockRes.containers && dockRes.containers.length > 0) {
+          tbody.innerHTML = dockRes.containers.map(c => `
+            <tr>
+              <td style="font-weight: 600;">${(c.names && c.names[0]) || 'unnamed'}</td>
+              <td style="color: #94a3b8; font-family: monospace;">${c.image}</td>
+              <td><span class="status-pill status-${c.state === 'running' ? 'running' : 'stopped'}">${c.state}</span></td>
+              <td style="color: #cbd5e1;">${c.status}</td>
+              <td style="font-family: monospace; font-size: 11px; color: #64748b;">${c.id.substring(0, 12)}</td>
+            </tr>
+          `).join('');
+        } else {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="5" style="text-align: center; color: #94a3b8; padding: 28px;">
+                ${dockRes.available ? 'No active containers found on host.' : 'Docker daemon offline. Running in Host Telemetry & Standby Mode.'}
+              </td>
+            </tr>
+          `;
+        }
+      } catch (err) {
+        log(`Telemetry fetch error: ${err.message}`);
+      }
+    }
+
+    pollTelemetry();
+    setInterval(pollTelemetry, 1500);
+  </script>
+</body>
+</html>
