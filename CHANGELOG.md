@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-10-14
+
+### Added
+- Standard Prometheus metrics exporter endpoint (`GET /metrics`, `internal/metrics/prometheus.go`) adhering to official exposition format (HELP, TYPE gauge/counter, label escaping) for host, container, ringbuffer, alert, and audit telemetry.
+- Batch container operations engine (`internal/docker/batch.go`) providing synchronized multi-container lifecycle execution (`RestartAll`, `StopAll`) and automatic inactive container cleanup (`PruneContainers`) with Docker API prune endpoint negotiation and manual fallback.
+- High-performance, thread-safe circular audit logger (`internal/audit/logger.go`) buffering up to 2,000 security and administrative actions with actor metadata, client IP tracking, and execution status.
+- Audit trail streaming and export endpoint (`GET /api/audit/export`) delivering historical operational records in newline-delimited JSON (NDJSON) and JSON formats with action and limit filters.
+- Batch container control API endpoint (`POST /api/docker/batch`) guarded by RoleAdmin authorization, token bucket rate limiting, and automated audit logging.
+- Embedded web console additions: Prometheus `/metrics` navigation pill, one-click `Export Audit` NDJSON downloader, and interactive batch operation triggers ("Restart All", "Stop All", "Prune Inactive") with confirmation modals.
+
 ## [1.0.0] - 2026-10-14
 
 ### Added

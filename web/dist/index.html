@@ -566,6 +566,8 @@
       <span>•</span>
       <span id="tls-badge" class="status-pill status-standby" style="font-size: 11px;">TLS: Checking...</span>
       <span id="auth-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer;" onclick="openAuthModal()" title="Manage Bearer Token & Authentication">Auth: Local</span>
+      <a href="/metrics" target="_blank" id="metrics-badge" class="status-pill" style="font-size: 11px; text-decoration: none; color: #38bdf8; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); display: inline-flex; align-items: center; gap: 4px;" title="Prometheus Metrics Exporter">📊 /metrics</a>
+      <button id="btn-export-audit" class="status-pill" style="font-size: 11px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;" onclick="exportAuditTrail()" title="Export Audit Trail in NDJSON format">📋 Export Audit</button>
       <span>•</span>
       <span id="host-badge">Loading...</span>
     </div>
@@ -596,7 +598,14 @@
     </section>
 
     <div class="section-title">
-      <span>Container Radar</span>
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <span>Container Radar</span>
+        <div class="batch-actions" style="display: flex; gap: 8px;">
+          <button class="btn-action btn-restart" onclick="openBatchModal('restart_all')" title="Restart all currently running containers">⚡ Restart All</button>
+          <button class="btn-action btn-stop" onclick="openBatchModal('stop_all')" title="Stop all currently running containers">🛑 Stop All</button>
+          <button class="btn-action btn-logs" style="color: #a78bfa; border-color: rgba(167, 139, 250, 0.4); background: rgba(167, 139, 250, 0.1);" onclick="openBatchModal('prune')" title="Purge stopped, dead, and exited containers">🧹 Prune Inactive</button>
+        </div>
+      </div>
       <span style="font-size: 12px; font-weight: 400; color: var(--text-muted);" id="poll-indicator">Live Polling (1.5s)</span>
     </div>
 
@@ -1143,7 +1152,7 @@
     }
 
     function openActionModal(action, containerId, containerName) {
-      pendingAction = { action, containerId, containerName };
+      pendingAction = { isBatch: false, action, containerId, containerName };
       const isRestart = action === 'restart';
       modalTitle.textContent = isRestart ? 'Restart Container' : 'Stop Container';
       modalTitle.style.color = isRestart ? 'var(--accent-blue)' : 'var(--accent-red)';
@@ -1154,6 +1163,94 @@
       modalConfirmBtn.disabled = false;
 
       modal.classList.add('active');
+    }
+
+    function openBatchModal(action) {
+      pendingAction = { isBatch: true, action };
+      let title = 'Batch Action';
+      let bodyText = '';
+      let btnText = 'Confirm';
+      let btnClass = 'btn btn-primary-restart';
+
+      if (action === 'restart_all') {
+        title = 'Batch Restart All Containers';
+        modalTitle.style.color = 'var(--accent-blue)';
+        bodyText = 'Are you sure you want to <strong>restart all active containers</strong> across the host? Brief service interruption may occur.';
+        btnText = 'Restart All Running';
+        btnClass = 'btn btn-primary-restart';
+      } else if (action === 'stop_all') {
+        title = 'Batch Stop All Containers';
+        modalTitle.style.color = 'var(--accent-red)';
+        bodyText = 'Are you sure you want to <strong>stop all running containers</strong> on this host?';
+        btnText = 'Stop All Running';
+        btnClass = 'btn btn-primary-stop';
+      } else if (action === 'prune') {
+        title = 'Prune Inactive Containers';
+        modalTitle.style.color = '#a78bfa';
+        bodyText = 'Are you sure you want to <strong>permanently purge all stopped, dead, and exited containers</strong>? Reclaimed disk space will be reported.';
+        btnText = 'Prune Inactive';
+        btnClass = 'btn btn-primary-restart';
+      }
+
+      modalTitle.textContent = title;
+      modalBody.innerHTML = bodyText;
+      modalConfirmBtn.textContent = btnText;
+      modalConfirmBtn.className = btnClass;
+      modalConfirmBtn.disabled = false;
+      modal.classList.add('active');
+    }
+
+    async function executeBatchAction(action) {
+      modalConfirmBtn.disabled = true;
+      modalConfirmBtn.textContent = 'Executing...';
+      try {
+        const resp = await authFetch('/api/docker/batch', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: action, timeout: 10 })
+        });
+        const result = await resp.json();
+        if (resp.ok && result.success) {
+          log(`Batch [${action}] succeeded: ${result.message}`, 'success');
+          showToast(`✓ ${result.message}`);
+          closeModal();
+          pollTelemetry();
+        } else {
+          log(`Batch [${action}] failed: ${result.message || resp.statusText}`, 'err');
+          showToast(`✗ Batch ${action} failed: ${result.message || 'error'}`);
+          closeModal();
+        }
+      } catch (err) {
+        log(`Network failure during batch ${action}: ${err.message}`, 'err');
+        showToast(`✗ Network error: ${err.message}`);
+        closeModal();
+      }
+    }
+
+    async function exportAuditTrail() {
+      try {
+        showToast('Initiating audit trail export...');
+        const resp = await authFetch('/api/audit/export?format=ndjson&limit=2000');
+        if (!resp.ok) {
+          const errText = await resp.text();
+          showToast(`✗ Export failed: ${errText || resp.statusText}`);
+          return;
+        }
+        const blob = await resp.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `dock-radar-audit-${new Date().toISOString().replace(/[:.]/g, '-')}.ndjson`;
+        document.body.appendChild(a);
+        a.click();
+        window.URL.revokeObjectURL(url);
+        document.body.removeChild(a);
+        showToast('✓ Audit trail NDJSON downloaded');
+        log('Audit trail exported successfully in NDJSON format.', 'info');
+      } catch (err) {
+        showToast(`✗ Export error: ${err.message}`);
+      }
     }
 
     function closeModal() {
@@ -1171,6 +1268,12 @@
 
     modalConfirmBtn.addEventListener('click', async () => {
       if (!pendingAction) return;
+
+      if (pendingAction.isBatch) {
+        await executeBatchAction(pendingAction.action);
+        return;
+      }
+
       const { action, containerId, containerName } = pendingAction;
       modalConfirmBtn.disabled = true;
       modalConfirmBtn.textContent = 'Executing...';

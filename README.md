@@ -10,7 +10,7 @@
 
 **Ultra-lightweight single-binary container & system metrics monitor with embedded real-time dark-mode web dashboard.**
 
-[![Release](https://img.shields.io/badge/Release-v1.0.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
+[![Release](https://img.shields.io/badge/Release-v1.1.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg?style=flat&logo=go)](https://golang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6%2B-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
@@ -27,13 +27,16 @@
 
 - **Single Executable Deployment**: The web dashboard is baked directly into the Go binary via `//go:embed`. No Node.js runtime, external assets, or separate frontend servers needed.
 - **Ultra-Low Memory Footprint**: Runs persistently under **15 MB of RAM** with bounded circular ring buffers, making it ideal for low-spec VPS, Raspberry Pi, and homelab environments.
+- **Prometheus Metrics Exporter**: Native standard `/metrics` endpoint exporting host, container, engine, alert, and audit telemetry formatted according to Prometheus exposition syntax for Grafana ingestion.
+- **Batch Container Operations**: One-click and API-driven synchronized lifecycle operations (`restart_all`, `stop_all`) and automatic inactive container purging (`prune`) with fallback resilience.
+- **Thread-Safe Audit Trail Logging**: Fixed-capacity circular buffer recording up to 2,000 security and administrative actions with streaming NDJSON and JSON export (`/api/audit/export`).
 - **Automatic TLS Transport Security**: In-memory TLS certificate engine auto-generates self-signed ECDSA P-256 certificates with Subject Alternative Names (SANs) for localhost, loopbacks, and network interfaces with modern TLS 1.2+ cipher suites. Custom certificates are fully supported via CLI flags and environment variables.
 - **Bearer Token Authentication & RBAC**: Granular Role-Based Access Control distinguishing `admin` (full lifecycle control, alert rules, log feeds) and `viewer` (read-only telemetry and log feeds) with constant-time token comparison against timing side-channel attacks.
 - **Automated Webhook Alerts**: Instant outgoing webhook notifications to Discord (rich color-coded embeds) and Slack (formatted attachments) on unexpected container exit, crash, or restart loops.
 - **Failure Frequency & Flapping Detection**: Sliding window surveillance tracks rapid container restart cycles to detect flapping and crash-looping services before server outages occur.
 - **Host Resource Threshold Surveillance**: Configurable CPU usage and memory consumption thresholds with automated alert deduplication and cooldown controls.
 - **Real-Time Container Log Streaming**: Pure standard-library RFC 6455 WebSocket streaming (`/api/docker/logs`) with Docker multiplexed stdout/stderr demuxing and REST JSON snapshot fallback.
-- **Docker Socket Inspection & Lifecycle Controls**: Inspects active containers and provides one-click safe container restart and stop actions with confirmation dialogs.
+- **Docker Socket Inspection & Lifecycle Controls**: Inspects active containers and provides one-click safe container restart, stop, and batch actions with confirmation dialogs.
 - **Host System Telemetry**: Tracks real-time CPU cores, goroutines, allocated RAM, GC cycles, and uptime.
 - **Multi-Platform Binary Matrix**: Built and verified for Linux (amd64, arm64), macOS (amd64, arm64 Apple Silicon), and Windows (amd64).
 
@@ -99,7 +102,7 @@ go build -ldflags="-s -w" -o dock-radar .
 ├──────────────────────────┬─────────────────────────────┤
 │   internal/docker        │      internal/system        │
 │   • Direct Socket Client │      • Runtime Allocations  │
-│   • Lifecycle Operations │      • CPU & OS Metrics     │
+│   • Lifecycle & Batch Ops│      • CPU & OS Metrics     │
 │   • Multiplex Log Demux  │                             │
 ├──────────────────────────┼─────────────────────────────┤
 │   internal/alert         │      internal/logs          │
@@ -107,10 +110,14 @@ go build -ldflags="-s -w" -o dock-radar .
 │   • State Poller/Flap    │      • Strict <15MB Ceiling │
 │   • Cooldown Deduplication                             │
 ├──────────────────────────┼─────────────────────────────┤
+│   internal/metrics       │      internal/audit         │
+│   • Standard Prometheus  │      • Circular Event Log   │
+│   • Exposition Formatter │      • NDJSON / JSON Export │
+├──────────────────────────┼─────────────────────────────┤
 │   internal/security      │      net/http Router        │
-│   • In-Memory ECDSA TLS  │      • /api/docker/*        │
-│   • Constant-Time Bearer │      • /api/alerts/*        │
-│   • RBAC (Admin/Viewer)  │      • /api/auth/*          │
+│   • In-Memory ECDSA TLS  │      • /metrics (Prometheus)│
+│   • Constant-Time Bearer │      • /api/docker/*        │
+│   • RBAC (Admin/Viewer)  │      • /api/audit/*         │
 │   • Token Bucket Limiter │      • Pure RFC 6455 WS     │
 ├──────────────────────────┴─────────────────────────────┤
 │                 Embedded Web Dashboard                 │
@@ -135,11 +142,14 @@ go build -ldflags="-s -w" -o dock-radar .
 
 | Endpoint | Method / Protocol | Required Role | Description |
 | :--- | :---: | :---: | :--- |
+| `/metrics` | `GET` | `viewer` | Standard Prometheus exposition metrics for Grafana scraping |
 | `/api/system` | `GET` | `viewer` | Hostname, OS/Arch, CPU cores, active goroutines, allocated MB, GC count, and uptime |
 | `/api/docker` | `GET` | `viewer` | Docker daemon connection status, total & running container counts, and container details |
+| `/api/docker/batch` | `POST` | `admin` | Batch container operations: `restart_all`, `stop_all`, `prune` (`{"action":"restart_all","timeout":10}`) |
 | `/api/docker/logs` | `WS` / `GET` | `viewer` | Real-time WebSocket log feed or JSON snapshot (`?id=<id>&stream=<stdout\|stderr\|system>&tail=100`) |
 | `/api/docker/restart` | `POST` | `admin` | Safely restarts a container by ID or name (`{"id":"<name_or_id>","timeout":10}`) |
 | `/api/docker/stop` | `POST` | `admin` | Safely stops a running container (`{"id":"<name_or_id>","timeout":10}`) |
+| `/api/audit/export` | `GET` | `viewer` | Exports audit log trail in NDJSON or JSON format (`?format=ndjson&limit=2000&action=`) |
 | `/api/alerts/config` | `GET` / `POST` | `viewer` / `admin` | Fetches or updates active alert rules, webhook destinations, and threshold limits |
 | `/api/alerts/events` | `GET` | `viewer` | Fetches recent incident and fired alert history buffer (`?limit=50`) |
 | `/api/alerts/test` | `POST` | `admin` | Dispatches an immediate test webhook verification payload to Discord or Slack |

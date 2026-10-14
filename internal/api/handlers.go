@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/kLauncher1/dock-radar/internal/alert"
+	"github.com/kLauncher1/dock-radar/internal/audit"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/security"
@@ -43,6 +44,8 @@ type HandlerConfig struct {
 	AlertConfigStore *alert.ConfigStore
 	AlertDispatcher  *alert.Dispatcher
 	AlertMonitor     *alert.Monitor
+	AuditLogger      *audit.Logger
+	AppVersion       string
 	TokenAuth        *security.TokenAuth
 	AllowRemote      bool
 }
@@ -67,6 +70,12 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	alertCfgStore := alert.NewConfigStore(alert.DefaultConfig())
 	alertDispatcher := alert.NewDispatcher(alertCfgStore)
 	alertMonitor := alert.NewMonitor(dockerClient, alertCfgStore, alertDispatcher)
+	auditLogger := audit.NewLogger(2000)
+	auditLogger.Log(audit.AuditEvent{
+		Action:  "system_init",
+		Target:  "dock-radar",
+		Details: map[string]any{"version": "1.1.0"},
+	})
 
 	cfg := &HandlerConfig{
 		DockerClient:     dockerClient,
@@ -75,6 +84,8 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 		AlertConfigStore: alertCfgStore,
 		AlertDispatcher:  alertDispatcher,
 		AlertMonitor:     alertMonitor,
+		AuditLogger:      auditLogger,
+		AppVersion:       "1.1.0",
 		TokenAuth:        tokenAuth,
 		AllowRemote:      allowRemote,
 	}
@@ -91,6 +102,15 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 
 	// Real-time log streaming & WebSocket feed
 	mux.HandleFunc("/api/docker/logs", cfg.handleContainerLogs)
+
+	// Prometheus metrics exporter endpoint
+	mux.HandleFunc("/metrics", cfg.handlePrometheusMetrics)
+
+	// Batch container actions
+	mux.HandleFunc("/api/docker/batch", cfg.handleBatchAction)
+
+	// Audit trail export
+	mux.HandleFunc("/api/audit/export", cfg.handleAuditExport)
 
 	// Alert configurations & webhook channels
 	mux.HandleFunc("/api/alerts/config", cfg.handleAlertConfig)
@@ -186,6 +206,9 @@ func (h *HandlerConfig) handleContainerRestart(w http.ResponseWriter, r *http.Re
 	if timeout <= 0 {
 		timeout = 10
 	}
+	if timeout > 300 {
+		timeout = 300
+	}
 
 	err = h.DockerClient.RestartContainer(ctx, req.ID, timeout)
 	if err != nil {
@@ -228,6 +251,9 @@ func (h *HandlerConfig) handleContainerStop(w http.ResponseWriter, r *http.Reque
 	timeout := req.Timeout
 	if timeout <= 0 {
 		timeout = 10
+	}
+	if timeout > 300 {
+		timeout = 300
 	}
 
 	err = h.DockerClient.StopContainer(ctx, req.ID, timeout)
