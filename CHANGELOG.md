@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-10-14
+
+### Added
+- In-memory TLS certificate auto-generation engine (`internal/security/tls.go`) creating self-signed ECDSA P-256 X.509 certificates with Subject Alternative Names (SANs) for localhost, loopbacks, and network interfaces.
+- Modern TLS configuration enforcing minimum TLS 1.2 with secure cipher suites (AES-GCM, ChaCha20-Poly1305) and curve preferences (X25519, P-256).
+- Support for custom external certificate and private key file paths via `--tls-cert` and `--tls-key` CLI flags and environment variables.
+- Bearer token authentication engine (`internal/security/auth.go`) implementing Role-Based Access Control (Admin vs Viewer).
+- Constant-time token verification (`crypto/subtle.ConstantTimeCompare`) guarding against side-channel timing attacks.
+- WebSocket log stream authentication support through URL query parameter token extraction (`?token=<token>`).
+- Client authentication status and token verification endpoints (`GET /api/auth/status`, `POST /api/auth/verify`).
+- Embedded web console Security & Authentication modal with localStorage token persistence, live connection telemetry, and role status indicators.
+- Command-line flags and environment variable bindings (`--port`, `--tls`, `--tls-cert`, `--tls-key`, `--admin-token`, `--viewer-token`, `--allow-remote`, `--version`).
+- Multi-platform cross-compilation matrix in GitHub Actions CI targeting Linux (amd64, arm64), macOS (amd64, arm64 Apple Silicon), and Windows (amd64).
+
 ## [0.4.0] - 2026-10-14
 
 ### Added

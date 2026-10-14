@@ -564,6 +564,9 @@
       <span class="pulse-dot"></span>
       <span id="daemon-badge">Scanning Daemon...</span>
       <span>•</span>
+      <span id="tls-badge" class="status-pill status-standby" style="font-size: 11px;">TLS: Checking...</span>
+      <span id="auth-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer;" onclick="openAuthModal()" title="Manage Bearer Token & Authentication">Auth: Local</span>
+      <span>•</span>
       <span id="host-badge">Loading...</span>
     </div>
   </header>
@@ -745,6 +748,44 @@
     </div>
   </div>
 
+  <!-- Auth Configuration Modal -->
+  <div class="modal-backdrop" id="auth-modal">
+    <div class="modal-card" style="max-width: 480px;">
+      <div class="modal-title" style="color: var(--accent-blue); margin-bottom: 12px;">Security &amp; Authentication Access</div>
+      <div class="modal-body" style="margin-bottom: 18px;">
+        <p style="margin-bottom: 12px; color: var(--text-muted); font-size: 13px;">
+          Configure Bearer tokens for secure remote API access and role-based permissions.
+        </p>
+        <div style="background: rgba(0, 0, 0, 0.35); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px; margin-bottom: 16px; font-size: 12px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+            <span style="color: var(--text-muted);">Transport Security:</span>
+            <span id="modal-tls-status" style="font-weight: 600; color: #10b981;">Checking...</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+            <span style="color: var(--text-muted);">Remote Access Mode:</span>
+            <span id="modal-remote-status" style="font-weight: 600; color: #f59e0b;">Checking...</span>
+          </div>
+          <div style="display: flex; justify-content: space-between;">
+            <span style="color: var(--text-muted);">Active Client Role:</span>
+            <span id="modal-role-status" style="font-weight: 600; color: var(--accent-blue);">Checking...</span>
+          </div>
+        </div>
+        <label style="display: block; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 6px;">
+          Bearer Token / API Key
+        </label>
+        <input type="password" id="input-bearer-token" placeholder="Enter Bearer or API token..." style="width: 100%; box-sizing: border-box; background: #090d16; border: 1px solid var(--border-subtle); border-radius: 6px; padding: 10px 12px; color: var(--text-main); font-family: 'JetBrains Mono', monospace; font-size: 13px; margin-bottom: 8px;" />
+        <div style="font-size: 11px; color: var(--text-muted);">Tokens are stored in browser localStorage and automatically injected into API headers and WebSocket streams.</div>
+      </div>
+      <div class="modal-actions" style="display: flex; justify-content: space-between; width: 100%;">
+        <button class="btn btn-secondary" id="btn-clear-auth-token" style="color: #f87171;">Clear Token</button>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary" id="btn-close-auth-modal">Close</button>
+          <button class="btn btn-primary-restart" id="btn-save-auth-token">Save &amp; Verify</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Toast Notification -->
   <div class="toast" id="toast"></div>
 
@@ -763,11 +804,188 @@
     const autoscrollCheck = document.getElementById('autoscroll-check');
     const btnClearLogs = document.getElementById('btn-clear-logs');
 
+    // Security & Auth Elements
+    const tlsBadge = document.getElementById('tls-badge');
+    const authBadge = document.getElementById('auth-badge');
+    const authModal = document.getElementById('auth-modal');
+    const modalTlsStatus = document.getElementById('modal-tls-status');
+    const modalRemoteStatus = document.getElementById('modal-remote-status');
+    const modalRoleStatus = document.getElementById('modal-role-status');
+    const inputBearerToken = document.getElementById('input-bearer-token');
+    const btnSaveAuthToken = document.getElementById('btn-save-auth-token');
+    const btnClearAuthToken = document.getElementById('btn-clear-auth-token');
+    const btnCloseAuthModal = document.getElementById('btn-close-auth-modal');
+
     let pendingAction = null;
     let activeTarget = 'system';
     let activeStream = 'all';
     let wsSocket = null;
     let reconnectTimer = null;
+
+    function getStoredToken() {
+      return (localStorage.getItem('dock_radar_token') || '').trim();
+    }
+
+    function setStoredToken(token) {
+      if (token) {
+        localStorage.setItem('dock_radar_token', token.trim());
+      } else {
+        localStorage.removeItem('dock_radar_token');
+      }
+    }
+
+    async function authFetch(url, options = {}) {
+      options.headers = options.headers || {};
+      const token = getStoredToken();
+      if (token) {
+        if (options.headers instanceof Headers) {
+          options.headers.set('Authorization', `Bearer ${token}`);
+        } else {
+          options.headers['Authorization'] = `Bearer ${token}`;
+        }
+      }
+      const resp = await fetch(url, options);
+      if (resp.status === 401) {
+        if (authBadge) {
+          authBadge.className = 'status-pill status-stopped';
+          authBadge.textContent = 'Auth: Required ⚠️';
+        }
+      }
+      return resp;
+    }
+
+    function openAuthModal() {
+      if (!authModal) return;
+      inputBearerToken.value = getStoredToken();
+      authModal.classList.add('active');
+      checkAuthStatus();
+    }
+
+    function closeAuthModal() {
+      if (!authModal) return;
+      authModal.classList.remove('active');
+    }
+
+    if (btnCloseAuthModal) {
+      btnCloseAuthModal.addEventListener('click', closeAuthModal);
+    }
+    if (authModal) {
+      authModal.addEventListener('click', (e) => {
+        if (e.target === authModal) closeAuthModal();
+      });
+    }
+
+    if (btnClearAuthToken) {
+      btnClearAuthToken.addEventListener('click', () => {
+        setStoredToken('');
+        inputBearerToken.value = '';
+        showToast('✓ Token cleared from browser');
+        checkAuthStatus();
+        connectLogWebSocket();
+        pollTelemetry();
+      });
+    }
+
+    if (btnSaveAuthToken) {
+      btnSaveAuthToken.addEventListener('click', async () => {
+        const token = inputBearerToken.value.trim();
+        btnSaveAuthToken.disabled = true;
+        btnSaveAuthToken.textContent = 'Verifying...';
+
+        try {
+          const resp = await fetch('/api/auth/verify', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+            },
+            body: JSON.stringify({ token })
+          });
+          const res = await resp.json();
+
+          if (resp.ok && res.valid) {
+            setStoredToken(token);
+            showToast(`✓ Authenticated as ${res.role.toUpperCase()}`);
+            closeAuthModal();
+            checkAuthStatus();
+            connectLogWebSocket();
+            pollTelemetry();
+          } else {
+            showToast(`✗ Verification failed: ${res.message || 'invalid token'}`);
+          }
+        } catch (err) {
+          showToast(`✗ Network error: ${err.message}`);
+        } finally {
+          btnSaveAuthToken.disabled = false;
+          btnSaveAuthToken.textContent = 'Save & Verify';
+        }
+      });
+    }
+
+    async function checkAuthStatus() {
+      try {
+        const resp = await authFetch('/api/auth/status');
+        if (!resp.ok) return;
+        const status = await resp.json();
+
+        // Update TLS badge
+        if (tlsBadge) {
+          if (status.tls) {
+            tlsBadge.className = 'status-pill status-running';
+            tlsBadge.textContent = 'TLS: Active 🔒';
+            if (modalTlsStatus) {
+              modalTlsStatus.textContent = 'Active (HTTPS Encrypted)';
+              modalTlsStatus.style.color = '#10b981';
+            }
+          } else {
+            tlsBadge.className = 'status-pill status-standby';
+            tlsBadge.textContent = 'TLS: Plain HTTP';
+            if (modalTlsStatus) {
+              modalTlsStatus.textContent = 'Inactive (Plain HTTP)';
+              modalTlsStatus.style.color = '#f59e0b';
+            }
+          }
+        }
+
+        if (modalRemoteStatus) {
+          modalRemoteStatus.textContent = status.remote_allowed ? 'Allowed (Public Interface)' : 'Restricted to Loopback';
+          modalRemoteStatus.style.color = status.remote_allowed ? '#38bdf8' : '#94a3b8';
+        }
+
+        // Update Auth badge
+        if (authBadge) {
+          if (!status.enabled) {
+            authBadge.className = 'status-pill status-running';
+            authBadge.textContent = 'Auth: Local Admin';
+            if (modalRoleStatus) {
+              modalRoleStatus.textContent = 'Local Administrator (Default)';
+              modalRoleStatus.style.color = '#10b981';
+            }
+          } else if (status.role === 'admin') {
+            authBadge.className = 'status-pill status-running';
+            authBadge.textContent = 'Auth: Admin 🛡️';
+            if (modalRoleStatus) {
+              modalRoleStatus.textContent = 'Administrator (Full Control)';
+              modalRoleStatus.style.color = '#10b981';
+            }
+          } else if (status.role === 'viewer') {
+            authBadge.className = 'status-pill status-standby';
+            authBadge.textContent = 'Auth: Read-Only 👁️';
+            if (modalRoleStatus) {
+              modalRoleStatus.textContent = 'Viewer (Read-Only)';
+              modalRoleStatus.style.color = '#38bdf8';
+            }
+          } else {
+            authBadge.className = 'status-pill status-stopped';
+            authBadge.textContent = 'Auth: Required ⚠️';
+            if (modalRoleStatus) {
+              modalRoleStatus.textContent = 'Unauthenticated (Access Denied)';
+              modalRoleStatus.style.color = '#ef4444';
+            }
+          }
+        }
+      } catch {}
+    }
 
     function escapeHTML(str) {
       return (str || '')
@@ -828,7 +1046,11 @@
       const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
       const targetParam = encodeURIComponent(activeTarget);
       const streamParam = encodeURIComponent(activeStream);
-      const wsURL = `${proto}//${location.host}/api/docker/logs?id=${targetParam}&stream=${streamParam}&tail=100`;
+      const token = getStoredToken();
+      let wsURL = `${proto}//${location.host}/api/docker/logs?id=${targetParam}&stream=${streamParam}&tail=100`;
+      if (token) {
+        wsURL += `&token=${encodeURIComponent(token)}`;
+      }
 
       try {
         const ws = new WebSocket(wsURL);
@@ -954,7 +1176,7 @@
       modalConfirmBtn.textContent = 'Executing...';
 
       try {
-        const resp = await fetch(`/api/docker/${action}`, {
+        const resp = await authFetch(`/api/docker/${action}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ id: containerId, timeout: 10 })
@@ -981,8 +1203,8 @@
     async function pollTelemetry() {
       try {
         const [sysRes, dockRes] = await Promise.all([
-          fetch('/api/system').then(r => r.json()),
-          fetch('/api/docker').then(r => r.json())
+          authFetch('/api/system').then(r => r.json()),
+          authFetch('/api/docker').then(r => r.json())
         ]);
 
         document.getElementById('host-badge').textContent = `${sysRes.hostname} (${sysRes.os}/${sysRes.arch})`;
@@ -1074,7 +1296,7 @@
 
     async function loadAlertConfig() {
       try {
-        const resp = await fetch('/api/alerts/config');
+        const resp = await authFetch('/api/alerts/config');
         if (!resp.ok) return;
         const cfg = await resp.json();
         alertEnabledCheck.checked = !!cfg.enabled;
@@ -1111,7 +1333,7 @@
       };
 
       try {
-        const resp = await fetch('/api/alerts/config', {
+        const resp = await authFetch('/api/alerts/config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload)
@@ -1135,7 +1357,7 @@
       btn.disabled = true;
       btn.textContent = 'Testing...';
       try {
-        const resp = await fetch(`/api/alerts/test?channel=${channel}`, {
+        const resp = await authFetch(`/api/alerts/test?channel=${channel}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' }
         });
@@ -1159,7 +1381,7 @@
 
     async function pollAlertEvents() {
       try {
-        const resp = await fetch('/api/alerts/events?limit=30');
+        const resp = await authFetch('/api/alerts/events?limit=30');
         if (!resp.ok) return;
         const events = await resp.json();
         alertEventsCount.textContent = `${events.length} incident${events.length === 1 ? '' : 's'}`;
@@ -1191,6 +1413,8 @@
       } catch {}
     }
 
+    checkAuthStatus();
+    setInterval(checkAuthStatus, 5000);
     pollTelemetry();
     setInterval(pollTelemetry, 1500);
     connectLogWebSocket();

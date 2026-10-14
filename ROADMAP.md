@@ -1,10 +1,10 @@
 # Product Roadmap
 
-This document outlines the milestones and engineering priorities for `dock-radar`.
+This document outlines the architectural milestones and engineering priorities for `dock-radar`.
 
 ---
 
-## Current Release: v0.4.0 (Automated Webhook Alerts & Health Monitors)
+## Current Release: v1.0.0 (Production Hardening & Multi-Platform Matrix)
 - [x] Lightweight single-binary runtime with zero external runtime dependencies.
 - [x] Real-time host telemetry collector (OS, CPU cores, goroutines, allocated memory, uptime).
 - [x] Docker socket inspector (`/var/run/docker.sock` and TCP fallback) with resilient offline handling.
@@ -18,14 +18,11 @@ This document outlines the milestones and engineering priorities for `dock-radar
 - [x] Sliding window restart flapping detection with configurable failure frequency counters.
 - [x] Host memory and CPU threshold monitoring with automated alert dispatch and cooldown delays.
 - [x] Embedded dashboard Alerts panel for live webhook testing, rule persistence, and incident inspection.
+- [x] Automatic TLS certificate generation with ECDSA P-256 self-signed certificates and modern TLS 1.2+ ciphers.
+- [x] Bearer token authentication and role-based access control (Admin vs Read-Only Viewer) with constant-time verification.
+- [x] In-browser security credentials manager with token persistence and live role status pills.
+- [x] Multi-architecture cross-compilation pipeline covering Linux amd64/arm64, macOS amd64/arm64, and Windows amd64.
 - [x] Automated unit and integration test suites with sub-millisecond execution overhead.
-
----
-
-## Milestone 5: v1.0.0 (Production Hardening)
-- [ ] TLS certificate auto-generation for encrypted remote dashboard transport.
-- [ ] Bearer token authentication and role-based access controls for remote control endpoints.
-- [ ] Cross-platform release matrix (Linux amd64/arm64, Windows x64, macOS Apple Silicon).
 
 ---
 
@@ -57,8 +54,21 @@ This document outlines the milestones and engineering priorities for `dock-radar
 
 ---
 
-## Milestone 10: v1.5.0 (Autonomous Self-Healing Container Policies)
+## Milestone 10: v1.5.0 (Self-Healing Container Remediation Engine)
 - [ ] Automatic remediation triggers for OOM-killed (`exit 137`) or crash-looping containers.
 - [ ] Exponential backoff jitter preventing daemon saturation during cascading service failures.
 - [ ] Structured remediation audit logging and rollback protection.
 
+---
+
+## Milestone 11: v1.6.0 (Predictive Resource Exhaustion Alarms)
+- [ ] Linear regression trend analyzer forecasting container memory saturation.
+- [ ] Early-warning webhook notifications prior to kernel OOM invocation.
+- [ ] Interactive visual exhaustion meters on container overview cards.
+
+---
+
+## Milestone 12: v1.7.0 (Zero-Config LAN Peer Synchronization)
+- [ ] UDP broadcast discovery for auto-detecting nearby dock-radar daemon nodes.
+- [ ] Gossip-based state exchange for multi-server cluster metrics.
+- [ ] Unified multi-host aggregated view in the embedded dashboard.
