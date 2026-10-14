@@ -55,9 +55,9 @@ This document outlines the architectural milestones and engineering priorities f
 ---
 
 ## Milestone 10: v1.5.0 (Self-Healing Container Remediation Engine)
-- [ ] Automatic remediation triggers for OOM-killed (`exit 137`) or crash-looping containers.
-- [ ] Exponential backoff jitter preventing daemon saturation during cascading service failures.
-- [ ] Structured remediation audit logging and rollback protection.
+- [x] Automatic remediation triggers for OOM-killed (`exit 137`) or crash-looping containers.
+- [x] Exponential backoff jitter preventing daemon saturation during cascading service failures.
+- [x] Structured remediation audit logging and rollback protection.
 
 ---
 
@@ -128,6 +128,21 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Automated git repository tracking with cryptographic commit signature verification.
 - [ ] Zero-downtime container image pull and rollouts on verified webhook triggers.
 - [ ] Automated rollback triggers with deployment health gating.
+
+---
+
+## Milestone 21: v2.6.0 (High-Availability Raft Cluster Consensus Engine)
+- [ ] Embedded Raft consensus algorithm for distributed leader election across dock-radar coordinators.
+- [ ] Replicated state machine synchronizing healing policies, container blacklist registers, and node states.
+- [ ] Split-brain protection with automated cluster quorum reconciliation.
+
+---
+
+## Milestone 22: v2.7.0 (Zero-Trust WireGuard Mesh Tunneling & Peer Gateway)
+- [ ] Userspace WireGuard encryption overlay for secure cross-cloud and edge-to-edge agent tunneling.
+- [ ] Automatic cryptographic peer key exchange and dynamic IP address leasing.
+- [ ] Low-overhead packet routing bypassing public firewall and NAT restrictions.
+
 
 
 

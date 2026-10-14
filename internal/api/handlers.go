@@ -1,21 +1,19 @@
 package api
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"io/fs"
 	"net/http"
-	"runtime"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/kLauncher1/dock-radar/internal/alert"
 	"github.com/kLauncher1/dock-radar/internal/audit"
 	"github.com/kLauncher1/dock-radar/internal/docker"
+	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/security"
@@ -48,6 +46,7 @@ type HandlerConfig struct {
 	AuditLogger      *audit.Logger
 	MeshRegistry     *mesh.Registry
 	MeshProber       *mesh.Prober
+	HealingEngine    *healing.RemediationEngine
 	AppVersion       string
 	TokenAuth        *security.TokenAuth
 	AllowRemote      bool
@@ -77,8 +76,12 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	auditLogger.Log(audit.AuditEvent{
 		Action:  "system_init",
 		Target:  "dock-radar",
-		Details: map[string]any{"version": "1.4.0"},
+		Details: map[string]any{"version": "1.5.0"},
 	})
+
+	healingPolicyStore := healing.NewPolicyStore(healing.DefaultPolicyConfig())
+	healingHistory := healing.NewHistoryBuffer(1000)
+	healingEngine := healing.NewRemediationEngine(dockerClient, healingPolicyStore, healingHistory, auditLogger)
 
 	cfg := &HandlerConfig{
 		DockerClient:     dockerClient,
@@ -88,7 +91,8 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 		AlertDispatcher:  alertDispatcher,
 		AlertMonitor:     alertMonitor,
 		AuditLogger:      auditLogger,
-		AppVersion:       "1.4.0",
+		HealingEngine:    healingEngine,
+		AppVersion:       "1.5.0",
 		TokenAuth:        tokenAuth,
 		AllowRemote:      allowRemote,
 	}
@@ -126,6 +130,12 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	mux.HandleFunc("/api/alerts/config", cfg.handleAlertConfig)
 	mux.HandleFunc("/api/alerts/events", cfg.handleAlertEvents)
 	mux.HandleFunc("/api/alerts/test", cfg.handleAlertTest)
+
+	// Autonomous Self-Healing Container Policies & Remediation Engine
+	mux.HandleFunc("/api/healing/config", cfg.handleHealingConfig)
+	mux.HandleFunc("/api/healing/status", cfg.handleHealingStatus)
+	mux.HandleFunc("/api/healing/history", cfg.handleHealingHistory)
+	mux.HandleFunc("/api/healing/reset", cfg.handleHealingReset)
 
 	// Authentication status and token verification
 	mux.HandleFunc("/api/auth/status", cfg.handleAuthStatus)
@@ -338,156 +348,5 @@ func writeJSONResponse(w http.ResponseWriter, status int, data any) {
 	_ = json.NewEncoder(w).Encode(data)
 }
 
-func (h *HandlerConfig) handleContainerLogs(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
 
-	if !h.authorize(w, r, security.RoleViewer) {
-		return
-	}
-
-	containerID := strings.TrimSpace(r.URL.Query().Get("id"))
-	if containerID == "" {
-		containerID = "system"
-	} else if containerID != "system" {
-		if err := docker.ValidateContainerID(containerID); err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
-		}
-	}
-
-	streamFilter := strings.TrimSpace(r.URL.Query().Get("stream"))
-	tail := 100
-	if tailStr := r.URL.Query().Get("tail"); tailStr != "" {
-		if t, err := strconv.Atoi(tailStr); err == nil && t > 0 {
-			tail = t
-		}
-	}
-
-	// 1. WebSocket Upgrade Path
-	if strings.EqualFold(r.Header.Get("Upgrade"), "websocket") {
-		h.streamLogsWebSocket(w, r, containerID, streamFilter, tail)
-		return
-	}
-
-	// 2. Standard REST JSON Snapshot Path
-	w.Header().Set("Content-Type", "application/json")
-	var entries []logs.LogEntry
-	if containerID != "system" && h.DockerClient != nil {
-		ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
-		defer cancel()
-		dockerLogs, err := h.DockerClient.FetchLogs(ctx, containerID, tail)
-		if err == nil {
-			for _, dl := range dockerLogs {
-				entry := logs.LogEntry{
-					ID:        dl.ContainerID,
-					Stream:    dl.Stream,
-					Timestamp: dl.Timestamp,
-					Message:   dl.Message,
-				}
-				entries = append(entries, entry)
-				h.LogBuffer.Append(entry)
-			}
-		}
-	}
-
-	if len(entries) == 0 {
-		entries = h.LogBuffer.Recent(tail, streamFilter)
-	}
-	_ = json.NewEncoder(w).Encode(entries)
-}
-
-func (h *HandlerConfig) streamLogsWebSocket(w http.ResponseWriter, r *http.Request, containerID, streamFilter string, tail int) {
-	ws, err := UpgradeWebSocket(w, r)
-	if err != nil {
-		http.Error(w, fmt.Sprintf("websocket upgrade failed: %v", err), http.StatusBadRequest)
-		return
-	}
-	defer ws.Close()
-
-	// Initial buffer dump
-	initial := h.LogBuffer.Recent(tail, streamFilter)
-	for _, entry := range initial {
-		data, _ := json.Marshal(entry)
-		if err := ws.WriteTextMessage(data); err != nil {
-			return
-		}
-	}
-
-	ctx, cancel := context.WithCancel(r.Context())
-	defer cancel()
-
-	clientDone := make(chan struct{})
-	go func() {
-		defer close(clientDone)
-		for {
-			_, _, err := ws.ReadFrame()
-			if err != nil {
-				cancel()
-				return
-			}
-		}
-	}()
-
-	if containerID != "system" && h.DockerClient != nil {
-		logChan := make(chan docker.LogMessage, 50)
-		go func() {
-			_ = h.DockerClient.StreamLogs(ctx, containerID, tail, logChan)
-			close(logChan)
-		}()
-
-		for {
-			select {
-			case <-clientDone:
-				return
-			case <-ctx.Done():
-				return
-			case msg, ok := <-logChan:
-				if !ok {
-					return
-				}
-				entry := logs.LogEntry{
-					ID:        msg.ContainerID,
-					Stream:    msg.Stream,
-					Timestamp: msg.Timestamp,
-					Message:   msg.Message,
-				}
-				h.LogBuffer.Append(entry)
-				if streamFilter == "" || streamFilter == "all" || strings.EqualFold(entry.Stream, streamFilter) {
-					data, _ := json.Marshal(entry)
-					if err := ws.WriteTextMessage(data); err != nil {
-						return
-					}
-				}
-			}
-		}
-	} else {
-		ticker := time.NewTicker(4 * time.Second)
-		defer ticker.Stop()
-		for {
-			select {
-			case <-clientDone:
-				return
-			case <-ctx.Done():
-				return
-			case <-ticker.C:
-				entry := logs.LogEntry{
-					ID:        "system",
-					Stream:    "system",
-					Timestamp: time.Now().UTC(),
-					Message:   fmt.Sprintf("Dock-Radar telemetry heartbeat (Goroutines: %d)", runtime.NumGoroutine()),
-				}
-				h.LogBuffer.Append(entry)
-				if streamFilter == "" || streamFilter == "all" || streamFilter == "system" {
-					data, _ := json.Marshal(entry)
-					if err := ws.WriteTextMessage(data); err != nil {
-						return
-					}
-				}
-			}
-		}
-	}
-}
 

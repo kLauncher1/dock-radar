@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/kLauncher1/dock-radar/internal/docker"
+	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/metrics"
 	"github.com/kLauncher1/dock-radar/internal/security"
@@ -31,7 +32,7 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 
 	version := h.AppVersion
 	if version == "" {
-		version = "1.2.0"
+		version = "1.5.0"
 	}
 
 	var meshSummary *mesh.ClusterSummary
@@ -42,7 +43,13 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		meshNodes = h.MeshRegistry.List()
 	}
 
-	text := metrics.FormatMetricsWithMesh(
+	var healingStats *healing.HealingStats
+	if h.HealingEngine != nil {
+		st := h.HealingEngine.Stats()
+		healingStats = &st
+	}
+
+	text := metrics.FormatMetricsWithAll(
 		sysMetrics,
 		dockerStatus,
 		h.LogBuffer,
@@ -50,6 +57,7 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		h.AuditLogger,
 		meshSummary,
 		meshNodes,
+		healingStats,
 		version,
 	)
 

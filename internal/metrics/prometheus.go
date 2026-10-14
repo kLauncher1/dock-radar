@@ -7,6 +7,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/alert"
 	"github.com/kLauncher1/dock-radar/internal/audit"
 	"github.com/kLauncher1/dock-radar/internal/docker"
+	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/system"
@@ -21,7 +22,7 @@ func FormatMetrics(
 	auditLogger *audit.Logger,
 	appVersion string,
 ) string {
-	return FormatMetricsWithMesh(sys, dock, ringBuffer, alertDispatcher, auditLogger, nil, nil, appVersion)
+	return FormatMetricsWithAll(sys, dock, ringBuffer, alertDispatcher, auditLogger, nil, nil, nil, appVersion)
 }
 
 // FormatMetricsWithMesh serializes system, docker, engine, alert, audit, and cluster mesh telemetry into standard Prometheus text format.
@@ -33,6 +34,21 @@ func FormatMetricsWithMesh(
 	auditLogger *audit.Logger,
 	meshSummary *mesh.ClusterSummary,
 	meshNodes []*mesh.Node,
+	appVersion string,
+) string {
+	return FormatMetricsWithAll(sys, dock, ringBuffer, alertDispatcher, auditLogger, meshSummary, meshNodes, nil, appVersion)
+}
+
+// FormatMetricsWithAll serializes all telemetry including cluster mesh and autonomous self-healing stats.
+func FormatMetricsWithAll(
+	sys system.Metrics,
+	dock docker.DaemonStatus,
+	ringBuffer *logs.RingBuffer,
+	alertDispatcher *alert.Dispatcher,
+	auditLogger *audit.Logger,
+	meshSummary *mesh.ClusterSummary,
+	meshNodes []*mesh.Node,
+	healingStats *healing.HealingStats,
 	appVersion string,
 ) string {
 	var b strings.Builder
@@ -245,6 +261,29 @@ func FormatMetricsWithMesh(
 			}
 			b.WriteString("\n")
 		}
+	}
+
+	// 9. Autonomous Self-Healing Telemetry
+	if healingStats != nil {
+		healingEnabled := 0
+		if healingStats.Enabled {
+			healingEnabled = 1
+		}
+		b.WriteString("# HELP dock_radar_healing_enabled Self-healing engine operational state (1 = active, 0 = disabled).\n")
+		b.WriteString("# TYPE dock_radar_healing_enabled gauge\n")
+		b.WriteString(fmt.Sprintf("dock_radar_healing_enabled %d\n\n", healingEnabled))
+
+		b.WriteString("# HELP dock_radar_healing_remediations_total Total successful container remediations performed.\n")
+		b.WriteString("# TYPE dock_radar_healing_remediations_total counter\n")
+		b.WriteString(fmt.Sprintf("dock_radar_healing_remediations_total %d\n\n", healingStats.TotalRemediated))
+
+		b.WriteString("# HELP dock_radar_healing_quarantined_containers Number of containers currently circuit-broken and quarantined.\n")
+		b.WriteString("# TYPE dock_radar_healing_quarantined_containers gauge\n")
+		b.WriteString(fmt.Sprintf("dock_radar_healing_quarantined_containers %d\n\n", len(healingStats.QuarantinedContainers)))
+
+		b.WriteString("# HELP dock_radar_healing_active_backoffs Number of containers currently in exponential backoff delay.\n")
+		b.WriteString("# TYPE dock_radar_healing_active_backoffs gauge\n")
+		b.WriteString(fmt.Sprintf("dock_radar_healing_active_backoffs %d\n\n", healingStats.ActiveBackoffs))
 	}
 
 	return b.String()
