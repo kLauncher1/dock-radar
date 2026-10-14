@@ -10,7 +10,7 @@
 
 **Ultra-lightweight single-binary container & system metrics monitor with embedded real-time dark-mode web dashboard.**
 
-[![Release](https://img.shields.io/badge/Release-v1.1.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
+[![Release](https://img.shields.io/badge/Release-v1.2.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg?style=flat&logo=go)](https://golang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6%2B-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
@@ -27,7 +27,8 @@
 
 - **Single Executable Deployment**: The web dashboard is baked directly into the Go binary via `//go:embed`. No Node.js runtime, external assets, or separate frontend servers needed.
 - **Ultra-Low Memory Footprint**: Runs persistently under **15 MB of RAM** with bounded circular ring buffers, making it ideal for low-spec VPS, Raspberry Pi, and homelab environments.
-- **Prometheus Metrics Exporter**: Native standard `/metrics` endpoint exporting host, container, engine, alert, and audit telemetry formatted according to Prometheus exposition syntax for Grafana ingestion.
+- **Multi-Host Agent Mesh & Remote Node Aggregator**: Real-time cross-host container monitoring across multi-server topologies. Dynamic node registration, peer health probing, round-trip latency tracking, and unified multi-node container telemetry.
+- **Prometheus Metrics Exporter**: Native standard `/metrics` endpoint exporting host, container, mesh nodes, alert, and audit telemetry formatted according to Prometheus exposition syntax for Grafana ingestion.
 - **Batch Container Operations**: One-click and API-driven synchronized lifecycle operations (`restart_all`, `stop_all`) and automatic inactive container purging (`prune`) with fallback resilience.
 - **Thread-Safe Audit Trail Logging**: Fixed-capacity circular buffer recording up to 2,000 security and administrative actions with streaming NDJSON and JSON export (`/api/audit/export`).
 - **Automatic TLS Transport Security**: In-memory TLS certificate engine auto-generates self-signed ECDSA P-256 certificates with Subject Alternative Names (SANs) for localhost, loopbacks, and network interfaces with modern TLS 1.2+ cipher suites. Custom certificates are fully supported via CLI flags and environment variables.
@@ -89,6 +90,8 @@ go build -ldflags="-s -w" -o dock-radar .
 | `--admin-token` | `DOCK_RADAR_ADMIN_TOKEN` | `""` | Bearer token granting full administrative control |
 | `--viewer-token` | `DOCK_RADAR_VIEWER_TOKEN`| `""` | Bearer token granting read-only telemetry access |
 | `--allow-remote` | `DOCK_RADAR_ALLOW_REMOTE`| `false` | Permit remote network requests without loopback check |
+| `--nodes` | `DOCK_RADAR_NODES` | `""` | Comma-separated list of remote dock-radar nodes to aggregate |
+| `--node-name` | `DOCK_RADAR_NODE_NAME` | `hostname` | Human-readable display name for this node |
 | `--version` | — | — | Print dock-radar version and exit |
 
 ---
@@ -105,20 +108,25 @@ go build -ldflags="-s -w" -o dock-radar .
 │   • Lifecycle & Batch Ops│      • CPU & OS Metrics     │
 │   • Multiplex Log Demux  │                             │
 ├──────────────────────────┼─────────────────────────────┤
-│   internal/alert         │      internal/logs          │
-│   • Discord & Slack Web  │      • Circular Ring Buffer │
-│   • State Poller/Flap    │      • Strict <15MB Ceiling │
+│   internal/mesh          │      internal/logs          │
+│   • Node Discovery/Probe │      • Circular Ring Buffer │
+│   • Aggregate Telemetry  │      • Strict <15MB Ceiling │
+│   • Multi-Host Inventory │                             │
+├──────────────────────────┼─────────────────────────────┤
+│   internal/alert         │      internal/audit         │
+│   • Discord & Slack Web  │      • Circular Event Log   │
+│   • State Poller/Flap    │      • NDJSON / JSON Export │
 │   • Cooldown Deduplication                             │
 ├──────────────────────────┼─────────────────────────────┤
-│   internal/metrics       │      internal/audit         │
-│   • Standard Prometheus  │      • Circular Event Log   │
-│   • Exposition Formatter │      • NDJSON / JSON Export │
-├──────────────────────────┼─────────────────────────────┤
-│   internal/security      │      net/http Router        │
-│   • In-Memory ECDSA TLS  │      • /metrics (Prometheus)│
-│   • Constant-Time Bearer │      • /api/docker/*        │
-│   • RBAC (Admin/Viewer)  │      • /api/audit/*         │
-│   • Token Bucket Limiter │      • Pure RFC 6455 WS     │
+│   internal/metrics       │      net/http Router        │
+│   • Standard Prometheus  │      • /metrics (Prometheus)│
+│   • Exposition Formatter │      • /api/docker/*        │
+│   • Multi-Node Mesh Stats│      • /api/nodes/*         │
+├──────────────────────────┤      • /api/cluster/*       │
+│   internal/security      │      • /api/audit/*         │
+│   • In-Memory ECDSA TLS  │      • Pure RFC 6455 WS     │
+│   • Constant-Time Bearer │                             │
+│   • RBAC (Admin/Viewer)  │                             │
 ├──────────────────────────┴─────────────────────────────┤
 │                 Embedded Web Dashboard                 │
 │         (React 19 + TypeScript / Vite Bundled)         │
@@ -149,6 +157,10 @@ go build -ldflags="-s -w" -o dock-radar .
 | `/api/docker/logs` | `WS` / `GET` | `viewer` | Real-time WebSocket log feed or JSON snapshot (`?id=<id>&stream=<stdout\|stderr\|system>&tail=100`) |
 | `/api/docker/restart` | `POST` | `admin` | Safely restarts a container by ID or name (`{"id":"<name_or_id>","timeout":10}`) |
 | `/api/docker/stop` | `POST` | `admin` | Safely stops a running container (`{"id":"<name_or_id>","timeout":10}`) |
+| `/api/nodes` | `GET` / `POST` / `DELETE` | `viewer` / `admin` | Node inventory list, dynamic node registration, and node unregistration |
+| `/api/nodes/heartbeat` | `POST` | `viewer` | Remote agent telemetry and container synchronization push endpoint |
+| `/api/cluster/summary` | `GET` | `viewer` | Aggregate cluster metrics (total/online/offline nodes, CPU, memory, container totals) |
+| `/api/cluster/containers` | `GET` | `viewer` | Unified container inventory across all cluster nodes (`?node_id=&state=`) |
 | `/api/audit/export` | `GET` | `viewer` | Exports audit log trail in NDJSON or JSON format (`?format=ndjson&limit=2000&action=`) |
 | `/api/alerts/config` | `GET` / `POST` | `viewer` / `admin` | Fetches or updates active alert rules, webhook destinations, and threshold limits |
 | `/api/alerts/events` | `GET` | `viewer` | Fetches recent incident and fired alert history buffer (`?limit=50`) |

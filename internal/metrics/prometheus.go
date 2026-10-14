@@ -8,6 +8,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/audit"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/logs"
+	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/system"
 )
 
@@ -18,6 +19,20 @@ func FormatMetrics(
 	ringBuffer *logs.RingBuffer,
 	alertDispatcher *alert.Dispatcher,
 	auditLogger *audit.Logger,
+	appVersion string,
+) string {
+	return FormatMetricsWithMesh(sys, dock, ringBuffer, alertDispatcher, auditLogger, nil, nil, appVersion)
+}
+
+// FormatMetricsWithMesh serializes system, docker, engine, alert, audit, and cluster mesh telemetry into standard Prometheus text format.
+func FormatMetricsWithMesh(
+	sys system.Metrics,
+	dock docker.DaemonStatus,
+	ringBuffer *logs.RingBuffer,
+	alertDispatcher *alert.Dispatcher,
+	auditLogger *audit.Logger,
+	meshSummary *mesh.ClusterSummary,
+	meshNodes []*mesh.Node,
 	appVersion string,
 ) string {
 	var b strings.Builder
@@ -148,7 +163,71 @@ func FormatMetrics(
 	}
 	b.WriteString("# HELP dock_radar_audit_events_total Cumulative audit log events recorded by dock-radar.\n")
 	b.WriteString("# TYPE dock_radar_audit_events_total counter\n")
-	b.WriteString(fmt.Sprintf("dock_radar_audit_events_total %d\n", auditCount))
+	b.WriteString(fmt.Sprintf("dock_radar_audit_events_total %d\n\n", auditCount))
+
+	// 8. Cluster Mesh Telemetry
+	if meshSummary != nil {
+		b.WriteString("# HELP dock_radar_mesh_nodes_total Total number of registered cluster nodes in the mesh.\n")
+		b.WriteString("# TYPE dock_radar_mesh_nodes_total gauge\n")
+		b.WriteString(fmt.Sprintf("dock_radar_mesh_nodes_total %d\n\n", meshSummary.TotalNodes))
+
+		b.WriteString("# HELP dock_radar_mesh_nodes_online Number of healthy online cluster nodes.\n")
+		b.WriteString("# TYPE dock_radar_mesh_nodes_online gauge\n")
+		b.WriteString(fmt.Sprintf("dock_radar_mesh_nodes_online %d\n\n", meshSummary.OnlineNodes))
+
+		b.WriteString("# HELP dock_radar_mesh_nodes_offline Number of offline or unreachable cluster nodes.\n")
+		b.WriteString("# TYPE dock_radar_mesh_nodes_offline gauge\n")
+		b.WriteString(fmt.Sprintf("dock_radar_mesh_nodes_offline %d\n\n", meshSummary.OfflineNodes))
+
+		b.WriteString("# HELP dock_radar_mesh_containers_total Total container count across all mesh cluster nodes.\n")
+		b.WriteString("# TYPE dock_radar_mesh_containers_total gauge\n")
+		b.WriteString(fmt.Sprintf("dock_radar_mesh_containers_total %d\n\n", meshSummary.TotalContainers))
+
+		b.WriteString("# HELP dock_radar_mesh_containers_running Running container count across all mesh cluster nodes.\n")
+		b.WriteString("# TYPE dock_radar_mesh_containers_running gauge\n")
+		b.WriteString(fmt.Sprintf("dock_radar_mesh_containers_running %d\n\n", meshSummary.RunningContainers))
+
+		b.WriteString("# HELP dock_radar_mesh_aggregate_cpu_percent Average CPU utilization across active cluster nodes.\n")
+		b.WriteString("# TYPE dock_radar_mesh_aggregate_cpu_percent gauge\n")
+		b.WriteString(fmt.Sprintf("dock_radar_mesh_aggregate_cpu_percent %.2f\n\n", meshSummary.AggregateCPUPercent))
+
+		b.WriteString("# HELP dock_radar_mesh_aggregate_memory_used_bytes Total memory used across active cluster nodes.\n")
+		b.WriteString("# TYPE dock_radar_mesh_aggregate_memory_used_bytes gauge\n")
+		b.WriteString(fmt.Sprintf("dock_radar_mesh_aggregate_memory_used_bytes %d\n\n", meshSummary.AggregateMemoryUsedBytes))
+
+		if len(meshNodes) > 0 {
+			b.WriteString("# HELP dock_radar_mesh_node_status Status per cluster node (1 = online, 0 = offline/degraded).\n")
+			b.WriteString("# TYPE dock_radar_mesh_node_status gauge\n")
+			for _, n := range meshNodes {
+				isOnline := 0
+				if n.Status == mesh.NodeStatusOnline {
+					isOnline = 1
+				}
+				b.WriteString(fmt.Sprintf(
+					"dock_radar_mesh_node_status{address=\"%s\",id=\"%s\",name=\"%s\",status=\"%s\"} %d\n",
+					escapeLabel(n.Address),
+					escapeLabel(n.ID),
+					escapeLabel(n.Name),
+					escapeLabel(string(n.Status)),
+					isOnline,
+				))
+			}
+			b.WriteString("\n")
+
+			b.WriteString("# HELP dock_radar_mesh_node_latency_ms Round-trip ping latency in milliseconds.\n")
+			b.WriteString("# TYPE dock_radar_mesh_node_latency_ms gauge\n")
+			for _, n := range meshNodes {
+				b.WriteString(fmt.Sprintf(
+					"dock_radar_mesh_node_latency_ms{address=\"%s\",id=\"%s\",name=\"%s\"} %d\n",
+					escapeLabel(n.Address),
+					escapeLabel(n.ID),
+					escapeLabel(n.Name),
+					n.LatencyMs,
+				))
+			}
+			b.WriteString("\n")
+		}
+	}
 
 	return b.String()
 }

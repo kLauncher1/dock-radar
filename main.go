@@ -14,13 +14,14 @@ import (
 
 	"github.com/kLauncher1/dock-radar/internal/api"
 	"github.com/kLauncher1/dock-radar/internal/docker"
+	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/security"
 )
 
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "1.1.0"
+const AppVersion = "1.2.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -30,6 +31,8 @@ func main() {
 	adminTokenFlag := flag.String("admin-token", "", "Bearer token for administrative control (env: DOCK_RADAR_ADMIN_TOKEN or DOCK_RADAR_AUTH_TOKEN)")
 	viewerTokenFlag := flag.String("viewer-token", "", "Bearer token for read-only telemetry access (env: DOCK_RADAR_VIEWER_TOKEN)")
 	allowRemoteFlag := flag.Bool("allow-remote", false, "Permit remote clients without loopback origin check (env: DOCK_RADAR_ALLOW_REMOTE)")
+	nodesFlag := flag.String("nodes", "", "Comma-separated list of remote dock-radar nodes to aggregate (env: DOCK_RADAR_NODES)")
+	nodeNameFlag := flag.String("node-name", "", "Human-readable name for this node (env: DOCK_RADAR_NODE_NAME)")
 	versionFlag := flag.Bool("version", false, "Print dock-radar version and exit")
 	flag.Parse()
 
@@ -71,6 +74,23 @@ func main() {
 
 	allowRemote := *allowRemoteFlag || strings.EqualFold(os.Getenv("DOCK_RADAR_ALLOW_REMOTE"), "true")
 
+	nodesStr := *nodesFlag
+	if nodesStr == "" {
+		nodesStr = os.Getenv("DOCK_RADAR_NODES")
+	}
+
+	nodeName := *nodeNameFlag
+	if nodeName == "" {
+		nodeName = os.Getenv("DOCK_RADAR_NODE_NAME")
+	}
+	if nodeName == "" {
+		if h, err := os.Hostname(); err == nil && h != "" {
+			nodeName = h
+		} else {
+			nodeName = "coordinator"
+		}
+	}
+
 	dockerClient := docker.NewClient()
 
 	subFS, err := fs.Sub(embeddedWeb, "web/dist")
@@ -93,6 +113,9 @@ func main() {
 		go handlerCfg.AlertMonitor.Start(monitorCtx, 10*time.Second)
 	}
 
+	scheme := "http"
+	tlsStatus := "Inactive (Plain HTTP)"
+
 	server := &http.Server{
 		Addr:         ":" + port,
 		Handler:      mux,
@@ -101,8 +124,6 @@ func main() {
 		IdleTimeout:  60 * time.Second,
 	}
 
-	scheme := "http"
-	tlsStatus := "Inactive (Plain HTTP)"
 	if useTLS {
 		scheme = "https"
 		tlsConfig, err := security.LoadOrGenerateTLSConfig(tlsCertPath, tlsKeyPath, true, []string{"localhost"})
@@ -116,6 +137,53 @@ func main() {
 			tlsStatus = "Auto-Generated ECDSA P-256 Self-Signed Active"
 		}
 	}
+
+	// Initialize Multi-Host Agent Mesh & Remote Node Aggregator
+	meshRegistry := mesh.NewRegistry("coordinator", nodeName)
+	localAddr := fmt.Sprintf("%s://localhost:%s", scheme, port)
+	_ = meshRegistry.Register(&mesh.Node{
+		ID:      "local",
+		Name:    nodeName,
+		Address: localAddr,
+		Labels:  map[string]string{"role": "coordinator"},
+		Status:  mesh.NodeStatusOnline,
+	})
+
+	if nodesStr != "" {
+		nodeAddrs := strings.Split(nodesStr, ",")
+		for i, rawAddr := range nodeAddrs {
+			addr := strings.TrimSpace(rawAddr)
+			if addr == "" {
+				continue
+			}
+			nodeID := fmt.Sprintf("node-%d", i+1)
+			_ = meshRegistry.Register(&mesh.Node{
+				ID:      nodeID,
+				Name:    fmt.Sprintf("Node %d", i+1),
+				Address: addr,
+				Status:  mesh.NodeStatusUnknown,
+			})
+		}
+	}
+
+	proberToken := adminToken
+	if proberToken == "" {
+		proberToken = viewerToken
+	}
+	meshProber := mesh.NewProber(meshRegistry, mesh.ProberConfig{
+		Interval: 15 * time.Second,
+		Timeout:  5 * time.Second,
+		Token:    proberToken,
+	})
+
+	if handlerCfg != nil {
+		handlerCfg.MeshRegistry = meshRegistry
+		handlerCfg.MeshProber = meshProber
+	}
+
+	proberCtx, proberCancel := context.WithCancel(context.Background())
+	defer proberCancel()
+	go meshProber.Start(proberCtx)
 
 	authStatus := "Disabled (Local Admin Default)"
 	if tokenAuth.IsEnabled() {
@@ -135,6 +203,7 @@ func main() {
 	fmt.Printf(" 🔒 Transport Security : %s\n", tlsStatus)
 	fmt.Printf(" 🔑 Access Control     : %s\n", authStatus)
 	fmt.Printf(" 🌐 Remote Access      : %s\n", map[bool]string{true: "Allowed", false: "Restricted to Loopback"}[allowRemote])
+	fmt.Printf(" 🕸️ Cluster Mesh       : %d node(s) configured (%s)\n", len(meshRegistry.List()), nodeName)
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")
 	fmt.Println("=========================================================")
 
