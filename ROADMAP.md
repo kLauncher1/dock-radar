@@ -4,7 +4,7 @@ This document outlines the milestones and engineering priorities for `dock-radar
 
 ---
 
-## Current Release: v0.3.0 (Real-Time Event Streaming & Logs)
+## Current Release: v0.4.0 (Automated Webhook Alerts & Health Monitors)
 - [x] Lightweight single-binary runtime with zero external runtime dependencies.
 - [x] Real-time host telemetry collector (OS, CPU cores, goroutines, allocated memory, uptime).
 - [x] Docker socket inspector (`/var/run/docker.sock` and TCP fallback) with resilient offline handling.
@@ -14,14 +14,11 @@ This document outlines the milestones and engineering priorities for `dock-radar
 - [x] Real-time container log streaming over WebSocket (`/api/docker/logs`) with REST JSON snapshot fallback.
 - [x] Auto-scrolling terminal feed widget with stdout/stderr/system filter tabs and container targeting.
 - [x] Low-overhead in-memory ring buffer limiting log memory consumption to under 15 MB.
+- [x] Automated Discord and Slack outgoing webhook triggers on container exit or crash events.
+- [x] Sliding window restart flapping detection with configurable failure frequency counters.
+- [x] Host memory and CPU threshold monitoring with automated alert dispatch and cooldown delays.
+- [x] Embedded dashboard Alerts panel for live webhook testing, rule persistence, and incident inspection.
 - [x] Automated unit and integration test suites with sub-millisecond execution overhead.
-
----
-
-## Milestone 4: v0.4.0 (Alerts & Webhooks)
-- [ ] Discord and Slack webhook dispatch on unexpected container exit codes or restart loops.
-- [ ] Configurable host CPU and memory consumption thresholds with throttle delays.
-- [ ] Health status polling with failure frequency counters.
 
 ---
 
@@ -50,3 +47,18 @@ This document outlines the milestones and engineering priorities for `dock-radar
 - [ ] Interactive in-browser container shell execution via WebSocket (`/api/docker/exec`).
 - [ ] VT100 / ANSI escape sequence rendering with custom terminal font styling.
 - [ ] Read-only shell access policy mode and idle session termination timeouts.
+
+---
+
+## Milestone 9: v1.4.0 (Docker Compose Topology & Stack Visualizer)
+- [ ] Automatic grouping of containers by `com.docker.compose.project` labels.
+- [ ] Interactive canvas rendering service dependencies and network routing.
+- [ ] One-click whole-stack lifecycle actions (up, down, restart).
+
+---
+
+## Milestone 10: v1.5.0 (Autonomous Self-Healing Container Policies)
+- [ ] Automatic remediation triggers for OOM-killed (`exit 137`) or crash-looping containers.
+- [ ] Exponential backoff jitter preventing daemon saturation during cascading service failures.
+- [ ] Structured remediation audit logging and rollback protection.
+

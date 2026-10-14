@@ -10,7 +10,7 @@
 
 **Ultra-lightweight single-binary container & system metrics monitor with embedded real-time dark-mode web dashboard.**
 
-[![Release](https://img.shields.io/badge/Release-v0.3.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
+[![Release](https://img.shields.io/badge/Release-v0.4.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg?style=flat&logo=go)](https://golang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6%2B-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
@@ -27,11 +27,14 @@
 
 - **Single Executable Deployment**: The web dashboard is baked directly into the Go binary via `//go:embed`. No Node.js runtime, external assets, or separate frontend servers needed.
 - **Ultra-Low Memory Footprint**: Runs persistently under **15 MB of RAM** with bounded circular ring buffers, making it ideal for low-spec VPS, Raspberry Pi, and homelab environments.
+- **Automated Webhook Alerts**: Instant outgoing webhook notifications to Discord (rich color-coded embeds) and Slack (formatted attachments) on unexpected container exit, crash, or restart loops.
+- **Failure Frequency & Flapping Detection**: Sliding window surveillance tracks rapid container restart cycles to detect flapping and crash-looping services before server outages occur.
+- **Host Resource Threshold Surveillance**: Configurable CPU usage and memory consumption thresholds with automated alert deduplication and cooldown controls.
 - **Real-Time Container Log Streaming**: Pure standard-library RFC 6455 WebSocket streaming (`/api/docker/logs`) with Docker multiplexed stdout/stderr demuxing and REST JSON snapshot fallback.
 - **Docker Socket Inspection & Lifecycle Controls**: Inspects active containers and provides one-click safe container restart and stop actions with confirmation dialogs.
 - **Host System Telemetry**: Tracks real-time CPU cores, goroutines, allocated RAM, GC cycles, and uptime.
-- **Security-First API Defense**: Hardened with loopback origin validation, anti-CSRF checks, strict container ID regex sanitation, and in-memory token bucket rate limiting.
-- **Dark-Mode Glassmorphism UI**: High-contrast, clean visual dashboard featuring live container inspection, action controls, and real-time event logs with filter tabs (All, stdout, stderr, system) and auto-scroll.
+- **Security-First API Defense**: Hardened with loopback origin validation, anti-CSRF checks, SSRF metadata filters, strict container ID regex sanitation, and in-memory token bucket rate limiting.
+- **Dark-Mode Glassmorphism UI**: High-contrast, clean visual dashboard featuring live container inspection, action controls, alert rule configuration, live test triggers, and real-time event logs with filter tabs and auto-scroll.
 
 ---
 
@@ -81,15 +84,16 @@ PORT=8080 ./dock-radar
 │   • Lifecycle Operations │      • CPU & OS Metrics     │
 │   • Multiplex Log Demux  │                             │
 ├──────────────────────────┼─────────────────────────────┤
-│   internal/security      │      internal/logs          │
-│   • Loopback Origin Gate │      • Circular Ring Buffer │
-│   • Token Bucket Limiter │      • Strict <15MB Ceiling │
+│   internal/alert         │      internal/logs          │
+│   • Discord & Slack Web  │      • Circular Ring Buffer │
+│   • State Poller/Flap    │      • Strict <15MB Ceiling │
+│   • Cooldown Deduplication                             │
+├──────────────────────────┼─────────────────────────────┤
+│   internal/security      │      net/http Router        │
+│   • Loopback Origin Gate │      • /api/docker/*        │
+│   • Token Bucket Limiter │      • /api/alerts/*        │
+│   • Anti-SSRF URL Guard  │      • Pure RFC 6455 WS     │
 ├──────────────────────────┴─────────────────────────────┤
-│                 net/http HTTP Engine                   │
-│   • /api/docker          • /api/docker/restart         │
-│   • /api/docker/stop     • /api/docker/logs (WS/REST)  │
-│   • /api/system          • Pure RFC 6455 Upgrader      │
-├────────────────────────────────────────────────────────┤
 │                 Embedded Web Dashboard                 │
 │         (React 19 + TypeScript / Vite Bundled)         │
 │          //go:embed web/dist/* -> Port 9080            │
@@ -97,10 +101,11 @@ PORT=8080 ./dock-radar
 ```
 
 ### Security Guarantees
-- **Loopback-Only Mutation Policy**: Mutating endpoints (`/api/docker/restart`, `/api/docker/stop`) strictly verify that request origins and client IPs match local loopback interfaces (`127.0.0.1`, `::1`, `localhost`).
+- **Loopback-Only Mutation Policy**: Mutating endpoints (`/api/docker/restart`, `/api/docker/stop`, `/api/alerts/config`, `/api/alerts/test`) strictly verify that request origins and client IPs match local loopback interfaces (`127.0.0.1`, `::1`, `localhost`).
 - **Anti-CSRF & DNS Rebinding Defenses**: Modern browser metadata (`Sec-Fetch-Site`) and `Origin`/`Referer` headers are validated to prevent cross-origin drive-by attacks from malicious websites.
+- **Anti-SSRF & Metadata Gating**: Webhook destinations enforce strict HTTP/HTTPS schemes, filter CRLF and control characters, and explicitly reject cloud instance metadata endpoints (`169.254.169.254`, `metadata.google.internal`).
 - **Parameter Bounds Sanitation**: All container IDs and names are evaluated against strict alphanumeric character patterns (`^[a-zA-Z0-9][a-zA-Z0-9_.-]{0,127}$`), preventing path traversal and socket injection.
-- **Rate-Limiting Protection**: Token bucket rate limiter restricts container control invocations to 5 operations with a 1 token/sec refill rate, preventing daemon socket denial of service.
+- **Rate-Limiting Protection**: Token bucket rate limiter restricts container and alert control invocations to 5 operations with a 1 token/sec refill rate, preventing daemon socket denial of service.
 
 ---
 
@@ -113,6 +118,9 @@ PORT=8080 ./dock-radar
 | `/api/docker/logs` | `WS` / `GET` | Real-time WebSocket log feed or JSON snapshot (`?id=<id>&stream=<stdout\|stderr\|system>&tail=100`) |
 | `/api/docker/restart` | `POST` | Safely restarts a container by ID or name (`{"id":"<name_or_id>","timeout":10}`) |
 | `/api/docker/stop` | `POST` | Safely stops a running container (`{"id":"<name_or_id>","timeout":10}`) |
+| `/api/alerts/config` | `GET` / `POST` | Fetches or updates active alert rules, webhook destinations, and threshold limits |
+| `/api/alerts/events` | `GET` | Fetches recent incident and fired alert history buffer (`?limit=50`) |
+| `/api/alerts/test` | `POST` | Dispatches an immediate test webhook verification payload to Discord or Slack |
 | `/` | `GET` | Serves the embedded single-page web dashboard |
 
 ### Sample Response (`/api/docker/restart`)

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kLauncher1/dock-radar/internal/alert"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/security"
@@ -36,13 +37,16 @@ type ActionResponse struct {
 
 // HandlerConfig encapsulates services, buffers, and security policies.
 type HandlerConfig struct {
-	DockerClient *docker.Client
-	RateLimiter  *security.RateLimiter
-	LogBuffer    *logs.RingBuffer
+	DockerClient     *docker.Client
+	RateLimiter      *security.RateLimiter
+	LogBuffer        *logs.RingBuffer
+	AlertConfigStore *alert.ConfigStore
+	AlertDispatcher  *alert.Dispatcher
+	AlertMonitor     *alert.Monitor
 }
 
 // RegisterRoutes sets up all API endpoints and static file serving on the provided ServeMux.
-func RegisterRoutes(mux *http.ServeMux, dockerClient *docker.Client, staticFS fs.FS) {
+func RegisterRoutes(mux *http.ServeMux, dockerClient *docker.Client, staticFS fs.FS) *HandlerConfig {
 	// Initialize a burst of 5 actions with 1 refill per second
 	limiter := security.NewRateLimiter(5.0, 1.0)
 	ringBuffer := logs.NewRingBuffer(2000)
@@ -53,10 +57,17 @@ func RegisterRoutes(mux *http.ServeMux, dockerClient *docker.Client, staticFS fs
 		Message:   "Dock-Radar single-binary engine initialized.",
 	})
 
+	alertCfgStore := alert.NewConfigStore(alert.DefaultConfig())
+	alertDispatcher := alert.NewDispatcher(alertCfgStore)
+	alertMonitor := alert.NewMonitor(dockerClient, alertCfgStore, alertDispatcher)
+
 	cfg := &HandlerConfig{
-		DockerClient: dockerClient,
-		RateLimiter:  limiter,
-		LogBuffer:    ringBuffer,
+		DockerClient:     dockerClient,
+		RateLimiter:      limiter,
+		LogBuffer:        ringBuffer,
+		AlertConfigStore: alertCfgStore,
+		AlertDispatcher:  alertDispatcher,
+		AlertMonitor:     alertMonitor,
 	}
 
 	// Real-time system telemetry
@@ -72,10 +83,17 @@ func RegisterRoutes(mux *http.ServeMux, dockerClient *docker.Client, staticFS fs
 	// Real-time log streaming & WebSocket feed
 	mux.HandleFunc("/api/docker/logs", cfg.handleContainerLogs)
 
+	// Alert configurations & webhook channels
+	mux.HandleFunc("/api/alerts/config", cfg.handleAlertConfig)
+	mux.HandleFunc("/api/alerts/events", cfg.handleAlertEvents)
+	mux.HandleFunc("/api/alerts/test", cfg.handleAlertTest)
+
 	// Embedded Static UI
 	if staticFS != nil {
 		mux.Handle("/", http.FileServer(http.FS(staticFS)))
 	}
+
+	return cfg
 }
 
 func (h *HandlerConfig) handleSystemMetrics(w http.ResponseWriter, r *http.Request) {

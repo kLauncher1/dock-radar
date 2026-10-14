@@ -423,6 +423,135 @@
       opacity: 1;
       pointer-events: auto;
     }
+
+    /* Alerts & Notifications Panel */
+    .alerts-container {
+      background: var(--bg-surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 12px;
+      padding: 20px;
+      margin-bottom: 24px;
+    }
+    .alerts-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+    .alerts-grid {
+      display: grid;
+      grid-template-columns: minmax(320px, 1fr) minmax(420px, 1.4fr);
+      gap: 20px;
+    }
+    @media (max-width: 960px) {
+      .alerts-grid { grid-template-columns: 1fr; }
+    }
+    .alert-card-sub {
+      background: var(--bg-surface-elevated);
+      border: 1px solid var(--border-subtle);
+      border-radius: 10px;
+      padding: 18px;
+    }
+    .form-group {
+      margin-bottom: 14px;
+    }
+    .form-label {
+      display: block;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .form-input {
+      width: 100%;
+      background: #090d16;
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 8px 12px;
+      color: var(--text-main);
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      outline: none;
+      transition: border-color 0.15s ease;
+    }
+    .form-input:focus { border-color: var(--accent-blue); }
+    .form-row {
+      display: flex;
+      gap: 12px;
+    }
+    .form-col {
+      flex: 1;
+    }
+    .toggle-wrap {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .toggle-wrap input {
+      accent-color: var(--accent-green);
+      width: 16px;
+      height: 16px;
+      cursor: pointer;
+    }
+    .alert-events-scroll {
+      max-height: 260px;
+      overflow-y: auto;
+      border: 1px solid var(--border-subtle);
+      border-radius: 8px;
+      background: #090d16;
+    }
+    .alert-events-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+    .alert-events-table th, .alert-events-table td {
+      padding: 10px 12px;
+      text-align: left;
+      border-bottom: 1px solid var(--border-subtle);
+    }
+    .alert-events-table th {
+      background: var(--bg-surface-elevated);
+      color: var(--text-muted);
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+    .badge-level {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .badge-level-critical {
+      background: rgba(239, 68, 68, 0.2);
+      color: var(--accent-red);
+      border: 1px solid rgba(239, 68, 68, 0.4);
+    }
+    .badge-level-warning {
+      background: rgba(245, 158, 11, 0.2);
+      color: var(--accent-yellow);
+      border: 1px solid rgba(245, 158, 11, 0.4);
+    }
+    .badge-level-info {
+      background: rgba(56, 189, 248, 0.2);
+      color: var(--accent-blue);
+      border: 1px solid rgba(56, 189, 248, 0.4);
+    }
   </style>
 </head>
 <body>
@@ -519,6 +648,84 @@
           <span class="log-ts">[BOOT]</span>
           <span class="log-badge log-badge-system">system</span>
           <span class="log-msg">Dock-Radar telemetry terminal online. Initializing real-time feed...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Automated Webhook Alerts & Notification Channels -->
+    <div class="alerts-container" id="alerts-section">
+      <div class="alerts-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 15px; font-weight: 600;">Automated Webhook Alerts &amp; Health Monitors</span>
+          <span class="status-pill status-running" id="alerts-status-pill">Active</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button class="btn-action btn-restart" id="btn-test-alert-discord">Test Discord</button>
+          <button class="btn-action btn-logs" id="btn-test-alert-slack">Test Slack</button>
+        </div>
+      </div>
+
+      <div class="alerts-grid">
+        <!-- Configuration Card -->
+        <div class="alert-card-sub">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <span style="font-size: 13px; font-weight: 600; color: var(--text-main);">Channel &amp; Threshold Rules</span>
+            <label class="toggle-wrap">
+              <input type="checkbox" id="alert-enabled-check" checked>
+              <span>Enabled</span>
+            </label>
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="alert-discord-url">Discord Webhook URL</label>
+            <input type="url" class="form-input" id="alert-discord-url" placeholder="https://discord.com/api/webhooks/...">
+          </div>
+          <div class="form-group">
+            <label class="form-label" for="alert-slack-url">Slack Webhook URL</label>
+            <input type="url" class="form-input" id="alert-slack-url" placeholder="https://hooks.slack.com/services/...">
+          </div>
+          <div class="form-row">
+            <div class="form-col">
+              <label class="form-label" for="alert-cpu-threshold">CPU Breach (%)</label>
+              <input type="number" class="form-input" id="alert-cpu-threshold" min="10" max="100" value="85">
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="alert-mem-threshold">Mem Breach (MB)</label>
+              <input type="number" class="form-input" id="alert-mem-threshold" min="50" max="65536" value="500">
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="alert-restart-threshold">Flapping Count</label>
+              <input type="number" class="form-input" id="alert-restart-threshold" min="1" max="20" value="3">
+            </div>
+          </div>
+          <button class="btn btn-primary-restart" id="btn-save-alert-config" style="width: 100%; margin-top: 14px; padding: 9px; font-weight: 600;">Save Alert Rules</button>
+        </div>
+
+        <!-- Recent Events Log Table -->
+        <div class="alert-card-sub">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+            <span style="font-size: 13px; font-weight: 600; color: var(--text-main);">Recent Incidents &amp; Fired Alerts</span>
+            <span style="font-size: 11px; color: var(--text-muted);" id="alert-events-count">0 incidents</span>
+          </div>
+          <div class="alert-events-scroll">
+            <table class="alert-events-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Level</th>
+                  <th>Source</th>
+                  <th>Type</th>
+                  <th>Message</th>
+                </tr>
+              </thead>
+              <tbody id="alert-events-body">
+                <tr>
+                  <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                    No critical alert incidents detected. System health nominal.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
@@ -851,9 +1058,145 @@
       }
     }
 
+    // Alert & Webhook Management
+    const alertEnabledCheck = document.getElementById('alert-enabled-check');
+    const alertDiscordUrl = document.getElementById('alert-discord-url');
+    const alertSlackUrl = document.getElementById('alert-slack-url');
+    const alertCpuThreshold = document.getElementById('alert-cpu-threshold');
+    const alertMemThreshold = document.getElementById('alert-mem-threshold');
+    const alertRestartThreshold = document.getElementById('alert-restart-threshold');
+    const btnSaveAlertConfig = document.getElementById('btn-save-alert-config');
+    const btnTestDiscord = document.getElementById('btn-test-alert-discord');
+    const btnTestSlack = document.getElementById('btn-test-alert-slack');
+    const alertsStatusPill = document.getElementById('alerts-status-pill');
+    const alertEventsBody = document.getElementById('alert-events-body');
+    const alertEventsCount = document.getElementById('alert-events-count');
+
+    async function loadAlertConfig() {
+      try {
+        const resp = await fetch('/api/alerts/config');
+        if (!resp.ok) return;
+        const cfg = await resp.json();
+        alertEnabledCheck.checked = !!cfg.enabled;
+        alertDiscordUrl.value = cfg.discord_webhook_url || '';
+        alertSlackUrl.value = cfg.slack_webhook_url || '';
+        alertCpuThreshold.value = cfg.cpu_threshold_percent || 85;
+        alertMemThreshold.value = cfg.memory_threshold_mb || 500;
+        alertRestartThreshold.value = cfg.restart_threshold_count || 3;
+
+        if (cfg.enabled) {
+          alertsStatusPill.className = 'status-pill status-running';
+          alertsStatusPill.textContent = 'Active';
+        } else {
+          alertsStatusPill.className = 'status-pill status-standby';
+          alertsStatusPill.textContent = 'Disabled';
+        }
+      } catch (err) {
+        log(`Failed loading alert configuration: ${err.message}`, 'warn');
+      }
+    }
+
+    btnSaveAlertConfig.addEventListener('click', async () => {
+      btnSaveAlertConfig.disabled = true;
+      btnSaveAlertConfig.textContent = 'Saving...';
+      const payload = {
+        enabled: alertEnabledCheck.checked,
+        discord_webhook_url: alertDiscordUrl.value.trim(),
+        slack_webhook_url: alertSlackUrl.value.trim(),
+        cpu_threshold_percent: parseFloat(alertCpuThreshold.value) || 85.0,
+        memory_threshold_mb: parseFloat(alertMemThreshold.value) || 500.0,
+        restart_threshold_count: parseInt(alertRestartThreshold.value, 10) || 3,
+        flapping_window_seconds: 300,
+        cooldown_seconds: 60
+      };
+
+      try {
+        const resp = await fetch('/api/alerts/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (resp.ok) {
+          showToast('✓ Alert configuration saved successfully');
+          loadAlertConfig();
+        } else {
+          const errText = await resp.text();
+          showToast(`✗ Failed to save: ${errText || resp.statusText}`);
+        }
+      } catch (err) {
+        showToast(`✗ Network error: ${err.message}`);
+      } finally {
+        btnSaveAlertConfig.disabled = false;
+        btnSaveAlertConfig.textContent = 'Save Alert Rules';
+      }
+    });
+
+    async function triggerTestAlert(channel, btn, origText) {
+      btn.disabled = true;
+      btn.textContent = 'Testing...';
+      try {
+        const resp = await fetch(`/api/alerts/test?channel=${channel}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' }
+        });
+        const result = await resp.json();
+        if (resp.ok && result.success) {
+          showToast(`✓ ${channel.toUpperCase()} webhook test delivered`);
+          pollAlertEvents();
+        } else {
+          showToast(`✗ ${channel.toUpperCase()} test failed: ${result.message || 'error'}`);
+        }
+      } catch (err) {
+        showToast(`✗ Test error: ${err.message}`);
+      } finally {
+        btn.disabled = false;
+        btn.textContent = origText;
+      }
+    }
+
+    btnTestDiscord.addEventListener('click', () => triggerTestAlert('discord', btnTestDiscord, 'Test Discord'));
+    btnTestSlack.addEventListener('click', () => triggerTestAlert('slack', btnTestSlack, 'Test Slack'));
+
+    async function pollAlertEvents() {
+      try {
+        const resp = await fetch('/api/alerts/events?limit=30');
+        if (!resp.ok) return;
+        const events = await resp.json();
+        alertEventsCount.textContent = `${events.length} incident${events.length === 1 ? '' : 's'}`;
+
+        if (!events || events.length === 0) {
+          alertEventsBody.innerHTML = `
+            <tr>
+              <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                No critical alert incidents detected. System health nominal.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        alertEventsBody.innerHTML = events.map(evt => {
+          const levelClass = evt.level === 'critical' ? 'badge-level-critical' : (evt.level === 'warning' ? 'badge-level-warning' : 'badge-level-info');
+          const timeStr = evt.timestamp ? new Date(evt.timestamp).toLocaleTimeString() : '--:--:--';
+          return `
+            <tr>
+              <td style="font-family: monospace; font-size: 11px; color: var(--text-muted);">${timeStr}</td>
+              <td><span class="badge-level ${levelClass}">${evt.level}</span></td>
+              <td style="font-weight: 600;">${escapeHTML(evt.source)}</td>
+              <td style="font-family: monospace; font-size: 11px; color: #94a3b8;">${escapeHTML(evt.event_type)}</td>
+              <td>${escapeHTML(evt.message)}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch {}
+    }
+
     pollTelemetry();
     setInterval(pollTelemetry, 1500);
     connectLogWebSocket();
+    loadAlertConfig();
+    pollAlertEvents();
+    setInterval(pollAlertEvents, 3000);
   </script>
 </body>
 </html>

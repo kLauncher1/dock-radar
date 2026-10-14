@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"fmt"
 	"io/fs"
@@ -30,7 +31,14 @@ func main() {
 	}
 
 	mux := http.NewServeMux()
-	api.RegisterRoutes(mux, dockerClient, subFS)
+	handlerCfg := api.RegisterRoutes(mux, dockerClient, subFS)
+
+	// Launch background alert monitoring loop (10s interval)
+	if handlerCfg != nil && handlerCfg.AlertMonitor != nil {
+		monitorCtx, monitorCancel := context.WithCancel(context.Background())
+		defer monitorCancel()
+		go handlerCfg.AlertMonitor.Start(monitorCtx, 10*time.Second)
+	}
 
 	server := &http.Server{
 		Addr:         ":" + port,
@@ -43,6 +51,7 @@ func main() {
 	fmt.Println(" 🚀 Dock-Radar · Single-Binary Container & System Monitor")
 	fmt.Printf(" 📡 Web Dashboard Live at http://localhost:%s\n", port)
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")
+	fmt.Println(" 🔔 Alert Engine: Discord & Slack Automated Webhook Dispatcher Active")
 	fmt.Println("=========================================================")
 
 	if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {

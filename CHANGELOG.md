@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-10-14
+
+### Added
+- Automated outgoing webhook alert engine (`internal/alert`) delivering instant notifications to Discord and Slack channels.
+- Discord rich embed formatter with color-coded severity levels (Critical, Warning, Info) and structured metric fields.
+- Slack attachment payload builder with color hex highlights and event source details.
+- Background health failure monitor (`internal/alert/monitor.go`) tracking container state transitions and unexpected exits.
+- Sliding window restart flapping detection identifying crash-looping containers with configurable threshold counts.
+- Real-time host memory and CPU utilization threshold monitors with automated alert dispatch.
+- Alert configuration management endpoints (`GET /api/alerts/config`, `POST /api/alerts/config`) with loopback origin validation and token bucket rate limits.
+- Incident history endpoint (`GET /api/alerts/events`) and manual channel test trigger (`POST /api/alerts/test`).
+- Web console "Alerts & Notifications" panel featuring webhook channel URLs, threshold adjustments, live test triggers, and recent incident event log feed.
+- Comprehensive SSRF defense and control character sanitization protecting against metadata endpoints and CRLF injection.
+
 ## [0.3.0] - 2026-10-14
 
 ### Added
