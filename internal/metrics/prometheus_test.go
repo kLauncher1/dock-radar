@@ -261,3 +261,51 @@ func TestFormatMetricsWithMesh(t *testing.T) {
 	}
 }
 
+func TestFormatMetrics_ComposeStacks(t *testing.T) {
+	sys := system.Metrics{
+		OS:   "linux",
+		Arch: "amd64",
+	}
+
+	dock := docker.DaemonStatus{
+		Available:    true,
+		TotalCount:   2,
+		RunningCount: 2,
+		Containers: []docker.ContainerSummary{
+			{
+				ID:    "c_web_1",
+				Names: []string{"/ecommerce-web-1"},
+				Image: "frontend:latest",
+				State: "running",
+				Labels: map[string]string{
+					"com.docker.compose.project": "ecommerce",
+					"com.docker.compose.service": "web",
+				},
+			},
+			{
+				ID:    "c_db_1",
+				Names: []string{"/ecommerce-db-1"},
+				Image: "postgres:16-alpine",
+				State: "running",
+				Labels: map[string]string{
+					"com.docker.compose.project": "ecommerce",
+					"com.docker.compose.service": "db",
+				},
+			},
+		},
+	}
+
+	output := FormatMetrics(sys, dock, nil, nil, nil, "1.4.0")
+
+	if !strings.Contains(output, "dock_radar_compose_stacks_total 1") {
+		t.Errorf("missing compose stacks total in output:\n%s", output)
+	}
+	if !strings.Contains(output, `dock_radar_compose_stack_services{health="healthy",project="ecommerce",state="running"} 2`) {
+		t.Errorf("missing compose stack running services in output")
+	}
+	if !strings.Contains(output, `dock_radar_compose_stack_services{health="healthy",project="ecommerce",state="total"} 2`) {
+		t.Errorf("missing compose stack total services in output")
+	}
+}
+
+

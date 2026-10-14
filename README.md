@@ -10,7 +10,7 @@
 
 **Ultra-lightweight single-binary container & system metrics monitor with embedded real-time dark-mode web dashboard.**
 
-[![Release](https://img.shields.io/badge/Release-v1.3.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
+[![Release](https://img.shields.io/badge/Release-v1.4.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg?style=flat&logo=go)](https://golang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6%2B-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
@@ -27,6 +27,7 @@
 
 - **Single Executable Deployment**: The web dashboard is baked directly into the Go binary via `//go:embed`. No Node.js runtime, external assets, or separate frontend servers needed.
 - **Ultra-Low Memory Footprint**: Runs persistently under **15 MB of RAM** with bounded circular ring buffers, making it ideal for low-spec VPS, Raspberry Pi, and homelab environments.
+- **Docker Compose Topology & Stack Visualizer**: Automatic grouping of containers by `com.docker.compose.project` labels with interactive SVG dependency topology graphs, architectural service tier detection (database, cache, queue, gateway, worker), whole-stack lifecycle actions (restart, stop, recreate), and dedicated Prometheus stack metrics.
 - **Interactive In-Browser Container Terminal (Exec)**: Full duplex interactive shell terminal over WebSocket (`/api/docker/exec`) featuring high-fidelity VT100 / ANSI escape sequence rendering (256 colors), custom font styling, read-only policy enforcement, and idle session auto-termination.
 - **Multi-Host Agent Mesh & Remote Node Aggregator**: Real-time cross-host container monitoring across multi-server topologies. Dynamic node registration, peer health probing, round-trip latency tracking, and unified multi-node container telemetry.
 - **Prometheus Metrics Exporter**: Native standard `/metrics` endpoint exporting host, container, mesh nodes, alert, and audit telemetry formatted according to Prometheus exposition syntax for Grafana ingestion.

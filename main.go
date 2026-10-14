@@ -21,7 +21,7 @@ import (
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "1.3.0"
+const AppVersion = "1.4.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")

@@ -77,7 +77,7 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	auditLogger.Log(audit.AuditEvent{
 		Action:  "system_init",
 		Target:  "dock-radar",
-		Details: map[string]any{"version": "1.3.0"},
+		Details: map[string]any{"version": "1.4.0"},
 	})
 
 	cfg := &HandlerConfig{
@@ -88,7 +88,7 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 		AlertDispatcher:  alertDispatcher,
 		AlertMonitor:     alertMonitor,
 		AuditLogger:      auditLogger,
-		AppVersion:       "1.3.0",
+		AppVersion:       "1.4.0",
 		TokenAuth:        tokenAuth,
 		AllowRemote:      allowRemote,
 	}
@@ -102,6 +102,10 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	// Container lifecycle controls
 	mux.HandleFunc("/api/docker/restart", cfg.handleContainerRestart)
 	mux.HandleFunc("/api/docker/stop", cfg.handleContainerStop)
+
+	// Docker Compose Topology & Stack Inspector
+	mux.HandleFunc("/api/docker/compose", cfg.handleComposeStacks)
+	mux.HandleFunc("/api/docker/compose/action", cfg.handleComposeAction)
 
 	// Real-time log streaming & WebSocket feed
 	mux.HandleFunc("/api/docker/logs", cfg.handleContainerLogs)

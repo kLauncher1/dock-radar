@@ -618,6 +618,16 @@
       color: var(--accent-blue);
       border: 1px solid rgba(56, 189, 248, 0.4);
     }
+    /* Docker Compose Topology & Stack Visualizer */
+    .topo-node {
+      transition: transform 0.15s ease, filter 0.15s ease;
+    }
+    .topo-node:hover {
+      filter: brightness(1.2);
+    }
+    .topo-node:active {
+      transform: scale(0.98);
+    }
   </style>
 </head>
 <body>
@@ -727,6 +737,82 @@
         </tr>
       </tbody>
     </table>
+
+    <!-- Docker Compose Topology Visualizer & Stack Inspector -->
+    <div class="card" id="compose-section" style="margin-bottom: 24px; padding: 20px; border-color: rgba(168, 85, 247, 0.25);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <span style="font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: #c084fc;">
+            <span>📦</span> Docker Compose Topology &amp; Stack Inspector
+          </span>
+          <span class="status-pill status-running" id="compose-stacks-pill" style="font-size: 11px;">0 Stacks</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <div class="tab-group" id="compose-stack-tabs">
+            <button class="tab-btn active" data-stack="all">All Stacks</button>
+          </div>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn-action btn-restart" id="btn-stack-restart" onclick="triggerActiveStackAction('restart')" title="Restart all services in selected Compose stack">🔄 Restart Stack</button>
+            <button class="btn-action btn-stop" id="btn-stack-stop" onclick="triggerActiveStackAction('stop')" title="Stop all services in selected Compose stack">🛑 Stop Stack</button>
+            <button class="btn-action btn-logs" id="btn-stack-recreate" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.1);" onclick="triggerActiveStackAction('recreate')" title="Recreate and refresh selected Compose stack">⚡ Recreate Stack</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Stack Info & Metrics Bar -->
+      <div id="compose-summary-bar" style="display: flex; gap: 16px; align-items: center; background: rgba(15, 23, 42, 0.6); padding: 10px 16px; border-radius: 8px; margin-bottom: 16px; border: 1px solid rgba(255, 255, 255, 0.05); flex-wrap: wrap;">
+        <div style="font-size: 12px; color: var(--text-muted);">
+          Target Project: <span id="compose-active-project-label" style="font-weight: 600; color: var(--text-main);">None</span>
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted);">
+          Health: <span id="compose-active-health-label" class="status-pill status-running" style="font-size: 10px; padding: 2px 8px;">--</span>
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted);">
+          Services: <span id="compose-active-services-count" style="font-weight: 600; color: #38bdf8;">0</span>
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted); flex: 1; text-align: right;" id="compose-active-working-dir">
+          Config: --
+        </div>
+      </div>
+
+      <!-- Interactive Topology Canvas -->
+      <div style="position: relative; border-radius: 8px; overflow: hidden; background: #070b14; border: 1px solid rgba(255, 255, 255, 0.08); margin-bottom: 16px;">
+        <div style="position: absolute; top: 10px; left: 14px; font-size: 11px; color: var(--text-muted); display: flex; align-items: center; gap: 6px; z-index: 5;">
+          <span>🗺️ Dependency Topology Graph (Caller ➔ Prerequisite)</span>
+        </div>
+        <div style="position: absolute; top: 10px; right: 14px; font-size: 11px; color: var(--text-muted); z-index: 5; display: flex; gap: 12px;">
+          <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #10b981;"></span> Running</span>
+          <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #f59e0b;"></span> Degraded</span>
+          <span style="display: inline-flex; align-items: center; gap: 4px;"><span style="width: 8px; height: 8px; border-radius: 50%; background: #ef4444;"></span> Stopped</span>
+        </div>
+        <svg id="topology-svg-canvas" width="100%" height="280" style="display: block; min-height: 280px;"></svg>
+      </div>
+
+      <!-- Services & Stack Breakdown Table -->
+      <div style="overflow-x: auto;">
+        <table class="containers-table" style="font-size: 12px;">
+          <thead>
+            <tr>
+              <th>Project</th>
+              <th>Service Name</th>
+              <th>Role</th>
+              <th>Container</th>
+              <th>Image</th>
+              <th>Dependencies (depends_on)</th>
+              <th>State</th>
+              <th style="text-align: right;">Quick Control</th>
+            </tr>
+          </thead>
+          <tbody id="compose-services-body">
+            <tr>
+              <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                Scanning for Docker Compose stacks...
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
 
     <div class="terminal-container" id="terminal-section">
       <div class="terminal-header">
@@ -1864,6 +1950,11 @@
         return;
       }
 
+      if (pendingAction.isStack) {
+        await executeStackAction(pendingAction.project, pendingAction.action);
+        return;
+      }
+
       const { action, containerId, containerName } = pendingAction;
       modalConfirmBtn.disabled = true;
       modalConfirmBtn.textContent = 'Executing...';
@@ -2314,6 +2405,288 @@
       } catch {}
     }
 
+    // Docker Compose Topology & Stack Visualizer Logic
+    let composeStacks = [];
+    let activeStackProject = 'all';
+
+    function triggerActiveStackAction(action) {
+      if (activeStackProject === 'all') {
+        if (composeStacks.length === 0) {
+          showToast('No active Compose stacks available to ' + action);
+          return;
+        }
+        openStackActionModal(action, composeStacks[0].project);
+      } else {
+        openStackActionModal(action, activeStackProject);
+      }
+    }
+
+    function openStackActionModal(action, project) {
+      pendingAction = { isStack: true, action, project };
+      const actionName = action.charAt(0).toUpperCase() + action.slice(1);
+      modalTitle.textContent = `${actionName} Compose Stack`;
+      modalTitle.style.color = action === 'stop' ? 'var(--accent-red)' : 'var(--accent-blue)';
+      modalBody.innerHTML = `Are you sure you want to <strong>${action}</strong> all services in compose project <code>${escapeHTML(project)}</code>?`;
+
+      modalConfirmBtn.textContent = `Confirm ${actionName}`;
+      modalConfirmBtn.className = action === 'stop' ? 'btn btn-primary-stop' : 'btn btn-primary-restart';
+      modalConfirmBtn.disabled = false;
+      modal.classList.add('active');
+    }
+
+    async function executeStackAction(project, action) {
+      modalConfirmBtn.disabled = true;
+      modalConfirmBtn.textContent = 'Executing...';
+      try {
+        const resp = await authFetch('/api/docker/compose/action', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ project: project, action: action })
+        });
+        const data = await resp.json();
+        if (resp.ok && data.success) {
+          showToast(`✓ Stack ${project} ${action} completed (${data.result.success_count} services)`);
+          log(`Compose stack ${project} ${action} succeeded: ${data.result.success_count} success, ${data.result.failure_count} failed`, 'success');
+          closeModal();
+          pollComposeStacks();
+          pollTelemetry();
+        } else {
+          showToast(`✗ Stack ${action} failed: ${data.error || 'error'}`);
+          log(`Compose stack ${project} ${action} failed: ${data.error || 'unknown error'}`, 'err');
+          closeModal();
+        }
+      } catch (err) {
+        showToast(`✗ Network error: ${err.message}`);
+        closeModal();
+      }
+    }
+
+    async function pollComposeStacks() {
+      try {
+        const resp = await authFetch('/api/docker/compose');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        composeStacks = data.stacks || [];
+
+        // Update Stacks count pill
+        const pill = document.getElementById('compose-stacks-pill');
+        if (pill) {
+          pill.textContent = `${composeStacks.length} Stack${composeStacks.length === 1 ? '' : 's'}`;
+          pill.className = composeStacks.length > 0 ? 'status-pill status-running' : 'status-pill status-standby';
+        }
+
+        // Update Stack Tabs
+        const tabsContainer = document.getElementById('compose-stack-tabs');
+        if (tabsContainer) {
+          let tabsHtml = `<button class="tab-btn ${activeStackProject === 'all' ? 'active' : ''}" data-stack="all">All Stacks</button>`;
+          composeStacks.forEach(s => {
+            tabsHtml += `<button class="tab-btn ${activeStackProject === s.project ? 'active' : ''}" data-stack="${escapeHTML(s.project)}">${escapeHTML(s.project)} (${s.health})</button>`;
+          });
+          tabsContainer.innerHTML = tabsHtml;
+
+          tabsContainer.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+              activeStackProject = btn.getAttribute('data-stack');
+              tabsContainer.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+              btn.classList.add('active');
+              renderComposeView();
+            });
+          });
+        }
+
+        renderComposeView();
+      } catch (err) {
+        console.warn('Failed to poll compose stacks:', err);
+      }
+    }
+
+    function renderComposeView() {
+      const summaryProject = document.getElementById('compose-active-project-label');
+      const summaryHealth = document.getElementById('compose-active-health-label');
+      const summaryServices = document.getElementById('compose-active-services-count');
+      const summaryConfig = document.getElementById('compose-active-working-dir');
+      const tbody = document.getElementById('compose-services-body');
+
+      let targetStacks = composeStacks;
+      if (activeStackProject !== 'all') {
+        targetStacks = composeStacks.filter(s => s.project === activeStackProject);
+      }
+
+      if (targetStacks.length === 0) {
+        if (summaryProject) summaryProject.textContent = 'None';
+        if (summaryHealth) {
+          summaryHealth.textContent = '--';
+          summaryHealth.className = 'status-pill status-standby';
+        }
+        if (summaryServices) summaryServices.textContent = '0';
+        if (summaryConfig) summaryConfig.textContent = 'Config: --';
+
+        renderTopologyCanvas(null);
+
+        if (tbody) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 24px;">
+                No active Docker Compose stacks detected. Deploy a stack with <code>docker compose up -d</code> to visualize real-time topology.
+              </td>
+            </tr>
+          `;
+        }
+        return;
+      }
+
+      const primaryStack = targetStacks[0];
+      if (summaryProject) summaryProject.textContent = activeStackProject === 'all' ? `All (${targetStacks.length} stacks)` : primaryStack.project;
+      if (summaryHealth) {
+        summaryHealth.textContent = primaryStack.health.toUpperCase();
+        summaryHealth.className = `status-pill status-${primaryStack.health === 'healthy' ? 'running' : (primaryStack.health === 'degraded' ? 'standby' : 'stopped')}`;
+      }
+      const totalSvcCount = targetStacks.reduce((acc, s) => acc + s.totalServices, 0);
+      if (summaryServices) summaryServices.textContent = totalSvcCount;
+      if (summaryConfig) {
+        const cfgText = primaryStack.config_files || primaryStack.working_dir || '--';
+        summaryConfig.textContent = `Config: ${cfgText}`;
+      }
+
+      renderTopologyCanvas(primaryStack);
+
+      if (tbody) {
+        const rows = [];
+        targetStacks.forEach(s => {
+          s.services.forEach(svc => {
+            const isRunning = svc.state === 'running';
+            const roleIcons = { database: '🗄️', cache: '⚡', queue: '📬', gateway: '🌐', worker: '⚙️', storage: '💾', service: '📦' };
+            const icon = roleIcons[svc.role] || '📦';
+            const depsStr = (svc.depends_on && svc.depends_on.length > 0) ? svc.depends_on.join(', ') : '<span style="color: var(--text-muted); font-style: italic;">none</span>';
+
+            rows.push(`
+              <tr>
+                <td style="font-weight: 700; color: #c084fc;">${escapeHTML(s.project)}</td>
+                <td style="font-weight: 600;">${icon} ${escapeHTML(svc.name)}</td>
+                <td><span class="badge-level badge-level-info" style="font-size: 10px;">${escapeHTML(svc.role)}</span></td>
+                <td style="color: #cbd5e1; font-family: monospace;">${escapeHTML(svc.container_name || svc.container_id.substring(0, 12))}</td>
+                <td style="color: #94a3b8; font-family: monospace; font-size: 11px;">${escapeHTML(svc.image)}</td>
+                <td style="font-family: monospace; font-size: 11px; color: #38bdf8;">${depsStr}</td>
+                <td><span class="status-pill status-${isRunning ? 'running' : 'stopped'}">${escapeHTML(svc.state)}</span></td>
+                <td style="text-align: right;">
+                  <div class="action-group" style="justify-content: flex-end;">
+                    <button class="btn-action btn-exec" ${!isRunning ? 'disabled' : ''} onclick="openContainerTerminal('${svc.container_id}', '${escapeHTML(svc.name)}')" title="Shell Exec">Exec</button>
+                    <button class="btn-action btn-restart" onclick="openActionModal('restart', '${svc.container_id}', '${escapeHTML(svc.name)}')">Restart</button>
+                    <button class="btn-action btn-stop" ${!isRunning ? 'disabled' : ''} onclick="openActionModal('stop', '${svc.container_id}', '${escapeHTML(svc.name)}')">Stop</button>
+                  </div>
+                </td>
+              </tr>
+            `);
+          });
+        });
+        tbody.innerHTML = rows.join('');
+      }
+    }
+
+    function renderTopologyCanvas(stack) {
+      const svg = document.getElementById('topology-svg-canvas');
+      if (!svg) return;
+      if (!stack || !stack.topology || !stack.topology.nodes || stack.topology.nodes.length === 0) {
+        svg.innerHTML = `
+          <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#64748b" font-size="13" font-family="system-ui, sans-serif">
+            No active Docker Compose containers with service topology detected.
+          </text>
+        `;
+        return;
+      }
+
+      const nodes = stack.topology.nodes;
+      const edges = stack.topology.edges || [];
+
+      const width = 960;
+      const maxY = Math.max(...nodes.map(n => n.y));
+      const height = Math.max(280, maxY + 90);
+      svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+      svg.style.height = `${height}px`;
+
+      let html = `
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#60a5fa" />
+          </marker>
+          <marker id="arrow-inferred" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+            <path d="M 0 1 L 10 5 L 0 9 z" fill="#94a3b8" />
+          </marker>
+          <linearGradient id="nodeGrad" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#1e293b" stop-opacity="0.95" />
+            <stop offset="100%" stop-color="#0f172a" stop-opacity="0.95" />
+          </linearGradient>
+          <pattern id="topoGrid" width="20" height="20" patternUnits="userSpaceOnUse">
+            <circle cx="2" cy="2" r="1" fill="rgba(255,255,255,0.04)" />
+          </pattern>
+        </defs>
+        <rect width="100%" height="100%" fill="url(#topoGrid)" />
+      `;
+
+      const nodeCoords = {};
+      nodes.forEach(n => {
+        nodeCoords[n.service] = { x: n.x, y: n.y, id: n.id, state: n.state, role: n.role };
+      });
+
+      edges.forEach(e => {
+        const from = nodeCoords[e.from];
+        const to = nodeCoords[e.to];
+        if (from && to) {
+          const startX = from.x + 80;
+          const startY = from.y + 26;
+          const endX = to.x - 80;
+          const endY = to.y + 26;
+          const dx = Math.max(40, Math.abs(endX - startX) * 0.5);
+          const isInferred = e.type === 'inferred';
+          const color = isInferred ? 'rgba(148, 163, 184, 0.4)' : '#38bdf8';
+          const marker = isInferred ? 'url(#arrow-inferred)' : 'url(#arrow)';
+          const dash = isInferred ? 'stroke-dasharray="4 4"' : 'stroke-dasharray="6 3"';
+
+          html += `
+            <g>
+              <path d="M ${startX} ${startY} C ${startX + dx} ${startY}, ${endX - dx} ${endY}, ${endX} ${endY}"
+                    fill="none" stroke="${color}" stroke-width="2" ${dash} marker-end="${marker}">
+                <title>${escapeHTML(e.from)} -> ${escapeHTML(e.to)} (${e.type})</title>
+              </path>
+            </g>
+          `;
+        }
+      });
+
+      nodes.forEach(n => {
+        const isRunning = n.state === 'running';
+        const statusColor = isRunning ? '#10b981' : (n.state === 'restarting' ? '#f59e0b' : '#ef4444');
+        const roleIcons = {
+          database: '🗄️',
+          cache: '⚡',
+          queue: '📬',
+          gateway: '🌐',
+          worker: '⚙️',
+          storage: '💾',
+          service: '📦'
+        };
+        const icon = roleIcons[n.role] || '📦';
+        const cardW = 160;
+        const cardH = 54;
+        const x = n.x - (cardW / 2);
+        const y = n.y;
+
+        html += `
+          <g class="topo-node" onclick="openContainerTerminal('${n.id}', '${escapeHTML(n.service)}')" transform="translate(${x}, ${y})">
+            <title>Click to open terminal: ${escapeHTML(n.service)} (${escapeHTML(n.image)})</title>
+            <rect width="${cardW}" height="${cardH}" rx="8" fill="url(#nodeGrad)" stroke="${statusColor}" stroke-width="1.5" style="filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));" />
+            <text x="14" y="24" font-size="14">${icon}</text>
+            <text x="36" y="22" font-size="12" font-weight="700" fill="#f8fafc" font-family="system-ui, sans-serif">${escapeHTML(n.label)}</text>
+            <text x="36" y="38" font-size="10" fill="#94a3b8" font-family="monospace">${escapeHTML(n.image.length > 20 ? n.image.substring(0, 19) + '…' : n.image)}</text>
+            <circle cx="${cardW - 14}" cy="18" r="4" fill="${statusColor}" />
+            <text x="${cardW - 14}" y="38" font-size="9" fill="${statusColor}" text-anchor="end" font-weight="600">${escapeHTML(n.state)}</text>
+          </g>
+        `;
+      });
+
+      svg.innerHTML = html;
+    }
+
     checkAuthStatus();
     setInterval(checkAuthStatus, 5000);
     pollTelemetry();
@@ -2322,6 +2695,8 @@
     loadAlertConfig();
     pollAlertEvents();
     setInterval(pollAlertEvents, 3000);
+    pollComposeStacks();
+    setInterval(pollComposeStacks, 3000);
   </script>
 </body>
 </html>
