@@ -33,10 +33,10 @@ This document outlines the architectural milestones and engineering priorities f
 
 ---
 
-## Milestone 7: v1.2.0 (Multi-Host Agent Mesh)
-- [ ] Lightweight node discovery protocol for monitoring multi-host Docker clusters.
-- [ ] Peer heartbeat ping and unified multi-node container telemetry dashboard.
-- [ ] Node label tagging and aggregate CPU/RAM metrics calculation across nodes.
+## Milestone 7: v1.2.0 (Multi-Host Agent Mesh & Remote Node Aggregator)
+- [x] Lightweight node discovery protocol for monitoring multi-host Docker clusters (`internal/mesh/node.go`, `internal/mesh/prober.go`).
+- [x] Peer heartbeat ping and unified multi-node container telemetry dashboard (`/api/nodes`, `/api/nodes/heartbeat`, `/api/cluster/containers`).
+- [x] Node label tagging and aggregate CPU/RAM metrics calculation across nodes (`/api/cluster/summary`, Prometheus `/metrics`).
 
 ---
 
@@ -86,3 +86,18 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Compressed log chunking and local ring buffer rotation to disk.
 - [ ] Background asynchronous offloader streaming logs to S3-compatible object stores (MinIO, AWS S3, Cloudflare R2).
 - [ ] Ephemeral retention policies with automatic cold storage tiering.
+
+---
+
+## Milestone 15: v2.0.0 (Adaptive Kernel eBPF Telemetry Engine)
+- [ ] Low-overhead network socket and system call tracing via eBPF probes.
+- [ ] Real-time container TCP connection flow graphs and bandwidth consumption meters.
+- [ ] Kernel-level security anomaly detection with automated alert triggers.
+
+---
+
+## Milestone 16: v2.1.0 (Multi-Region Edge Peer Federation & WAN Sync)
+- [ ] Edge mesh federation with encrypted overlay tunnels for cross-region node synchronization.
+- [ ] Low-bandwidth delta sync protocol optimized for high-latency WAN connections.
+- [ ] Geo-distributed container inventory routing with failover policy triggers.
+

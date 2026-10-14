@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-10-14
+
+### Added
+- Multi-host agent mesh registry (`internal/mesh/node.go`) providing thread-safe remote node registration, node health tracking (`online`, `offline`, `degraded`, `unknown`), endpoint address sanitization, label tagging, and cluster-wide aggregate compute metrics calculation.
+- Background concurrent health and telemetry prober (`internal/mesh/prober.go`) executing periodic non-blocking health checks, round-trip latency measurement, system metrics ingestion, and remote Docker container inventory synchronization with Bearer token authentication.
+- Cluster mesh REST API endpoints (`internal/api/mesh.go`):
+  - `GET /api/nodes` & `POST /api/nodes`: Node inventory listing and dynamic remote node registration with RoleAdmin authorization and audit logging.
+  - `DELETE /api/nodes`: Remote node deregistration with audit trail recording.
+  - `GET /api/cluster/summary`: Real-time aggregate telemetry (total/online/offline nodes, cluster-wide container counts, aggregate CPU percent, memory utilization).
+  - `GET /api/cluster/containers`: Unified multi-node container aggregation with `node_id` and `state` filtering query parameters.
+  - `POST /api/nodes/heartbeat`: Agent push endpoint allowing edge dock-radar instances to publish health telemetry and container status back to the coordinator.
+- Prometheus exporter enhancement (`internal/metrics/prometheus.go`): Exposes cluster-wide node status gauges, probe latency metrics, total/running mesh container counts, and aggregate resource utilization across active mesh nodes.
+- CLI flags and environment configuration: `--nodes` (`DOCK_RADAR_NODES`) for static bootstrap peer list, and `--node-name` (`DOCK_RADAR_NODE_NAME`) for custom node display names.
+- Web dashboard enhancements (`web/dist/index.html`):
+  - Header Cluster Mesh live badge showing aggregate online node count.
+  - Sticky glassmorphism Cluster Summary bar displaying live cluster nodes, total/running containers, aggregate CPU, aggregate RAM, and node filter dropdown.
+  - Interactive "Manage Nodes" modal panel with dynamic remote node registration form, active nodes table, probe latency, container counts, and one-click node unregistration.
+  - Container Radar table augmented with node origin badges (`[node_name]`) and unified cluster view.
+
 ## [1.1.0] - 2026-10-14
 
 ### Added

@@ -566,6 +566,7 @@
       <span>•</span>
       <span id="tls-badge" class="status-pill status-standby" style="font-size: 11px;">TLS: Checking...</span>
       <span id="auth-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer;" onclick="openAuthModal()" title="Manage Bearer Token & Authentication">Auth: Local</span>
+      <button id="mesh-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: inline-flex; align-items: center; gap: 4px;" onclick="openMeshModal()" title="Cluster Mesh & Remote Node Aggregator">🕸️ Cluster: <span id="mesh-node-count">1 Node</span></button>
       <a href="/metrics" target="_blank" id="metrics-badge" class="status-pill" style="font-size: 11px; text-decoration: none; color: #38bdf8; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); display: inline-flex; align-items: center; gap: 4px;" title="Prometheus Metrics Exporter">📊 /metrics</a>
       <button id="btn-export-audit" class="status-pill" style="font-size: 11px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;" onclick="exportAuditTrail()" title="Export Audit Trail in NDJSON format">📋 Export Audit</button>
       <span>•</span>
@@ -574,6 +575,38 @@
   </header>
 
   <main>
+    <!-- Cluster Mesh Summary Bar -->
+    <div id="cluster-summary-bar" class="card" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: linear-gradient(90deg, rgba(16, 23, 38, 0.95), rgba(22, 32, 53, 0.95)); border: 1px solid rgba(56, 189, 248, 0.25); flex-wrap: wrap; gap: 12px;">
+      <div style="display: flex; align-items: center; gap: 16px; flex-wrap: wrap;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-size: 12px; font-weight: 700; color: #38bdf8; letter-spacing: 0.5px;">CLUSTER MESH</span>
+          <span id="cs-online-pill" class="status-pill status-running" style="font-size: 10px;">1 Online</span>
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted);">
+          Nodes: <strong id="cs-total-nodes" style="color: var(--text-main);">1</strong>
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted);">
+          Total Containers: <strong id="cs-total-containers" style="color: var(--text-main);">0</strong>
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted);">
+          Running: <strong id="cs-running-containers" style="color: var(--accent-green);">0</strong>
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted);">
+          Cluster CPU: <strong id="cs-cpu" style="color: var(--text-main);">0.0%</strong>
+        </div>
+        <div style="font-size: 12px; color: var(--text-muted);">
+          Cluster RAM: <strong id="cs-mem" style="color: var(--text-main);">0 MB</strong>
+        </div>
+      </div>
+      <div style="display: flex; gap: 8px; align-items: center;">
+        <label for="node-filter-select" style="font-size: 11px; color: var(--text-muted);">Filter Node:</label>
+        <select id="node-filter-select" class="form-input" style="width: auto; padding: 4px 10px; font-size: 11px; cursor: pointer;">
+          <option value="all">All Cluster Nodes</option>
+        </select>
+        <button class="btn-action btn-logs" onclick="openMeshModal()" style="font-size: 11px; padding: 4px 12px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">🕸️ Nodes Panel</button>
+      </div>
+    </div>
+
     <section class="grid-stats">
       <div class="card">
         <div class="card-title">Memory Allocation</div>
@@ -791,6 +824,65 @@
           <button class="btn btn-secondary" id="btn-close-auth-modal">Close</button>
           <button class="btn btn-primary-restart" id="btn-save-auth-token">Save &amp; Verify</button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Cluster Mesh Management Modal -->
+  <div class="modal-backdrop" id="mesh-modal">
+    <div class="modal-card" style="max-width: 860px; width: 95%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div class="modal-title" style="color: #38bdf8; margin-bottom: 0;">Multi-Host Agent Mesh &amp; Remote Node Aggregator</div>
+        <button class="btn-action" onclick="closeMeshModal()" style="padding: 4px 10px;">✕</button>
+      </div>
+      <div class="modal-body" style="margin-bottom: 16px;">
+        <!-- Register New Node Form -->
+        <div class="alert-card-sub" style="margin-bottom: 18px; padding: 14px;">
+          <div style="font-size: 12px; font-weight: 700; color: var(--text-main); margin-bottom: 10px; text-transform: uppercase;">Register Remote Dock-Radar Node</div>
+          <div class="form-row" style="margin-bottom: 10px;">
+            <div class="form-col">
+              <label class="form-label" for="mesh-new-id">Node ID</label>
+              <input type="text" class="form-input" id="mesh-new-id" placeholder="node-edge-1">
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="mesh-new-name">Display Name</label>
+              <input type="text" class="form-input" id="mesh-new-name" placeholder="Edge Worker 1">
+            </div>
+            <div class="form-col" style="flex: 2;">
+              <label class="form-label" for="mesh-new-addr">HTTP/HTTPS Endpoint</label>
+              <input type="url" class="form-input" id="mesh-new-addr" placeholder="http://192.168.1.50:9080">
+            </div>
+          </div>
+          <button class="btn btn-primary-restart" id="btn-register-node" style="padding: 7px 16px; font-size: 12px; font-weight: 600;">+ Register Node</button>
+        </div>
+
+        <!-- Nodes Table -->
+        <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase;">Configured Mesh Nodes</div>
+        <div style="max-height: 280px; overflow-y: auto; border: 1px solid var(--border-subtle); border-radius: 8px; background: #090d16;">
+          <table class="alert-events-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th>Node / ID</th>
+                <th>Endpoint</th>
+                <th>Status</th>
+                <th>Latency</th>
+                <th>Containers</th>
+                <th>Labels</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="mesh-nodes-body">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                  Loading cluster nodes...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-actions" style="display: flex; justify-content: flex-end;">
+        <button class="btn btn-secondary" onclick="closeMeshModal()">Close</button>
       </div>
     </div>
   </div>
@@ -1303,20 +1395,165 @@
       }
     });
 
+    let cachedClusterContainers = [];
+    let cachedNodes = [];
+
+    // Cluster Mesh Elements & Handlers
+    const meshModal = document.getElementById('mesh-modal');
+    const meshBadge = document.getElementById('mesh-badge');
+    const meshNodeCount = document.getElementById('mesh-node-count');
+    const nodeFilterSelect = document.getElementById('node-filter-select');
+    const btnRegisterNode = document.getElementById('btn-register-node');
+
+    function openMeshModal() {
+      if (!meshModal) return;
+      meshModal.classList.add('active');
+      refreshMeshNodes();
+    }
+    function closeMeshModal() {
+      if (!meshModal) return;
+      meshModal.classList.remove('active');
+    }
+
+    if (meshModal) {
+      meshModal.addEventListener('click', (e) => {
+        if (e.target === meshModal) closeMeshModal();
+      });
+    }
+
+    if (nodeFilterSelect) {
+      nodeFilterSelect.addEventListener('change', () => {
+        pollTelemetry();
+      });
+    }
+
+    async function refreshMeshNodes() {
+      try {
+        const resp = await authFetch('/api/nodes');
+        if (!resp.ok) return;
+        const res = await resp.json();
+        renderMeshNodesTable(res.nodes || []);
+      } catch (err) {
+        log(`Failed to fetch mesh nodes: ${err.message}`, 'warn');
+      }
+    }
+
+    function renderMeshNodesTable(nodes) {
+      const tbody = document.getElementById('mesh-nodes-body');
+      if (!tbody) return;
+      if (!nodes || nodes.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 18px;">
+              No remote nodes registered.
+            </td>
+          </tr>
+        `;
+        return;
+      }
+
+      tbody.innerHTML = nodes.map(n => {
+        const isOnline = n.status === 'online';
+        const labelsStr = Object.entries(n.labels || {}).map(([k, v]) =>
+          `<span class="badge-level badge-level-info" style="font-size: 9px; margin-right: 4px;">${escapeHTML(k)}=${escapeHTML(v)}</span>`
+        ).join('') || '<span style="color: var(--text-muted); font-size: 11px;">none</span>';
+
+        const actionBtn = n.id === 'local'
+          ? '<span style="font-size: 11px; color: var(--text-muted);">Coordinator</span>'
+          : `<button class="btn-action btn-stop" style="padding: 2px 8px; font-size: 11px;" data-node-id="${escapeHTML(n.id)}" onclick="unregisterNode(this.getAttribute('data-node-id'))">Unregister</button>`;
+
+        return `
+          <tr>
+            <td>
+              <div style="font-weight: 600; color: var(--text-main);">${escapeHTML(n.name || n.id)}</div>
+              <div style="font-size: 10px; color: var(--text-muted); font-family: monospace;">${escapeHTML(n.id)}</div>
+            </td>
+            <td style="font-family: monospace; font-size: 11px; color: #94a3b8;">${escapeHTML(n.address)}</td>
+            <td><span class="status-pill status-${isOnline ? 'running' : (n.status === 'degraded' ? 'standby' : 'stopped')}">${escapeHTML(n.status)}</span></td>
+            <td style="font-family: monospace; font-size: 11px;">${n.latency_ms} ms</td>
+            <td>${(n.containers || []).length} (${n.metrics ? n.metrics.containers_running : 0} up)</td>
+            <td>${labelsStr}</td>
+            <td style="text-align: right;">${actionBtn}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    if (btnRegisterNode) {
+      btnRegisterNode.addEventListener('click', async () => {
+        const id = document.getElementById('mesh-new-id').value.trim();
+        const name = document.getElementById('mesh-new-name').value.trim();
+        const address = document.getElementById('mesh-new-addr').value.trim();
+
+        if (!id || !address) {
+          showToast('✗ Node ID and Endpoint address are required');
+          return;
+        }
+
+        btnRegisterNode.disabled = true;
+        btnRegisterNode.textContent = 'Registering...';
+
+        try {
+          const resp = await authFetch('/api/nodes', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id, name: name || id, address })
+          });
+          const res = await resp.json();
+          if (resp.ok && res.success) {
+            showToast(`✓ Node ${id} registered successfully`);
+            document.getElementById('mesh-new-id').value = '';
+            document.getElementById('mesh-new-name').value = '';
+            document.getElementById('mesh-new-addr').value = '';
+            refreshMeshNodes();
+            pollTelemetry();
+          } else {
+            showToast(`✗ Failed to register node: ${res.message || resp.statusText}`);
+          }
+        } catch (err) {
+          showToast(`✗ Registration error: ${err.message}`);
+        } finally {
+          btnRegisterNode.disabled = false;
+          btnRegisterNode.textContent = '+ Register Node';
+        }
+      });
+    }
+
+    async function unregisterNode(id) {
+      if (!confirm(`Are you sure you want to unregister node "${id}" from the mesh?`)) return;
+      try {
+        const resp = await authFetch(`/api/nodes?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+        if (resp.ok) {
+          showToast(`✓ Node ${id} unregistered`);
+          refreshMeshNodes();
+          pollTelemetry();
+        } else {
+          showToast(`✗ Failed to unregister node`);
+        }
+      } catch (err) {
+        showToast(`✗ Unregister error: ${err.message}`);
+      }
+    }
+
     async function pollTelemetry() {
       try {
-        const [sysRes, dockRes] = await Promise.all([
-          authFetch('/api/system').then(r => r.json()),
-          authFetch('/api/docker').then(r => r.json())
+        const [sysRes, dockRes, clusterSummaryRes, clusterContainersRes, nodesRes] = await Promise.all([
+          authFetch('/api/system').then(r => r.json()).catch(() => ({})),
+          authFetch('/api/docker').then(r => r.json()).catch(() => ({ available: false, containers: [] })),
+          authFetch('/api/cluster/summary').then(r => r.json()).catch(() => null),
+          authFetch('/api/cluster/containers').then(r => r.json()).catch(() => null),
+          authFetch('/api/nodes').then(r => r.json()).catch(() => null)
         ]);
 
-        document.getElementById('host-badge').textContent = `${sysRes.hostname} (${sysRes.os}/${sysRes.arch})`;
-        document.getElementById('val-mem').textContent = `${sysRes.alloc_mb.toFixed(2)} MB`;
-        document.getElementById('sub-mem').textContent = `Total Sys: ${sysRes.sys_mb.toFixed(2)} MB`;
-        document.getElementById('val-goroutines').textContent = sysRes.num_goroutine;
-        document.getElementById('sub-cores').textContent = `Logical Cores: ${sysRes.num_cpu}`;
-        document.getElementById('val-uptime').textContent = `${sysRes.uptime_seconds}s`;
-        document.getElementById('sub-gc').textContent = `Total GC Cycles: ${sysRes.num_gc}`;
+        if (sysRes.hostname) {
+          document.getElementById('host-badge').textContent = `${sysRes.hostname} (${sysRes.os}/${sysRes.arch})`;
+          document.getElementById('val-mem').textContent = `${sysRes.alloc_mb ? sysRes.alloc_mb.toFixed(2) : '--'} MB`;
+          document.getElementById('sub-mem').textContent = `Total Sys: ${sysRes.sys_mb ? sysRes.sys_mb.toFixed(2) : '--'} MB`;
+          document.getElementById('val-goroutines').textContent = sysRes.num_goroutine || '--';
+          document.getElementById('sub-cores').textContent = `Logical Cores: ${sysRes.num_cpu || '--'}`;
+          document.getElementById('val-uptime').textContent = `${sysRes.uptime_seconds || 0}s`;
+          document.getElementById('sub-gc').textContent = `Total GC Cycles: ${sysRes.num_gc || 0}`;
+        }
 
         const daemonBadge = document.getElementById('daemon-badge');
         if (dockRes.available) {
@@ -1329,17 +1566,64 @@
           document.getElementById('val-containers').textContent = `0 / 0`;
         }
 
-        // Update container select dropdown dynamically
-        if (dockRes.containers && dockRes.containers.length > 0) {
+        // Update Cluster Mesh Summary
+        if (clusterSummaryRes) {
+          document.getElementById('cs-total-nodes').textContent = clusterSummaryRes.total_nodes;
+          document.getElementById('cs-total-containers').textContent = clusterSummaryRes.total_containers;
+          document.getElementById('cs-running-containers').textContent = clusterSummaryRes.running_containers;
+          document.getElementById('cs-cpu').textContent = `${(clusterSummaryRes.aggregate_cpu_percent || 0).toFixed(1)}%`;
+          document.getElementById('cs-mem').textContent = `${((clusterSummaryRes.aggregate_memory_used_bytes || 0) / (1024 * 1024)).toFixed(1)} MB`;
+          document.getElementById('cs-online-pill').textContent = `${clusterSummaryRes.online_nodes} Online`;
+          if (meshNodeCount) {
+            meshNodeCount.textContent = `${clusterSummaryRes.total_nodes} Node${clusterSummaryRes.total_nodes > 1 ? 's' : ''}`;
+          }
+        }
+
+        // Update Nodes filter dropdown and cached list
+        if (nodesRes && nodesRes.nodes) {
+          cachedNodes = nodesRes.nodes;
+          const currentFilter = nodeFilterSelect ? nodeFilterSelect.value : 'all';
+          if (nodeFilterSelect) {
+            const opts = ['<option value="all">All Cluster Nodes</option>'];
+            for (const n of cachedNodes) {
+              opts.push(`<option value="${n.id}">${escapeHTML(n.name || n.id)} (${n.status})</option>`);
+            }
+            nodeFilterSelect.innerHTML = opts.join('');
+            nodeFilterSelect.value = currentFilter;
+          }
+        }
+
+        // Aggregate unified container list across nodes
+        let containers = [];
+        if (clusterContainersRes && clusterContainersRes.containers && clusterContainersRes.containers.length > 0) {
+          containers = clusterContainersRes.containers;
+        } else if (dockRes.containers && dockRes.containers.length > 0) {
+          containers = dockRes.containers.map(c => ({
+            ...c,
+            node_id: 'local',
+            node_name: 'local'
+          }));
+        }
+        cachedClusterContainers = containers;
+
+        // Apply node filter if selected
+        const selectedNode = nodeFilterSelect ? nodeFilterSelect.value : 'all';
+        let displayedContainers = containers;
+        if (selectedNode && selectedNode !== 'all') {
+          displayedContainers = containers.filter(c => c.node_id === selectedNode);
+        }
+
+        // Update container select dropdown dynamically for logs
+        if (containers.length > 0) {
           const currentVal = logTargetSelect.value;
-          const containerIDs = new Set(dockRes.containers.map(c => c.id));
+          const containerIDs = new Set(containers.map(c => c.id));
           
           logTargetSelect.innerHTML = '<option value="system">Host System (dock-radar)</option>';
-          for (const c of dockRes.containers) {
+          for (const c of containers) {
             const rawName = (c.names && c.names[0]) ? c.names[0].replace(/^\//, '') : 'unnamed';
             const opt = document.createElement('option');
             opt.value = c.id;
-            opt.textContent = `${rawName} (${c.id.substring(0, 12)})`;
+            opt.textContent = `${c.node_name ? `[${c.node_name}] ` : ''}${rawName} (${c.id.substring(0, 12)})`;
             logTargetSelect.appendChild(opt);
           }
           if (containerIDs.has(currentVal) || currentVal === 'system') {
@@ -1348,13 +1632,14 @@
         }
 
         const tbody = document.getElementById('containers-body');
-        if (dockRes.containers && dockRes.containers.length > 0) {
-          tbody.innerHTML = dockRes.containers.map(c => {
+        if (displayedContainers && displayedContainers.length > 0) {
+          tbody.innerHTML = displayedContainers.map(c => {
             const rawName = (c.names && c.names[0]) ? c.names[0].replace(/^\//, '') : 'unnamed';
             const isRunning = c.state === 'running';
+            const nodeTag = c.node_name ? `<span class="badge-level badge-level-info" style="font-size: 10px; margin-right: 6px; padding: 1px 6px;">${escapeHTML(c.node_name)}</span>` : '';
             return `
               <tr>
-                <td style="font-weight: 600;">${rawName}</td>
+                <td style="font-weight: 600;">${nodeTag}${rawName}</td>
                 <td style="color: #94a3b8; font-family: monospace;">${c.image}</td>
                 <td><span class="status-pill status-${isRunning ? 'running' : 'stopped'}">${c.state}</span></td>
                 <td style="color: #cbd5e1;">${c.status}</td>
@@ -1373,7 +1658,7 @@
           tbody.innerHTML = `
             <tr>
               <td colspan="6" style="text-align: center; color: #94a3b8; padding: 28px;">
-                ${dockRes.available ? 'No active containers found on host.' : 'Docker daemon offline. Running in Host Telemetry & Standby Mode.'}
+                ${dockRes.available || containers.length > 0 ? 'No active containers match filter.' : 'Docker daemon offline. Running in Host Telemetry & Standby Mode.'}
               </td>
             </tr>
           `;

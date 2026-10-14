@@ -9,6 +9,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/audit"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/logs"
+	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/system"
 )
 
@@ -193,3 +194,70 @@ func TestEscapeLabel(t *testing.T) {
 		}
 	}
 }
+
+func TestFormatMetricsWithMesh(t *testing.T) {
+	sys := system.Metrics{
+		Hostname: "mesh-host",
+		OS:       "linux",
+		Arch:     "amd64",
+	}
+	dock := docker.DaemonStatus{Available: true}
+
+	summary := &mesh.ClusterSummary{
+		TotalNodes:               3,
+		OnlineNodes:              2,
+		OfflineNodes:             1,
+		TotalContainers:          8,
+		RunningContainers:        5,
+		AggregateCPUPercent:      25.5,
+		AggregateMemoryUsedBytes: 2048,
+	}
+
+	nodes := []*mesh.Node{
+		{
+			ID:        "node-alpha",
+			Name:      "Node Alpha",
+			Address:   "http://10.0.0.1:9080",
+			Status:    mesh.NodeStatusOnline,
+			LatencyMs: 4,
+		},
+		{
+			ID:        "node-beta",
+			Name:      "Node Beta",
+			Address:   "http://10.0.0.2:9080",
+			Status:    mesh.NodeStatusOffline,
+			LatencyMs: 0,
+		},
+	}
+
+	output := FormatMetricsWithMesh(sys, dock, nil, nil, nil, summary, nodes, "1.2.0")
+
+	if !strings.Contains(output, "dock_radar_mesh_nodes_total 3") {
+		t.Errorf("missing mesh nodes total in output:\n%s", output)
+	}
+	if !strings.Contains(output, "dock_radar_mesh_nodes_online 2") {
+		t.Errorf("missing mesh nodes online in output")
+	}
+	if !strings.Contains(output, "dock_radar_mesh_nodes_offline 1") {
+		t.Errorf("missing mesh nodes offline in output")
+	}
+	if !strings.Contains(output, "dock_radar_mesh_containers_total 8") {
+		t.Errorf("missing mesh containers total in output")
+	}
+	if !strings.Contains(output, "dock_radar_mesh_containers_running 5") {
+		t.Errorf("missing mesh containers running in output")
+	}
+	if !strings.Contains(output, "dock_radar_mesh_aggregate_cpu_percent 25.50") {
+		t.Errorf("missing mesh aggregate cpu in output")
+	}
+	if !strings.Contains(output, `dock_radar_mesh_node_status{address="http://10.0.0.1:9080",id="node-alpha",name="Node Alpha",status="online"} 1`) {
+		t.Errorf("missing node alpha status in output")
+	}
+	if !strings.Contains(output, `dock_radar_mesh_node_status{address="http://10.0.0.2:9080",id="node-beta",name="Node Beta",status="offline"} 0`) {
+		t.Errorf("missing node beta status in output")
+	}
+	if !strings.Contains(output, `dock_radar_mesh_node_latency_ms{address="http://10.0.0.1:9080",id="node-alpha",name="Node Alpha"} 4`) {
+		t.Errorf("missing node alpha latency in output")
+	}
+}
+

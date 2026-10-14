@@ -19,6 +19,7 @@ dist/
 TASK_BACKLOG.md
 dev_logs/
 scripts/ARCHITECTURE_MAP.md
+scripts/AUTONOMOUS_SPEC.md
 
 # OS files
 .DS_Store

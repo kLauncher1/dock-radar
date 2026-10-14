@@ -17,6 +17,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/audit"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/logs"
+	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/security"
 	"github.com/kLauncher1/dock-radar/internal/system"
 )
@@ -45,6 +46,8 @@ type HandlerConfig struct {
 	AlertDispatcher  *alert.Dispatcher
 	AlertMonitor     *alert.Monitor
 	AuditLogger      *audit.Logger
+	MeshRegistry     *mesh.Registry
+	MeshProber       *mesh.Prober
 	AppVersion       string
 	TokenAuth        *security.TokenAuth
 	AllowRemote      bool
@@ -74,7 +77,7 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	auditLogger.Log(audit.AuditEvent{
 		Action:  "system_init",
 		Target:  "dock-radar",
-		Details: map[string]any{"version": "1.1.0"},
+		Details: map[string]any{"version": "1.2.0"},
 	})
 
 	cfg := &HandlerConfig{
@@ -85,7 +88,7 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 		AlertDispatcher:  alertDispatcher,
 		AlertMonitor:     alertMonitor,
 		AuditLogger:      auditLogger,
-		AppVersion:       "1.1.0",
+		AppVersion:       "1.2.0",
 		TokenAuth:        tokenAuth,
 		AllowRemote:      allowRemote,
 	}
@@ -120,6 +123,13 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	// Authentication status and token verification
 	mux.HandleFunc("/api/auth/status", cfg.handleAuthStatus)
 	mux.HandleFunc("/api/auth/verify", cfg.handleAuthVerify)
+
+	// Multi-Host Agent Mesh & Remote Node Aggregator
+	mux.HandleFunc("/api/nodes", cfg.handleMeshNodes)
+	mux.HandleFunc("/api/nodes/register", cfg.handleMeshNodes)
+	mux.HandleFunc("/api/nodes/heartbeat", cfg.handleNodeHeartbeat)
+	mux.HandleFunc("/api/cluster/summary", cfg.handleClusterSummary)
+	mux.HandleFunc("/api/cluster/containers", cfg.handleClusterContainers)
 
 	// Embedded Static UI
 	if staticFS != nil {
