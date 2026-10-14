@@ -41,9 +41,9 @@ This document outlines the architectural milestones and engineering priorities f
 ---
 
 ## Milestone 8: v1.3.0 (Interactive Web Terminal Exec)
-- [ ] Interactive in-browser container shell execution via WebSocket (`/api/docker/exec`).
-- [ ] VT100 / ANSI escape sequence rendering with custom terminal font styling.
-- [ ] Read-only shell access policy mode and idle session termination timeouts.
+- [x] Interactive in-browser container shell execution via WebSocket (`/api/docker/exec`).
+- [x] VT100 / ANSI escape sequence rendering with custom terminal font styling.
+- [x] Read-only shell access policy mode and idle session termination timeouts.
 
 ---
 
@@ -100,4 +100,19 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Edge mesh federation with encrypted overlay tunnels for cross-region node synchronization.
 - [ ] Low-bandwidth delta sync protocol optimized for high-latency WAN connections.
 - [ ] Geo-distributed container inventory routing with failover policy triggers.
+
+---
+
+## Milestone 17: v2.2.0 (Container Image Vulnerability Scanner & SBOM Audit)
+- [ ] In-line container image layer scanning and Common Vulnerabilities and Exposures (CVE) database lookup.
+- [ ] Software Bill of Materials (SBOM) generation in SPDX and CycloneDX formats.
+- [ ] Automated security severity grading and deployment gating triggers.
+
+---
+
+## Milestone 18: v2.3.0 (Distributed Rate-Limiting & Global Quota Orchestrator)
+- [ ] Token bucket and sliding-window rate limiters synchronized across mesh peer nodes.
+- [ ] Configurable per-tenant API quotas and bandwidth throttling controls.
+- [ ] Distributed abuse mitigation with automatic IP ban propagation.
+
 

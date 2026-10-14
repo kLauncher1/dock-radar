@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-10-14
+
+### Added
+- Interactive in-browser container terminal execution via bidirectional WebSocket (`/api/docker/exec`, `internal/api/exec.go`).
+- Docker exec engine (`internal/docker/exec.go`) supporting dynamic exec instance creation, raw duplex socket hijacking (`Upgrade: tcp`), terminal dimension resizing, and status/exit inspection.
+- High-fidelity VT100 / ANSI escape sequence renderer in the embedded web dashboard supporting 16 standard ANSI colors, 256-color palette (`\x1b[38;5;Nm`), font styles (bold, dim, italic, underline), line erase, and screen clears.
+- Read-only shell access policy mode enforcing strict input blocking for read-only viewers or auditing scenarios, with visual policy watermark badges and toast alerts.
+- Configurable idle session termination watchdog automatically closing inactive exec connections and reclaiming resources.
+- Interactive terminal controls in web dashboard: target container selection, shell binary picker (`/bin/sh`, `/bin/bash`, `sh`, `/bin/ash`), read-only toggle, connection state indicators, and keyboard input capture (with Enter, Backspace, Tab, arrows, and Ctrl combinations).
+- "Exec" action triggers in Container Radar table providing one-click terminal attachment to running containers.
+- Comprehensive unit test suites in `internal/docker/exec_test.go` and `internal/api/exec_test.go` covering REST creation, RBAC authorization guards, connection hijacking, read-only policy enforcement, and stream message flow.
+
 ## [1.2.0] - 2026-10-14
 
 ### Added

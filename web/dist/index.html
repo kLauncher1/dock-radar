@@ -164,6 +164,72 @@
       background: rgba(192, 132, 252, 0.18);
       border-color: #c084fc;
     }
+    .btn-exec {
+      color: #34d399;
+      border-color: rgba(52, 211, 153, 0.3);
+      background: rgba(52, 211, 153, 0.06);
+    }
+    .btn-exec:hover {
+      background: rgba(52, 211, 153, 0.18);
+      border-color: #34d399;
+    }
+    .policy-badge {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      letter-spacing: 0.3px;
+    }
+    .policy-rw {
+      background: rgba(16, 185, 129, 0.15);
+      color: #10b981;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .policy-ro {
+      background: rgba(245, 158, 11, 0.15);
+      color: #f59e0b;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .exec-cursor {
+      display: inline-block;
+      width: 8px;
+      height: 15px;
+      background: #38bdf8;
+      vertical-align: -2px;
+      animation: execBlink 1s step-end infinite;
+    }
+    @keyframes execBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+    .ansi-bold { font-weight: 700; }
+    .ansi-dim { opacity: 0.6; }
+    .ansi-italic { font-style: italic; }
+    .ansi-underline { text-decoration: underline; }
+    .ansi-30 { color: #64748b; }
+    .ansi-31 { color: #f87171; }
+    .ansi-32 { color: #4ade80; }
+    .ansi-33 { color: #facc15; }
+    .ansi-34 { color: #60a5fa; }
+    .ansi-35 { color: #c084fc; }
+    .ansi-36 { color: #2dd4bf; }
+    .ansi-37 { color: #f3f4f6; }
+    .ansi-90 { color: #94a3b8; }
+    .ansi-91 { color: #fca5a5; }
+    .ansi-92 { color: #86efac; }
+    .ansi-93 { color: #fde047; }
+    .ansi-94 { color: #93c5fd; }
+    .ansi-95 { color: #e9d5ff; }
+    .ansi-96 { color: #5eead4; }
+    .ansi-97 { color: #ffffff; }
+    .ansi-bg-40 { background-color: #000000; }
+    .ansi-bg-41 { background-color: rgba(239, 68, 68, 0.3); }
+    .ansi-bg-42 { background-color: rgba(16, 185, 129, 0.3); }
+    .ansi-bg-43 { background-color: rgba(245, 158, 11, 0.3); }
+    .ansi-bg-44 { background-color: rgba(59, 130, 246, 0.3); }
+    .ansi-bg-45 { background-color: rgba(168, 85, 247, 0.3); }
+    .ansi-bg-46 { background-color: rgba(20, 184, 166, 0.3); }
+    .ansi-bg-47 { background-color: rgba(241, 245, 249, 0.2); }
     .btn-action:disabled {
       opacity: 0.35;
       cursor: not-allowed;
@@ -693,6 +759,50 @@
           <span class="log-ts">[BOOT]</span>
           <span class="log-badge log-badge-system">system</span>
           <span class="log-msg">Dock-Radar telemetry terminal online. Initializing real-time feed...</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Interactive In-Browser Container Terminal Exec -->
+    <div class="terminal-container" id="exec-section" style="margin-bottom: 24px; border-color: rgba(52, 211, 153, 0.25);">
+      <div class="terminal-header" style="background: rgba(16, 23, 38, 0.85);">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 6px; color: #34d399;">
+            <span>💻</span> Interactive Container Terminal (Exec)
+          </span>
+          <span class="ws-status-badge">
+            <span class="ws-status-dot" id="exec-ws-dot" style="background-color: var(--text-muted);"></span>
+            <span id="exec-ws-status-text">Disconnected</span>
+          </span>
+          <span class="policy-badge policy-rw" id="exec-policy-badge">Read/Write</span>
+          <span style="font-size: 11px; font-family: monospace; color: var(--text-muted);" id="exec-idle-timer">Idle: 300s</span>
+        </div>
+        <div class="terminal-controls" style="flex-wrap: wrap; gap: 8px;">
+          <select class="container-select" id="exec-target-select" title="Target Container">
+            <option value="">Select container to exec...</option>
+          </select>
+          <select class="container-select" id="exec-shell-select" style="max-width: 105px;" title="Shell Binary">
+            <option value="/bin/sh">/bin/sh</option>
+            <option value="/bin/bash">/bin/bash</option>
+            <option value="sh">sh</option>
+            <option value="/bin/ash">/bin/ash</option>
+          </select>
+          <label class="autoscroll-toggle" title="Prevent keyboard input and enforce view-only policy">
+            <input type="checkbox" id="exec-readonly-check">
+            <span>Read-Only</span>
+          </label>
+          <button class="btn-action btn-exec" id="btn-exec-connect">Connect</button>
+          <button class="btn-clear-terminal" id="btn-exec-clear">Clear</button>
+        </div>
+      </div>
+      <div style="position: relative;">
+        <div class="terminal-box" id="exec-console" tabindex="0" title="Click to focus terminal for typing" style="height: 320px; background: #030712; cursor: text; outline: none; border-top: 1px solid rgba(255, 255, 255, 0.04);">
+          <div class="log-line" style="color: var(--text-muted); font-style: italic;">
+            <span>Click "Connect" or click "Exec" on any active container above to launch an interactive shell.</span>
+          </div>
+        </div>
+        <div id="exec-ro-watermark" style="display: none; position: absolute; top: 12px; right: 16px; background: rgba(245, 158, 11, 0.18); border: 1px solid rgba(245, 158, 11, 0.35); color: #f59e0b; padding: 3px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; letter-spacing: 0.5px; pointer-events: none; z-index: 5;">
+          🔒 READ-ONLY POLICY ACTIVE
         </div>
       </div>
     </div>
@@ -1243,6 +1353,394 @@
       showToast(`Switched log terminal to ${containerName || containerId}`);
     }
 
+    // ==========================================
+    // Interactive In-Browser Container Terminal Exec
+    // ==========================================
+    let execWs = null;
+    let execActiveTarget = '';
+    let execIsReadOnly = false;
+    let execIdleRemaining = 300;
+    let execIdleInterval = null;
+
+    const execTargetSelect = document.getElementById('exec-target-select');
+    const execShellSelect = document.getElementById('exec-shell-select');
+    const execReadonlyCheck = document.getElementById('exec-readonly-check');
+    const btnExecConnect = document.getElementById('btn-exec-connect');
+    const btnExecClear = document.getElementById('btn-exec-clear');
+    const execConsole = document.getElementById('exec-console');
+    const execWsDot = document.getElementById('exec-ws-dot');
+    const execWsStatusText = document.getElementById('exec-ws-status-text');
+    const execPolicyBadge = document.getElementById('exec-policy-badge');
+    const execIdleTimer = document.getElementById('exec-idle-timer');
+    const execRoWatermark = document.getElementById('exec-ro-watermark');
+
+    function updateExecPolicyUI() {
+      execIsReadOnly = execReadonlyCheck ? execReadonlyCheck.checked : false;
+      if (execPolicyBadge) {
+        if (execIsReadOnly) {
+          execPolicyBadge.className = 'policy-badge policy-ro';
+          execPolicyBadge.textContent = '🔒 Read-Only Policy';
+        } else {
+          execPolicyBadge.className = 'policy-badge policy-rw';
+          execPolicyBadge.textContent = 'Read/Write';
+        }
+      }
+      if (execRoWatermark) {
+        execRoWatermark.style.display = execIsReadOnly ? 'block' : 'none';
+      }
+    }
+
+    if (execReadonlyCheck) {
+      execReadonlyCheck.addEventListener('change', () => {
+        updateExecPolicyUI();
+        if (execWs && execWs.readyState === WebSocket.OPEN) {
+          showToast('Policy updated: Reconnect to enforce on active daemon session');
+        }
+      });
+    }
+
+    function resetExecIdleTimer(timeoutSec = 300) {
+      execIdleRemaining = timeoutSec;
+      if (execIdleTimer) {
+        execIdleTimer.textContent = `Idle: ${execIdleRemaining}s`;
+      }
+      if (execIdleInterval) clearInterval(execIdleInterval);
+      execIdleInterval = setInterval(() => {
+        if (execIdleRemaining > 0) {
+          execIdleRemaining--;
+          if (execIdleTimer) {
+            execIdleTimer.textContent = `Idle: ${execIdleRemaining}s`;
+          }
+        }
+      }, 1000);
+    }
+
+    function appendExecLine(text, isStatus = false, isWarning = false) {
+      if (!execConsole) return;
+      const div = document.createElement('div');
+      div.className = 'log-line';
+      if (isStatus) {
+        div.style.color = '#38bdf8';
+        div.style.fontStyle = 'italic';
+      } else if (isWarning) {
+        div.style.color = '#f59e0b';
+        div.style.fontWeight = '600';
+      }
+      div.innerHTML = parseANSI(text);
+      execConsole.appendChild(div);
+
+      while (execConsole.children.length > 800) {
+        execConsole.removeChild(execConsole.firstChild);
+      }
+      execConsole.scrollTop = execConsole.scrollHeight;
+    }
+
+    function parseANSI(raw) {
+      if (!raw) return '';
+      let s = escapeHTML(raw);
+      s = s.replace(/\r\n/g, '\n');
+
+      const ansiMap = {
+        '0': '</span>',
+        '1': '<span class="ansi-bold">',
+        '2': '<span class="ansi-dim">',
+        '3': '<span class="ansi-italic">',
+        '4': '<span class="ansi-underline">',
+        '30': '<span class="ansi-30">',
+        '31': '<span class="ansi-31">',
+        '32': '<span class="ansi-32">',
+        '33': '<span class="ansi-33">',
+        '34': '<span class="ansi-34">',
+        '35': '<span class="ansi-35">',
+        '36': '<span class="ansi-36">',
+        '37': '<span class="ansi-37">',
+        '90': '<span class="ansi-90">',
+        '91': '<span class="ansi-91">',
+        '92': '<span class="ansi-92">',
+        '93': '<span class="ansi-93">',
+        '94': '<span class="ansi-94">',
+        '95': '<span class="ansi-95">',
+        '96': '<span class="ansi-96">',
+        '97': '<span class="ansi-97">',
+        '40': '<span class="ansi-bg-40">',
+        '41': '<span class="ansi-bg-41">',
+        '42': '<span class="ansi-bg-42">',
+        '43': '<span class="ansi-bg-43">',
+        '44': '<span class="ansi-bg-44">',
+        '45': '<span class="ansi-bg-45">',
+        '46': '<span class="ansi-bg-46">',
+        '47': '<span class="ansi-bg-47">',
+      };
+
+      s = s.replace(/\x1b\[38;5;(\d+)m/g, (match, n) => `<span style="color: hsl(${(n * 36) % 360}, 80%, 65%);">`);
+      s = s.replace(/\x1b\[48;5;(\d+)m/g, (match, n) => `<span style="background-color: hsla(${(n * 36) % 360}, 80%, 25%, 0.4);">`);
+      s = s.replace(/\x1b\[([0-9;]+)m/g, (match, codes) => {
+        const parts = codes.split(';');
+        let res = '';
+        for (const p of parts) {
+          if (p === '0') res += '</span>';
+          else if (ansiMap[p]) res += ansiMap[p];
+        }
+        return res;
+      });
+
+      s = s.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, '');
+      return s;
+    }
+
+    function connectExecWebSocket() {
+      const targetId = execTargetSelect ? execTargetSelect.value : '';
+      if (!targetId) {
+        showToast('Please select a target container first');
+        return;
+      }
+
+      if (execWs) {
+        try { execWs.close(); } catch {}
+        execWs = null;
+      }
+
+      updateExecPolicyUI();
+      const shell = execShellSelect ? execShellSelect.value : '/bin/sh';
+      const isRO = execIsReadOnly;
+      const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const token = localStorage.getItem('dock_radar_auth_token') || '';
+      const url = `${proto}//${window.location.host}/api/docker/exec?id=${encodeURIComponent(targetId)}&cmd=${encodeURIComponent(shell)}&readonly=${isRO ? '1' : '0'}${token ? `&token=${encodeURIComponent(token)}` : ''}`;
+
+      if (execWsDot) {
+        execWsDot.className = 'ws-status-dot';
+        execWsDot.style.backgroundColor = 'var(--accent-yellow)';
+      }
+      if (execWsStatusText) execWsStatusText.textContent = 'Connecting...';
+      if (btnExecConnect) btnExecConnect.textContent = 'Connecting...';
+
+      execConsole.innerHTML = '';
+      appendExecLine(`Connecting to container ${targetId.substring(0, 12)} (${shell})...`, true);
+
+      try {
+        execWs = new WebSocket(url);
+      } catch (err) {
+        appendExecLine(`Failed to initialize WebSocket: ${err.message}`, false, true);
+        disconnectExecWebSocket();
+        return;
+      }
+
+      execWs.onopen = () => {
+        if (execWsDot) {
+          execWsDot.className = 'ws-status-dot connected';
+          execWsDot.style.backgroundColor = '';
+        }
+        if (execWsStatusText) execWsStatusText.textContent = 'Connected';
+        if (btnExecConnect) {
+          btnExecConnect.textContent = 'Disconnect';
+          btnExecConnect.className = 'btn-action btn-stop';
+        }
+        resetExecIdleTimer(300);
+        sendExecResize();
+        execConsole.focus();
+      };
+
+      execWs.onmessage = (event) => {
+        resetExecIdleTimer(300);
+        let msg = null;
+        try {
+          msg = JSON.parse(event.data);
+        } catch {
+          msg = { type: 'output', data: event.data };
+        }
+
+        switch (msg.type) {
+          case 'output':
+            appendExecLine(msg.data);
+            break;
+          case 'status':
+            appendExecLine(`ℹ️ ${msg.message}`, true);
+            if (msg.readonly !== undefined) {
+              execIsReadOnly = !!msg.readonly;
+              if (execReadonlyCheck) execReadonlyCheck.checked = execIsReadOnly;
+              updateExecPolicyUI();
+            }
+            if (msg.timeout) resetExecIdleTimer(msg.timeout);
+            break;
+          case 'warning':
+            appendExecLine(`⚠️ ${msg.message}`, false, true);
+            showToast(`⚠️ ${msg.message}`);
+            break;
+          case 'error':
+            appendExecLine(`❌ ${msg.message}`, false, true);
+            showToast(`❌ Exec error: ${msg.message}`);
+            disconnectExecWebSocket();
+            break;
+          case 'exit':
+            appendExecLine(`\n[Process exited with exit code ${msg.code}]`, true);
+            disconnectExecWebSocket();
+            break;
+          case 'timeout':
+            appendExecLine(`\n[Session closed due to inactivity timeout]`, false, true);
+            disconnectExecWebSocket();
+            break;
+          case 'pong':
+            break;
+        }
+      };
+
+      execWs.onerror = () => {
+        appendExecLine(`WebSocket connection error`, false, true);
+      };
+
+      execWs.onclose = () => {
+        disconnectExecWebSocket();
+      };
+    }
+
+    function disconnectExecWebSocket() {
+      if (execWs) {
+        try { execWs.close(); } catch {}
+        execWs = null;
+      }
+      if (execWsDot) {
+        execWsDot.className = 'ws-status-dot disconnected';
+        execWsDot.style.backgroundColor = '';
+      }
+      if (execWsStatusText) execWsStatusText.textContent = 'Disconnected';
+      if (btnExecConnect) {
+        btnExecConnect.textContent = 'Connect';
+        btnExecConnect.className = 'btn-action btn-exec';
+      }
+      if (execIdleInterval) {
+        clearInterval(execIdleInterval);
+        execIdleInterval = null;
+      }
+    }
+
+    function sendExecInput(data) {
+      if (!execWs || execWs.readyState !== WebSocket.OPEN) return;
+      if (execIsReadOnly) {
+        showToast('🔒 Read-Only Policy Active: Keystrokes are blocked');
+        return;
+      }
+      const payload = JSON.stringify({ type: 'stdin', data });
+      execWs.send(payload);
+      resetExecIdleTimer(300);
+    }
+
+    function sendExecResize() {
+      if (!execWs || execWs.readyState !== WebSocket.OPEN) return;
+      const cols = Math.max(40, Math.floor((execConsole.clientWidth - 32) / 8.5));
+      const rows = Math.max(10, Math.floor((execConsole.clientHeight - 32) / 18));
+      execWs.send(JSON.stringify({ type: 'resize', cols, rows }));
+    }
+
+    window.addEventListener('resize', () => {
+      sendExecResize();
+    });
+
+    if (btnExecConnect) {
+      btnExecConnect.addEventListener('click', () => {
+        if (execWs && execWs.readyState === WebSocket.OPEN) {
+          disconnectExecWebSocket();
+        } else {
+          connectExecWebSocket();
+        }
+      });
+    }
+
+    if (btnExecClear) {
+      btnExecClear.addEventListener('click', () => {
+        if (execConsole) execConsole.innerHTML = '';
+      });
+    }
+
+    if (execConsole) {
+      execConsole.addEventListener('keydown', (e) => {
+        if (!execWs || execWs.readyState !== WebSocket.OPEN) return;
+
+        if (execIsReadOnly) {
+          showToast('🔒 Read-Only Policy Active: Keystrokes are blocked');
+          e.preventDefault();
+          return;
+        }
+
+        if (e.key === 'Enter') {
+          sendExecInput('\r');
+          e.preventDefault();
+        } else if (e.key === 'Backspace') {
+          sendExecInput('\x7f');
+          e.preventDefault();
+        } else if (e.key === 'Tab') {
+          sendExecInput('\t');
+          e.preventDefault();
+        } else if (e.key === 'ArrowUp') {
+          sendExecInput('\x1b[A');
+          e.preventDefault();
+        } else if (e.key === 'ArrowDown') {
+          sendExecInput('\x1b[B');
+          e.preventDefault();
+        } else if (e.key === 'ArrowRight') {
+          sendExecInput('\x1b[C');
+          e.preventDefault();
+        } else if (e.key === 'ArrowLeft') {
+          sendExecInput('\x1b[D');
+          e.preventDefault();
+        } else if (e.key === 'Home') {
+          sendExecInput('\x1b[H');
+          e.preventDefault();
+        } else if (e.key === 'End') {
+          sendExecInput('\x1b[F');
+          e.preventDefault();
+        } else if (e.ctrlKey && !e.altKey && !e.metaKey) {
+          const k = e.key.toLowerCase();
+          if (k === 'c') { sendExecInput('\x03'); e.preventDefault(); }
+          else if (k === 'd') { sendExecInput('\x04'); e.preventDefault(); }
+          else if (k === 'l') { if (execConsole) execConsole.innerHTML = ''; sendExecInput('\x0c'); e.preventDefault(); }
+          else if (k === 'u') { sendExecInput('\x15'); e.preventDefault(); }
+          else if (k === 'w') { sendExecInput('\x17'); e.preventDefault(); }
+          else if (k === 'z') { sendExecInput('\x1a'); e.preventDefault(); }
+        } else if (e.key.length === 1 && !e.ctrlKey && !e.altKey && !e.metaKey) {
+          sendExecInput(e.key);
+          e.preventDefault();
+        }
+      });
+
+      execConsole.addEventListener('paste', (e) => {
+        if (!execWs || execWs.readyState !== WebSocket.OPEN) return;
+        if (execIsReadOnly) {
+          showToast('🔒 Read-Only Policy Active: Paste blocked');
+          e.preventDefault();
+          return;
+        }
+        const text = e.clipboardData ? e.clipboardData.getData('text') : '';
+        if (text) {
+          sendExecInput(text);
+          e.preventDefault();
+        }
+      });
+    }
+
+    function openContainerTerminal(containerId, containerName) {
+      if (execTargetSelect) {
+        let optionExists = false;
+        for (const opt of execTargetSelect.options) {
+          if (opt.value === containerId) {
+            optionExists = true;
+            break;
+          }
+        }
+        if (!optionExists) {
+          const opt = document.createElement('option');
+          opt.value = containerId;
+          opt.textContent = `${containerName || containerId} (${containerId.substring(0, 12)})`;
+          execTargetSelect.appendChild(opt);
+        }
+        execTargetSelect.value = containerId;
+      }
+      const execSec = document.getElementById('exec-section');
+      if (execSec) execSec.scrollIntoView({ behavior: 'smooth' });
+      connectExecWebSocket();
+      if (execConsole) execConsole.focus();
+      showToast(`Launching interactive terminal for ${containerName || containerId}`);
+    }
+
     function openActionModal(action, containerId, containerName) {
       pendingAction = { isBatch: false, action, containerId, containerName };
       const isRestart = action === 'restart';
@@ -1629,6 +2127,20 @@
           if (containerIDs.has(currentVal) || currentVal === 'system') {
             logTargetSelect.value = currentVal;
           }
+
+          if (execTargetSelect) {
+            const currentExecVal = execTargetSelect.value;
+            const runningContainers = containers.filter(c => c.state === 'running');
+            const opts = ['<option value="">Select container to exec...</option>'];
+            for (const c of runningContainers) {
+              const rawName = (c.names && c.names[0]) ? c.names[0].replace(/^\//, '') : 'unnamed';
+              opts.push(`<option value="${c.id}">${c.node_name ? `[${c.node_name}] ` : ''}${rawName} (${c.id.substring(0, 12)})</option>`);
+            }
+            execTargetSelect.innerHTML = opts.join('');
+            if (currentExecVal && containerIDs.has(currentExecVal)) {
+              execTargetSelect.value = currentExecVal;
+            }
+          }
         }
 
         const tbody = document.getElementById('containers-body');
@@ -1646,6 +2158,7 @@
                 <td style="font-family: monospace; font-size: 11px; color: #64748b;">${c.id.substring(0, 12)}</td>
                 <td style="text-align: right;">
                   <div class="action-group" style="justify-content: flex-end;">
+                    <button class="btn-action btn-exec" ${!isRunning ? 'disabled' : ''} onclick="openContainerTerminal('${c.id}', '${rawName}')" title="Interactive In-Browser Shell Terminal">Exec</button>
                     <button class="btn-action btn-logs" onclick="selectContainerForLogs('${c.id}', '${rawName}')">Logs</button>
                     <button class="btn-action btn-restart" onclick="openActionModal('restart', '${c.id}', '${rawName}')">Restart</button>
                     <button class="btn-action btn-stop" ${!isRunning ? 'disabled' : ''} onclick="openActionModal('stop', '${c.id}', '${rawName}')">Stop</button>
