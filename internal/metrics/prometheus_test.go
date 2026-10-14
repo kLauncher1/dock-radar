@@ -8,6 +8,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/alert"
 	"github.com/kLauncher1/dock-radar/internal/audit"
 	"github.com/kLauncher1/dock-radar/internal/docker"
+	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/system"
@@ -307,5 +308,36 @@ func TestFormatMetrics_ComposeStacks(t *testing.T) {
 		t.Errorf("missing compose stack total services in output")
 	}
 }
+
+func TestFormatMetrics_SelfHealing(t *testing.T) {
+	sys := system.Metrics{OS: "linux", Arch: "amd64", Hostname: "node-1"}
+	dock := docker.DaemonStatus{Available: true}
+	stats := &healing.HealingStats{
+		Enabled:          true,
+		TotalRemediated:  12,
+		TotalQuarantined: 2,
+		ActiveBackoffs:   1,
+		QuarantinedContainers: []healing.QuarantinedInfo{
+			{ContainerID: "c1", ContainerName: "flapping-worker"},
+			{ContainerID: "c2", ContainerName: "bad-service"},
+		},
+	}
+
+	output := FormatMetricsWithAll(sys, dock, nil, nil, nil, nil, nil, stats, "1.5.0")
+
+	if !strings.Contains(output, "dock_radar_healing_enabled 1") {
+		t.Errorf("missing dock_radar_healing_enabled in output:\n%s", output)
+	}
+	if !strings.Contains(output, "dock_radar_healing_remediations_total 12") {
+		t.Errorf("missing dock_radar_healing_remediations_total in output:\n%s", output)
+	}
+	if !strings.Contains(output, "dock_radar_healing_quarantined_containers 2") {
+		t.Errorf("missing dock_radar_healing_quarantined_containers in output:\n%s", output)
+	}
+	if !strings.Contains(output, "dock_radar_healing_active_backoffs 1") {
+		t.Errorf("missing dock_radar_healing_active_backoffs in output:\n%s", output)
+	}
+}
+
 
 

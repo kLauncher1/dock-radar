@@ -643,6 +643,7 @@
       <span id="tls-badge" class="status-pill status-standby" style="font-size: 11px;">TLS: Checking...</span>
       <span id="auth-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer;" onclick="openAuthModal()" title="Manage Bearer Token & Authentication">Auth: Local</span>
       <button id="mesh-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: inline-flex; align-items: center; gap: 4px;" onclick="openMeshModal()" title="Cluster Mesh & Remote Node Aggregator">🕸️ Cluster: <span id="mesh-node-count">1 Node</span></button>
+      <button id="healing-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.15); color: #10b981; display: inline-flex; align-items: center; gap: 4px;" onclick="openHealingModal()" title="Autonomous Self-Healing Container Policies">🛡️ Healing: <span id="healing-status-text">Active</span></button>
       <a href="/metrics" target="_blank" id="metrics-badge" class="status-pill" style="font-size: 11px; text-decoration: none; color: #38bdf8; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); display: inline-flex; align-items: center; gap: 4px;" title="Prometheus Metrics Exporter">📊 /metrics</a>
       <button id="btn-export-audit" class="status-pill" style="font-size: 11px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;" onclick="exportAuditTrail()" title="Export Audit Trail in NDJSON format">📋 Export Audit</button>
       <span>•</span>
@@ -970,6 +971,72 @@
         </div>
       </div>
     </div>
+
+    <!-- Autonomous Self-Healing Container Policies & Remediation Engine -->
+    <div class="card" id="healing-section" style="margin-top: 24px; margin-bottom: 24px; padding: 20px; border-color: rgba(16, 185, 129, 0.25);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <span style="font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: #34d399;">
+            <span>🛡️</span> Autonomous Self-Healing &amp; Remediation Engine
+          </span>
+          <span class="status-pill status-running" id="healing-policy-pill" style="font-size: 11px;">Active</span>
+          <span id="healing-quarantine-pill" class="status-pill" style="font-size: 11px; display: none; background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">0 Quarantined</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <button class="btn-action btn-restart" onclick="openHealingModal()" style="font-size: 11px; color: #10b981; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1);">⚙️ Configure Policy</button>
+          <button class="btn-action btn-stop" id="btn-reset-quarantines" onclick="resetAllQuarantines()" style="font-size: 11px;">⚡ Reset All Circuit Breakers</button>
+        </div>
+      </div>
+
+      <!-- Healing KPI Grid -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px;">
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Total Remediated</div>
+          <div id="stat-healed" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--accent-green);">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Quarantined Containers</div>
+          <div id="stat-quarantined" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--accent-red);">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Active Backoff Delays</div>
+          <div id="stat-backoffs" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #38bdf8;">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Active Remediation Rules</div>
+          <div id="stat-triggers-active" style="font-size: 12px; font-weight: 600; color: var(--text-main); margin-top: 4px;">OOM (137) · Crash Loop · Healthcheck</div>
+        </div>
+      </div>
+
+      <!-- Live Remediation Feed & Audit Log -->
+      <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;">
+        <span>Recent Remediation Audit Feed</span>
+        <span id="healing-feed-count" style="font-size: 11px; font-weight: 400;">0 events</span>
+      </div>
+      <div class="alert-events-scroll" style="max-height: 220px;">
+        <table class="alert-events-table" style="width: 100%;">
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Container</th>
+              <th>Trigger Mode</th>
+              <th>Attempt</th>
+              <th>Backoff Jitter</th>
+              <th>Status</th>
+              <th>Message</th>
+              <th style="text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="healing-events-body">
+            <tr>
+              <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                No remediation incidents recorded. Daemon containers are stable.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </main>
 
   <!-- Lifecycle Action Confirmation Modal -->
@@ -1079,6 +1146,74 @@
       </div>
       <div class="modal-actions" style="display: flex; justify-content: flex-end;">
         <button class="btn btn-secondary" onclick="closeMeshModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Self-Healing Policy Modal -->
+  <div class="modal-overlay" id="healing-modal">
+    <div class="modal-card" style="max-width: 580px;">
+      <div class="modal-title" style="display: flex; align-items: center; gap: 8px; color: #34d399; margin-bottom: 12px;">
+        <span>🛡️</span> Autonomous Self-Healing Policy
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+          Configure autonomous remediation policies for crashed, OOM-killed (137), or unhealthy containers with exponential backoff jitter and rollback circuit breaking.
+        </p>
+
+        <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+          <label class="toggle-wrap">
+            <input type="checkbox" id="hp-enabled-check" checked>
+            <span>Master Engine Enabled</span>
+          </label>
+          <label class="toggle-wrap">
+            <input type="checkbox" id="hp-oom-check" checked>
+            <span>Auto-Restart OOM (137)</span>
+          </label>
+          <label class="toggle-wrap">
+            <input type="checkbox" id="hp-crash-check" checked>
+            <span>Crash Loop Guard</span>
+          </label>
+          <label class="toggle-wrap">
+            <input type="checkbox" id="hp-unhealthy-check" checked>
+            <span>Remediate Unhealthy</span>
+          </label>
+        </div>
+
+        <div class="form-row">
+          <div class="form-col">
+            <label class="form-label" for="hp-max-attempts">Max Retry Attempts</label>
+            <input type="number" class="form-input" id="hp-max-attempts" min="1" max="20" value="3">
+          </div>
+          <div class="form-col">
+            <label class="form-label" for="hp-base-backoff">Base Backoff (sec)</label>
+            <input type="number" class="form-input" id="hp-base-backoff" min="1" max="60" value="2">
+          </div>
+          <div class="form-col">
+            <label class="form-label" for="hp-max-backoff">Max Backoff (sec)</label>
+            <input type="number" class="form-input" id="hp-max-backoff" min="5" max="600" value="60">
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top: 12px;">
+          <div class="form-col">
+            <label class="form-label" for="hp-jitter">Jitter Multiplier (0.0 - 1.0)</label>
+            <input type="number" step="0.05" class="form-input" id="hp-jitter" min="0" max="1" value="0.25">
+          </div>
+          <div class="form-col">
+            <label class="form-label" for="hp-cooldown">Cooldown Reset Window (sec)</label>
+            <input type="number" class="form-input" id="hp-cooldown" min="10" max="86400" value="300">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 14px;">
+          <label class="form-label" for="hp-excluded">Excluded Containers (comma-separated)</label>
+          <input type="text" class="form-input" id="hp-excluded" placeholder="e.g. prod-db, redis-cache">
+        </div>
+      </div>
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;">
+        <button class="btn btn-secondary" onclick="closeHealingModal()">Cancel</button>
+        <button class="btn btn-primary-restart" id="btn-save-healing-policy" onclick="saveHealingPolicy()">Save Policy</button>
       </div>
     </div>
   </div>
@@ -2687,6 +2822,259 @@
       svg.innerHTML = html;
     }
 
+    // ==========================================
+    // Autonomous Self-Healing Management (v1.5.0)
+    // ==========================================
+    let healingPolicy = null;
+
+    async function loadHealingPolicy() {
+      try {
+        const resp = await authFetch('/api/healing/config');
+        if (resp.ok) {
+          healingPolicy = await resp.json();
+          const rulesSpan = document.getElementById('stat-triggers-active');
+          if (rulesSpan && healingPolicy) {
+            const activeTriggers = [];
+            if (healingPolicy.auto_restart_oom) activeTriggers.push('OOM (137)');
+            if (healingPolicy.auto_restart_crash_loop) activeTriggers.push('Crash Loop');
+            if (healingPolicy.auto_remediate_unhealthy) activeTriggers.push('Healthcheck');
+            rulesSpan.textContent = activeTriggers.length > 0 ? activeTriggers.join(' · ') : 'None Active';
+          }
+        }
+      } catch (e) {
+        console.error('Failed to load healing policy:', e);
+      }
+    }
+
+    async function pollHealingStatus() {
+      try {
+        const resp = await authFetch('/api/healing/status');
+        if (!resp.ok) return;
+        const stats = await resp.json();
+
+        const badge = document.getElementById('healing-badge');
+        const badgeText = document.getElementById('healing-status-text');
+        const policyPill = document.getElementById('healing-policy-pill');
+        const qPill = document.getElementById('healing-quarantine-pill');
+        const statHealed = document.getElementById('stat-healed');
+        const statQuarantined = document.getElementById('stat-quarantined');
+        const statBackoffs = document.getElementById('stat-backoffs');
+
+        if (statHealed) statHealed.textContent = stats.total_remediated || 0;
+        const qCount = (stats.quarantined_containers || []).length;
+        if (statQuarantined) statQuarantined.textContent = qCount;
+        if (statBackoffs) statBackoffs.textContent = stats.active_backoffs || 0;
+
+        if (qPill) {
+          if (qCount > 0) {
+            qPill.style.display = 'inline-block';
+            qPill.textContent = `${qCount} Quarantined`;
+          } else {
+            qPill.style.display = 'none';
+          }
+        }
+
+        if (stats.enabled) {
+          if (badge) {
+            if (qCount > 0) {
+              badge.className = 'status-pill status-standby';
+              badge.style.borderColor = 'rgba(245, 158, 11, 0.4)';
+              badge.style.color = '#f59e0b';
+            } else {
+              badge.className = 'status-pill status-running';
+              badge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+              badge.style.color = '#10b981';
+            }
+          }
+          if (badgeText) badgeText.textContent = qCount > 0 ? `${qCount} Quarantined` : 'Active';
+          if (policyPill) {
+            policyPill.className = 'status-pill status-running';
+            policyPill.textContent = 'Active';
+          }
+        } else {
+          if (badge) {
+            badge.className = 'status-pill status-standby';
+            badge.style.color = 'var(--text-muted)';
+            badge.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+          }
+          if (badgeText) badgeText.textContent = 'Paused';
+          if (policyPill) {
+            policyPill.className = 'status-pill status-standby';
+            policyPill.textContent = 'Paused';
+          }
+        }
+      } catch (e) {
+        console.error('Error polling healing status:', e);
+      }
+    }
+
+    async function pollHealingHistory() {
+      try {
+        const resp = await authFetch('/api/healing/history?limit=30');
+        if (!resp.ok) return;
+        const events = await resp.json();
+        const tbody = document.getElementById('healing-events-body');
+        const countSpan = document.getElementById('healing-feed-count');
+        if (countSpan) countSpan.textContent = `${events.length} events`;
+
+        if (!tbody) return;
+        if (!events || events.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                No remediation incidents recorded. Daemon containers are stable.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = events.map(e => {
+          const timeStr = new Date(e.timestamp).toLocaleTimeString();
+          const triggerBadge = e.trigger === 'oom_killed' ? 
+            '<span class="badge-level badge-level-critical">OOM (137)</span>' :
+            (e.trigger === 'crash_loop' ? '<span class="badge-level badge-level-warning">Crash Loop</span>' :
+            '<span class="badge-level badge-level-info">Healthcheck</span>');
+
+          let statusBadge = '<span class="status-pill status-running">Success</span>';
+          if (e.status === 'in_progress') {
+            statusBadge = '<span class="status-pill status-standby">In Progress</span>';
+          } else if (e.status === 'quarantined') {
+            statusBadge = '<span class="status-pill status-stopped">Quarantined</span>';
+          } else if (e.status === 'failed') {
+            statusBadge = '<span class="status-pill status-stopped">Failed</span>';
+          }
+
+          const jitterStr = (e.backoff_sec && e.backoff_sec > 0) ? `${e.backoff_sec.toFixed(1)}s` : '--';
+          const isQuarantined = e.action === 'quarantine' || e.status === 'quarantined';
+          const resetBtn = isQuarantined ? 
+            `<button class="btn-action btn-restart" style="padding: 2px 8px; font-size: 10px;" onclick="resetContainerCircuitBreaker('${escapeHTML(e.container_id)}')">Reset</button>` :
+            '--';
+
+          return `
+            <tr>
+              <td style="font-family: monospace; font-size: 11px; color: var(--text-muted);">${timeStr}</td>
+              <td style="font-weight: 600; color: #f8fafc;">${escapeHTML(e.container_name || (e.container_id ? e.container_id.substring(0, 12) : 'system'))}</td>
+              <td>${triggerBadge}</td>
+              <td style="font-family: monospace; text-align: center;">#${e.attempt || 1}</td>
+              <td style="font-family: monospace; font-size: 11px; color: #38bdf8;">${jitterStr}</td>
+              <td>${statusBadge}</td>
+              <td style="font-size: 11px; color: var(--text-muted); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHTML(e.message)}">${escapeHTML(e.message)}</td>
+              <td style="text-align: right;">${resetBtn}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (e) {
+        console.error('Error polling healing history:', e);
+      }
+    }
+
+    function openHealingModal() {
+      const modal = document.getElementById('healing-modal');
+      if (!modal) return;
+      if (healingPolicy) {
+        document.getElementById('hp-enabled-check').checked = healingPolicy.enabled;
+        document.getElementById('hp-oom-check').checked = healingPolicy.auto_restart_oom;
+        document.getElementById('hp-crash-check').checked = healingPolicy.auto_restart_crash_loop;
+        document.getElementById('hp-unhealthy-check').checked = healingPolicy.auto_remediate_unhealthy;
+        document.getElementById('hp-max-attempts').value = healingPolicy.max_attempts;
+        document.getElementById('hp-base-backoff').value = healingPolicy.base_backoff_sec;
+        document.getElementById('hp-max-backoff').value = healingPolicy.max_backoff_sec;
+        document.getElementById('hp-jitter').value = healingPolicy.jitter_factor;
+        document.getElementById('hp-cooldown').value = healingPolicy.cooldown_sec;
+        document.getElementById('hp-excluded').value = (healingPolicy.excluded_containers || []).join(', ');
+      }
+      modal.classList.add('active');
+    }
+
+    function closeHealingModal() {
+      const modal = document.getElementById('healing-modal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    async function saveHealingPolicy() {
+      const btn = document.getElementById('btn-save-healing-policy');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+      }
+
+      const excludedStr = document.getElementById('hp-excluded').value.trim();
+      const excludedList = excludedStr ? excludedStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+      const payload = {
+        enabled: document.getElementById('hp-enabled-check').checked,
+        auto_restart_oom: document.getElementById('hp-oom-check').checked,
+        auto_restart_crash_loop: document.getElementById('hp-crash-check').checked,
+        auto_remediate_unhealthy: document.getElementById('hp-unhealthy-check').checked,
+        max_attempts: parseInt(document.getElementById('hp-max-attempts').value, 10) || 3,
+        base_backoff_sec: parseInt(document.getElementById('hp-base-backoff').value, 10) || 2,
+        max_backoff_sec: parseInt(document.getElementById('hp-max-backoff').value, 10) || 60,
+        jitter_factor: parseFloat(document.getElementById('hp-jitter').value) || 0.25,
+        cooldown_sec: parseInt(document.getElementById('hp-cooldown').value, 10) || 300,
+        excluded_containers: excludedList
+      };
+
+      try {
+        const resp = await authFetch('/api/healing/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (resp.ok) {
+          healingPolicy = await resp.json();
+          showToast('✓ Self-Healing policy saved successfully');
+          closeHealingModal();
+          loadHealingPolicy();
+          pollHealingStatus();
+          pollHealingHistory();
+        } else {
+          const errText = await resp.text();
+          showToast(`⚠️ Failed to save policy: ${errText}`);
+        }
+      } catch (err) {
+        showToast(`⚠️ Network error: ${err.message}`);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Save Policy';
+        }
+      }
+    }
+
+    async function resetContainerCircuitBreaker(id) {
+      try {
+        const resp = await authFetch(`/api/healing/reset?id=${encodeURIComponent(id)}`, {
+          method: 'POST'
+        });
+        if (resp.ok) {
+          showToast(`✓ Circuit breaker reset for ${id}`);
+          pollHealingStatus();
+          pollHealingHistory();
+        } else {
+          showToast(`⚠️ Reset failed: ${resp.status}`);
+        }
+      } catch (e) {
+        showToast(`⚠️ Error: ${e.message}`);
+      }
+    }
+
+    async function resetAllQuarantines() {
+      try {
+        const resp = await authFetch('/api/healing/reset', { method: 'POST' });
+        if (resp.ok) {
+          showToast('✓ All circuit breakers and quarantined states reset');
+          pollHealingStatus();
+          pollHealingHistory();
+        } else {
+          showToast(`⚠️ Reset failed: ${resp.status}`);
+        }
+      } catch (e) {
+        showToast(`⚠️ Error: ${e.message}`);
+      }
+    }
+
     checkAuthStatus();
     setInterval(checkAuthStatus, 5000);
     pollTelemetry();
@@ -2697,6 +3085,11 @@
     setInterval(pollAlertEvents, 3000);
     pollComposeStacks();
     setInterval(pollComposeStacks, 3000);
+    loadHealingPolicy();
+    pollHealingStatus();
+    setInterval(pollHealingStatus, 2500);
+    pollHealingHistory();
+    setInterval(pollHealingHistory, 3000);
   </script>
 </body>
 </html>

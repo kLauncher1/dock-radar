@@ -10,7 +10,7 @@
 
 **Ultra-lightweight single-binary container & system metrics monitor with embedded real-time dark-mode web dashboard.**
 
-[![Release](https://img.shields.io/badge/Release-v1.4.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
+[![Release](https://img.shields.io/badge/Release-v1.5.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg?style=flat&logo=go)](https://golang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6%2B-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
@@ -27,6 +27,7 @@
 
 - **Single Executable Deployment**: The web dashboard is baked directly into the Go binary via `//go:embed`. No Node.js runtime, external assets, or separate frontend servers needed.
 - **Ultra-Low Memory Footprint**: Runs persistently under **15 MB of RAM** with bounded circular ring buffers, making it ideal for low-spec VPS, Raspberry Pi, and homelab environments.
+- **Autonomous Self-Healing Container Engine**: Automated remediation rules triggering container recovery on out-of-memory crashes (`exit 137`) and unhealthy flapping states, protected by exponential backoff jitter, circuit-breaking quarantine thresholds, and real-time Prometheus healing telemetry.
 - **Docker Compose Topology & Stack Visualizer**: Automatic grouping of containers by `com.docker.compose.project` labels with interactive SVG dependency topology graphs, architectural service tier detection (database, cache, queue, gateway, worker), whole-stack lifecycle actions (restart, stop, recreate), and dedicated Prometheus stack metrics.
 - **Interactive In-Browser Container Terminal (Exec)**: Full duplex interactive shell terminal over WebSocket (`/api/docker/exec`) featuring high-fidelity VT100 / ANSI escape sequence rendering (256 colors), custom font styling, read-only policy enforcement, and idle session auto-termination.
 - **Multi-Host Agent Mesh & Remote Node Aggregator**: Real-time cross-host container monitoring across multi-server topologies. Dynamic node registration, peer health probing, round-trip latency tracking, and unified multi-node container telemetry.
@@ -120,13 +121,18 @@ go build -ldflags="-s -w" -o dock-radar .
 │   • State Poller/Flap    │      • NDJSON / JSON Export │
 │   • Cooldown Deduplication                             │
 ├──────────────────────────┼─────────────────────────────┤
-│   internal/metrics       │      net/http Router        │
-│   • Standard Prometheus  │      • /metrics (Prometheus)│
-│   • Exposition Formatter │      • /api/docker/*        │
-│   • Multi-Node Mesh Stats│      • /api/nodes/*         │
-├──────────────────────────┤      • /api/cluster/*       │
-│   internal/security      │      • /api/audit/*         │
-│   • In-Memory ECDSA TLS  │      • Pure RFC 6455 WS     │
+│   internal/healing       │      net/http Router        │
+│   • Auto OOM / Crash Loop│      • /metrics (Prometheus)│
+│   • Jitter & Backoff     │      • /api/docker/*        │
+│   • Circuit Breaker      │      • /api/healing/*       │
+├──────────────────────────┤      • /api/nodes/*         │
+│   internal/metrics       │      • /api/cluster/*       │
+│   • Standard Prometheus  │      • /api/audit/*         │
+│   • Exposition Formatter │      • Pure RFC 6455 WS     │
+│   • Multi-Node Mesh Stats│                             │
+├──────────────────────────┤                             │
+│   internal/security      │                             │
+│   • In-Memory ECDSA TLS  │                             │
 │   • Constant-Time Bearer │                             │
 │   • RBAC (Admin/Viewer)  │                             │
 ├──────────────────────────┴─────────────────────────────┤
@@ -159,6 +165,10 @@ go build -ldflags="-s -w" -o dock-radar .
 | `/api/docker/logs` | `WS` / `GET` | `viewer` | Real-time WebSocket log feed or JSON snapshot (`?id=<id>&stream=<stdout\|stderr\|system>&tail=100`) |
 | `/api/docker/restart` | `POST` | `admin` | Safely restarts a container by ID or name (`{"id":"<name_or_id>","timeout":10}`) |
 | `/api/docker/stop` | `POST` | `admin` | Safely stops a running container (`{"id":"<name_or_id>","timeout":10}`) |
+| `/api/healing/config` | `GET` / `POST` | `viewer` / `admin` | Fetches or updates auto-remediation policy, jitter limits, and exclusion rules |
+| `/api/healing/status` | `GET` | `viewer` | Active healing metrics, quarantined containers, and backoff states |
+| `/api/healing/history`| `GET` | `viewer` | Recent remediation event history log (`?limit=50&container=`) |
+| `/api/healing/reset`  | `POST` | `admin` | Clears quarantine circuit breaker and resets backoff counters for a container |
 | `/api/nodes` | `GET` / `POST` / `DELETE` | `viewer` / `admin` | Node inventory list, dynamic node registration, and node unregistration |
 | `/api/nodes/heartbeat` | `POST` | `viewer` | Remote agent telemetry and container synchronization push endpoint |
 | `/api/cluster/summary` | `GET` | `viewer` | Aggregate cluster metrics (total/online/offline nodes, CPU, memory, container totals) |

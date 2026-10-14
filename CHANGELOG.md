@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-10-14
+
+### Added
+- Autonomous Self-Healing Container Policies & Remediation Engine (`internal/healing/engine.go`):
+  - Autonomous failure detection and recovery engine executing automated restarts on Out-Of-Memory (OOM) killed containers (`Exited (137)`), flapping restart loops (`restarting`), and failed Docker health checks (`unhealthy`).
+  - Thread-safe configuration repository (`internal/healing/policy.go`) with input sanitization, boundaries validation, and container exclusion filters (`dock-radar.healing=false` label and `excluded_containers` rules).
+  - Exponential backoff with randomized cryptographic jitter (`internal/healing/jitter.go`) desynchronizing restart bursts to prevent daemon socket saturation and cascading failure thrashing.
+  - Rollback protection & quarantine circuit breaker: tracks per-container remediation attempts, halting automated restarts and placing recurrently failing containers in quarantine once `max_attempts` is reached.
+  - Bounded circular remediation audit trail buffer (`internal/healing/history.go`) capturing timestamped failure triggers, attempt counters, jitter delays, and execution outcomes with zero-allocation retrieval.
+- Self-Healing REST APIs (`internal/api/healing.go`):
+  - `GET /api/healing/config`: Returns active remediation rules and thresholds (requires `RoleViewer`).
+  - `POST /api/healing/config`: Atomically updates self-healing policy configuration (requires `RoleAdmin` with rate limiting).
+  - `GET /api/healing/status`: Real-time remediation KPIs, active backoffs, and list of quarantined containers.
+  - `GET /api/healing/history`: Filterable remediation audit trail events (`?limit=`, `?container_id=`, `?trigger=`).
+  - `POST /api/healing/reset`: Clears circuit breaker states for a specific container or all quarantined services.
+- Prometheus Metrics Exporter Enhancement (`internal/metrics/prometheus.go`):
+  - Exposes `dock_radar_healing_enabled`, `dock_radar_healing_remediations_total`, `dock_radar_healing_quarantined_containers`, and `dock_radar_healing_active_backoffs` gauges for observability dashboards.
+- Embedded Dark-Mode Dashboard Additions (`web/dist/index.html`):
+  - Header status pill indicator (`🛡️ Healing: Active` / `Quarantined`) with quick-action modal trigger.
+  - Dedicated Self-Healing & Remediation section featuring real-time KPI overview cards, live remediation audit feed, and one-click circuit breaker reset triggers.
+  - Interactive Self-Healing Policy configuration modal with input toggles and parameter tuning.
+- Modularization Refactoring:
+  - Extracted log streaming handlers to dedicated `internal/api/logs.go` module, streamlining `internal/api/handlers.go` to strictly adhere to the 300-500 line soft ceiling across all files.
+- Comprehensive Unit Test Suites:
+  - Added full test coverage across `internal/healing/policy_test.go`, `internal/healing/jitter_test.go`, `internal/healing/history_test.go`, `internal/healing/engine_test.go`, `internal/api/healing_test.go`, and `internal/metrics/prometheus_test.go`.
+
 ## [1.4.0] - 2026-10-14
 
 ### Added

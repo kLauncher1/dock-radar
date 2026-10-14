@@ -21,7 +21,7 @@ import (
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "1.4.0"
+const AppVersion = "1.5.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -111,6 +111,13 @@ func main() {
 		monitorCtx, monitorCancel := context.WithCancel(context.Background())
 		defer monitorCancel()
 		go handlerCfg.AlertMonitor.Start(monitorCtx, 10*time.Second)
+	}
+
+	// Launch autonomous self-healing remediation loop (5s interval)
+	if handlerCfg != nil && handlerCfg.HealingEngine != nil {
+		healingCtx, healingCancel := context.WithCancel(context.Background())
+		defer healingCancel()
+		go handlerCfg.HealingEngine.Start(healingCtx, 5*time.Second)
 	}
 
 	scheme := "http"
@@ -204,6 +211,7 @@ func main() {
 	fmt.Printf(" 🔑 Access Control     : %s\n", authStatus)
 	fmt.Printf(" 🌐 Remote Access      : %s\n", map[bool]string{true: "Allowed", false: "Restricted to Loopback"}[allowRemote])
 	fmt.Printf(" 🕸️ Cluster Mesh       : %d node(s) configured (%s)\n", len(meshRegistry.List()), nodeName)
+	fmt.Printf(" 🛡️ Self-Healing       : Autonomous Policy & Remediation Engine Active\n")
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")
 	fmt.Println("=========================================================")
 
