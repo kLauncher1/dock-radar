@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/kLauncher1/dock-radar/internal/alert"
+	"github.com/kLauncher1/dock-radar/internal/anomaly"
 	"github.com/kLauncher1/dock-radar/internal/audit"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/healing"
@@ -336,6 +337,44 @@ func TestFormatMetrics_SelfHealing(t *testing.T) {
 	}
 	if !strings.Contains(output, "dock_radar_healing_active_backoffs 1") {
 		t.Errorf("missing dock_radar_healing_active_backoffs in output:\n%s", output)
+	}
+}
+
+func TestFormatMetrics_AnomalyDetection(t *testing.T) {
+	sys := system.Metrics{OS: "linux", Arch: "amd64", Hostname: "node-1"}
+	dock := docker.DaemonStatus{Available: true}
+	summary := &anomaly.AnomalySummary{
+		MonitoredContainers: 5,
+		CriticalCount:       1,
+		WarningCount:        2,
+		StableCount:         2,
+	}
+	preds := []anomaly.TrendPrediction{
+		{
+			ContainerID:      "c-leaky",
+			ContainerName:    "leaky-worker",
+			Category:         anomaly.ExhaustionCritical,
+			SlopeBytesPerSec: 1048576.0,
+			SecondsToOOM:     42.5,
+		},
+	}
+
+	output := FormatMetricsWithAnomaly(sys, dock, nil, nil, nil, nil, nil, nil, summary, preds, "1.6.0")
+
+	if !strings.Contains(output, "dock_radar_anomaly_containers_monitored 5") {
+		t.Errorf("missing dock_radar_anomaly_containers_monitored in output:\n%s", output)
+	}
+	if !strings.Contains(output, "dock_radar_anomaly_critical_imminent_total 1") {
+		t.Errorf("missing dock_radar_anomaly_critical_imminent_total in output:\n%s", output)
+	}
+	if !strings.Contains(output, "dock_radar_anomaly_warning_total 2") {
+		t.Errorf("missing dock_radar_anomaly_warning_total in output:\n%s", output)
+	}
+	if !strings.Contains(output, `dock_radar_anomaly_memory_growth_rate_bytes_per_sec{category="critical_oom_imminent",container="leaky-worker",id="c-leaky"} 1048576.00`) {
+		t.Errorf("missing memory growth rate gauge in output:\n%s", output)
+	}
+	if !strings.Contains(output, `dock_radar_anomaly_predicted_oom_seconds{category="critical_oom_imminent",container="leaky-worker",id="c-leaky"} 42.50`) {
+		t.Errorf("missing predicted oom seconds gauge in output:\n%s", output)
 	}
 }
 

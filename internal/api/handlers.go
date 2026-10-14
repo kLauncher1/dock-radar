@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/kLauncher1/dock-radar/internal/alert"
+	"github.com/kLauncher1/dock-radar/internal/anomaly"
 	"github.com/kLauncher1/dock-radar/internal/audit"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/healing"
@@ -47,6 +48,7 @@ type HandlerConfig struct {
 	MeshRegistry     *mesh.Registry
 	MeshProber       *mesh.Prober
 	HealingEngine    *healing.RemediationEngine
+	AnomalyDetector  *anomaly.Detector
 	AppVersion       string
 	TokenAuth        *security.TokenAuth
 	AllowRemote      bool
@@ -76,12 +78,14 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	auditLogger.Log(audit.AuditEvent{
 		Action:  "system_init",
 		Target:  "dock-radar",
-		Details: map[string]any{"version": "1.5.0"},
+		Details: map[string]any{"version": "1.6.0"},
 	})
 
 	healingPolicyStore := healing.NewPolicyStore(healing.DefaultPolicyConfig())
 	healingHistory := healing.NewHistoryBuffer(1000)
 	healingEngine := healing.NewRemediationEngine(dockerClient, healingPolicyStore, healingHistory, auditLogger)
+
+	anomalyDetector := anomaly.NewDetector(dockerClient, alertDispatcher)
 
 	cfg := &HandlerConfig{
 		DockerClient:     dockerClient,
@@ -92,7 +96,8 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 		AlertMonitor:     alertMonitor,
 		AuditLogger:      auditLogger,
 		HealingEngine:    healingEngine,
-		AppVersion:       "1.5.0",
+		AnomalyDetector:  anomalyDetector,
+		AppVersion:       "1.6.0",
 		TokenAuth:        tokenAuth,
 		AllowRemote:      allowRemote,
 	}
@@ -136,6 +141,11 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	mux.HandleFunc("/api/healing/status", cfg.handleHealingStatus)
 	mux.HandleFunc("/api/healing/history", cfg.handleHealingHistory)
 	mux.HandleFunc("/api/healing/reset", cfg.handleHealingReset)
+
+	// Predictive Anomaly & OOM Resource Alarms
+	mux.HandleFunc("/api/anomaly/predictions", cfg.handleAnomalyPredictions)
+	mux.HandleFunc("/api/anomaly/config", cfg.handleAnomalyConfig)
+	mux.HandleFunc("/api/anomaly/events", cfg.handleAnomalyEvents)
 
 	// Authentication status and token verification
 	mux.HandleFunc("/api/auth/status", cfg.handleAuthStatus)

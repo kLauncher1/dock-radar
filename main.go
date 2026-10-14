@@ -21,7 +21,7 @@ import (
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "1.5.0"
+const AppVersion = "1.6.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -120,6 +120,13 @@ func main() {
 		go handlerCfg.HealingEngine.Start(healingCtx, 5*time.Second)
 	}
 
+	// Launch predictive anomaly & OOM trend detection loop (5s interval)
+	if handlerCfg != nil && handlerCfg.AnomalyDetector != nil {
+		anomalyCtx, anomalyCancel := context.WithCancel(context.Background())
+		defer anomalyCancel()
+		go handlerCfg.AnomalyDetector.Start(anomalyCtx, 5*time.Second)
+	}
+
 	scheme := "http"
 	tlsStatus := "Inactive (Plain HTTP)"
 
@@ -212,6 +219,7 @@ func main() {
 	fmt.Printf(" 🌐 Remote Access      : %s\n", map[bool]string{true: "Allowed", false: "Restricted to Loopback"}[allowRemote])
 	fmt.Printf(" 🕸️ Cluster Mesh       : %d node(s) configured (%s)\n", len(meshRegistry.List()), nodeName)
 	fmt.Printf(" 🛡️ Self-Healing       : Autonomous Policy & Remediation Engine Active\n")
+	fmt.Printf(" 🔮 Anomaly Radar      : Predictive OOM Regression & Early Warning Active\n")
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")
 	fmt.Println("=========================================================")
 

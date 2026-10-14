@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/kLauncher1/dock-radar/internal/alert"
+	"github.com/kLauncher1/dock-radar/internal/anomaly"
 	"github.com/kLauncher1/dock-radar/internal/audit"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/healing"
@@ -22,7 +23,7 @@ func FormatMetrics(
 	auditLogger *audit.Logger,
 	appVersion string,
 ) string {
-	return FormatMetricsWithAll(sys, dock, ringBuffer, alertDispatcher, auditLogger, nil, nil, nil, appVersion)
+	return FormatMetricsWithAnomaly(sys, dock, ringBuffer, alertDispatcher, auditLogger, nil, nil, nil, nil, nil, appVersion)
 }
 
 // FormatMetricsWithMesh serializes system, docker, engine, alert, audit, and cluster mesh telemetry into standard Prometheus text format.
@@ -36,7 +37,7 @@ func FormatMetricsWithMesh(
 	meshNodes []*mesh.Node,
 	appVersion string,
 ) string {
-	return FormatMetricsWithAll(sys, dock, ringBuffer, alertDispatcher, auditLogger, meshSummary, meshNodes, nil, appVersion)
+	return FormatMetricsWithAnomaly(sys, dock, ringBuffer, alertDispatcher, auditLogger, meshSummary, meshNodes, nil, nil, nil, appVersion)
 }
 
 // FormatMetricsWithAll serializes all telemetry including cluster mesh and autonomous self-healing stats.
@@ -49,6 +50,23 @@ func FormatMetricsWithAll(
 	meshSummary *mesh.ClusterSummary,
 	meshNodes []*mesh.Node,
 	healingStats *healing.HealingStats,
+	appVersion string,
+) string {
+	return FormatMetricsWithAnomaly(sys, dock, ringBuffer, alertDispatcher, auditLogger, meshSummary, meshNodes, healingStats, nil, nil, appVersion)
+}
+
+// FormatMetricsWithAnomaly serializes all telemetry including anomaly detection and predictive OOM gauges.
+func FormatMetricsWithAnomaly(
+	sys system.Metrics,
+	dock docker.DaemonStatus,
+	ringBuffer *logs.RingBuffer,
+	alertDispatcher *alert.Dispatcher,
+	auditLogger *audit.Logger,
+	meshSummary *mesh.ClusterSummary,
+	meshNodes []*mesh.Node,
+	healingStats *healing.HealingStats,
+	anomalySummary *anomaly.AnomalySummary,
+	anomalyPreds []anomaly.TrendPrediction,
 	appVersion string,
 ) string {
 	var b strings.Builder
@@ -284,6 +302,49 @@ func FormatMetricsWithAll(
 		b.WriteString("# HELP dock_radar_healing_active_backoffs Number of containers currently in exponential backoff delay.\n")
 		b.WriteString("# TYPE dock_radar_healing_active_backoffs gauge\n")
 		b.WriteString(fmt.Sprintf("dock_radar_healing_active_backoffs %d\n\n", healingStats.ActiveBackoffs))
+	}
+
+	// 10. Predictive Anomaly & OOM Resource Telemetry
+	if anomalySummary != nil {
+		b.WriteString("# HELP dock_radar_anomaly_containers_monitored Total containers actively monitored for resource exhaustion.\n")
+		b.WriteString("# TYPE dock_radar_anomaly_containers_monitored gauge\n")
+		b.WriteString(fmt.Sprintf("dock_radar_anomaly_containers_monitored %d\n\n", anomalySummary.MonitoredContainers))
+
+		b.WriteString("# HELP dock_radar_anomaly_critical_imminent_total Number of containers currently in critical OOM imminent state.\n")
+		b.WriteString("# TYPE dock_radar_anomaly_critical_imminent_total gauge\n")
+		b.WriteString(fmt.Sprintf("dock_radar_anomaly_critical_imminent_total %d\n\n", anomalySummary.CriticalCount))
+
+		b.WriteString("# HELP dock_radar_anomaly_warning_total Number of containers currently in elevated warning state.\n")
+		b.WriteString("# TYPE dock_radar_anomaly_warning_total gauge\n")
+		b.WriteString(fmt.Sprintf("dock_radar_anomaly_warning_total %d\n\n", anomalySummary.WarningCount))
+	}
+
+	if len(anomalyPreds) > 0 {
+		b.WriteString("# HELP dock_radar_anomaly_memory_growth_rate_bytes_per_sec Linear regression memory consumption slope.\n")
+		b.WriteString("# TYPE dock_radar_anomaly_memory_growth_rate_bytes_per_sec gauge\n")
+		for _, p := range anomalyPreds {
+			b.WriteString(fmt.Sprintf(
+				"dock_radar_anomaly_memory_growth_rate_bytes_per_sec{category=\"%s\",container=\"%s\",id=\"%s\"} %.2f\n",
+				escapeLabel(string(p.Category)),
+				escapeLabel(p.ContainerName),
+				escapeLabel(p.ContainerID),
+				p.SlopeBytesPerSec,
+			))
+		}
+		b.WriteString("\n")
+
+		b.WriteString("# HELP dock_radar_anomaly_predicted_oom_seconds Predicted seconds until container memory exhaustion (-1 if stable).\n")
+		b.WriteString("# TYPE dock_radar_anomaly_predicted_oom_seconds gauge\n")
+		for _, p := range anomalyPreds {
+			b.WriteString(fmt.Sprintf(
+				"dock_radar_anomaly_predicted_oom_seconds{category=\"%s\",container=\"%s\",id=\"%s\"} %.2f\n",
+				escapeLabel(string(p.Category)),
+				escapeLabel(p.ContainerName),
+				escapeLabel(p.ContainerID),
+				p.SecondsToOOM,
+			))
+		}
+		b.WriteString("\n")
 	}
 
 	return b.String()

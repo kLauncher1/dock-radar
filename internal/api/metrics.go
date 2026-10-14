@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"github.com/kLauncher1/dock-radar/internal/anomaly"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
@@ -32,7 +33,7 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 
 	version := h.AppVersion
 	if version == "" {
-		version = "1.5.0"
+		version = "1.6.0"
 	}
 
 	var meshSummary *mesh.ClusterSummary
@@ -49,7 +50,15 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		healingStats = &st
 	}
 
-	text := metrics.FormatMetricsWithAll(
+	var anomalySummary *anomaly.AnomalySummary
+	var anomalyPreds []anomaly.TrendPrediction
+	if h.AnomalyDetector != nil {
+		summ := h.AnomalyDetector.GetSummary()
+		anomalySummary = &summ
+		anomalyPreds = h.AnomalyDetector.GetPredictions()
+	}
+
+	text := metrics.FormatMetricsWithAnomaly(
 		sysMetrics,
 		dockerStatus,
 		h.LogBuffer,
@@ -58,6 +67,8 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		meshSummary,
 		meshNodes,
 		healingStats,
+		anomalySummary,
+		anomalyPreds,
 		version,
 	)
 
