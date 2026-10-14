@@ -132,6 +132,24 @@ func FormatMetricsWithMesh(
 		b.WriteString("\n")
 	}
 
+	// 4b. Compose Stack Telemetry
+	stacks := docker.ExtractComposeStacks(dock.Containers)
+	b.WriteString("# HELP dock_radar_compose_stacks_total Total count of detected Docker Compose stacks.\n")
+	b.WriteString("# TYPE dock_radar_compose_stacks_total gauge\n")
+	b.WriteString(fmt.Sprintf("dock_radar_compose_stacks_total %d\n\n", len(stacks)))
+
+	if len(stacks) > 0 {
+		b.WriteString("# HELP dock_radar_compose_stack_services Number of services in Compose stack by health status.\n")
+		b.WriteString("# TYPE dock_radar_compose_stack_services gauge\n")
+		for _, stack := range stacks {
+			b.WriteString(fmt.Sprintf("dock_radar_compose_stack_services{health=\"%s\",project=\"%s\",state=\"running\"} %d\n",
+				escapeLabel(stack.Health), escapeLabel(stack.Project), stack.RunningServices))
+			b.WriteString(fmt.Sprintf("dock_radar_compose_stack_services{health=\"%s\",project=\"%s\",state=\"total\"} %d\n",
+				escapeLabel(stack.Health), escapeLabel(stack.Project), stack.TotalServices))
+		}
+		b.WriteString("\n")
+	}
+
 	// 5. Engine Telemetry: Ring Buffer
 	ringEntries := 0
 	ringBytes := 0

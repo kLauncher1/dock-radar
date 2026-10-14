@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-10-14
+
+### Added
+- Docker Compose topology engine (`internal/docker/compose.go`) auto-grouping active containers by `com.docker.compose.project` labels and synthesizing multi-tier dependency graphs.
+- Robust parsing and normalization of `com.docker.compose.depends_on` labels supporting JSON dictionaries, comma-separated service lists, and conditional specifications (`service_healthy`, `service_started`).
+- Architectural tier classifier (`DetectServiceRole`) categorizing containers into database, cache, message queue, web gateway, worker, storage, or generic service roles based on image names and service labels.
+- Automated topology graph generator (`BuildTopologyGraph`) mapping services into topological layers with coordinate computation, directed dependency edges, and cross-tier inference.
+- Whole-stack lifecycle management (`RestartStack`, `StopStack`, `RecreateStack`) executing synchronized container restart, graceful termination, and service recreation in dependency sequence.
+- Docker Compose REST endpoints (`internal/api/compose.go`):
+  - `GET /api/docker/compose`: Lists active Compose stacks, service inventories, dependency topologies, and stack health summaries (`healthy`, `degraded`, `stopped`, `empty`) with optional `?project=` filter.
+  - `POST /api/docker/compose/action`: Triggers synchronized `restart`, `stop`, or `recreate` operations across all containers in a stack, guarded by `RoleAdmin` RBAC authorization and token bucket rate limits.
+- Audit trail event logging for Compose stack lifecycle events (`compose_stack_restart`, `compose_stack_stop`, `compose_stack_recreate`) recording affected container counts and execution outcomes.
+- Prometheus exporter enhancement (`internal/metrics/prometheus.go`): Exposes `dock_radar_compose_stacks_total` and `dock_radar_compose_stack_services{health="...",project="...",state="running|total"}` gauges for Grafana monitoring.
+- Interactive Glassmorphism Compose Topology Canvas & Stack Inspector in embedded web dashboard (`web/dist/index.html`):
+  - Stack selection tab pills with real-time health indicators and stack counter pill.
+  - Interactive SVG dependency topology canvas rendering glowing service nodes, role icons, and directional bezier flow links.
+  - Whole-stack lifecycle action toolbar ("Restart Stack", "Stop Stack", "Recreate Stack") with modal confirmation prompts and feedback toasts.
+  - Comprehensive Compose services table listing project names, service tiers, container IDs, images, dependencies, and quick control triggers.
+- Comprehensive unit test suites in `internal/docker/compose_test.go`, `internal/api/compose_test.go`, and `internal/metrics/prometheus_test.go`.
+
 ## [1.3.0] - 2026-10-14
 
 ### Added

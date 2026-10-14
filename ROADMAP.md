@@ -48,9 +48,9 @@ This document outlines the architectural milestones and engineering priorities f
 ---
 
 ## Milestone 9: v1.4.0 (Docker Compose Topology & Stack Visualizer)
-- [ ] Automatic grouping of containers by `com.docker.compose.project` labels.
-- [ ] Interactive canvas rendering service dependencies and network routing.
-- [ ] One-click whole-stack lifecycle actions (up, down, restart).
+- [x] Automatic grouping of containers by `com.docker.compose.project` labels.
+- [x] Interactive canvas rendering service dependencies and network routing.
+- [x] One-click whole-stack lifecycle actions (up, down, restart).
 
 ---
 
@@ -114,5 +114,20 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Token bucket and sliding-window rate limiters synchronized across mesh peer nodes.
 - [ ] Configurable per-tenant API quotas and bandwidth throttling controls.
 - [ ] Distributed abuse mitigation with automatic IP ban propagation.
+
+---
+
+## Milestone 19: v2.4.0 (eBPF Micro-Firewall & Container Network Isolator)
+- [ ] Kernel-level packet filtering and dynamic eBPF network isolation rules.
+- [ ] Zero-trust network policy enforcement across inter-container traffic.
+- [ ] Visual egress/ingress bandwidth inspector with automatic DDoS throttling.
+
+---
+
+## Milestone 20: v2.5.0 (GitOps Continuous Sync & Webhook Auto-Deployer)
+- [ ] Automated git repository tracking with cryptographic commit signature verification.
+- [ ] Zero-downtime container image pull and rollouts on verified webhook triggers.
+- [ ] Automated rollback triggers with deployment health gating.
+
 
 
