@@ -62,9 +62,9 @@ This document outlines the architectural milestones and engineering priorities f
 ---
 
 ## Milestone 11: v1.6.0 (Predictive Resource Exhaustion Alarms)
-- [ ] Linear regression trend analyzer forecasting container memory saturation.
-- [ ] Early-warning webhook notifications prior to kernel OOM invocation.
-- [ ] Interactive visual exhaustion meters on container overview cards.
+- [x] Linear regression trend analyzer forecasting container memory saturation.
+- [x] Early-warning webhook notifications prior to kernel OOM invocation.
+- [x] Interactive visual exhaustion meters on container overview cards.
 
 ---
 
@@ -143,6 +143,16 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Automatic cryptographic peer key exchange and dynamic IP address leasing.
 - [ ] Low-overhead packet routing bypassing public firewall and NAT restrictions.
 
+---
 
+## Milestone 23: v2.8.0 (Autonomous Canary Deployment & Traffic Mirroring)
+- [ ] Dynamic traffic percentage splitting with zero packet loss between container versions.
+- [ ] Real-time error rate and latency divergence detection triggering automated rollback.
+- [ ] Shadow traffic mirroring for risk-free pre-release performance profiling.
 
+---
 
+## Milestone 24: v2.9.0 (Distributed Core Dump & Crash Analysis Pipeline)
+- [ ] Automatic container crash kernel core dump interception and ELF stack backtrace extraction.
+- [ ] Symbolicated crash telemetry aggregation and root-cause classification.
+- [ ] Crash signature deduplication and instant alert dispatch.

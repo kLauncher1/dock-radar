@@ -644,6 +644,7 @@
       <span id="auth-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer;" onclick="openAuthModal()" title="Manage Bearer Token & Authentication">Auth: Local</span>
       <button id="mesh-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: inline-flex; align-items: center; gap: 4px;" onclick="openMeshModal()" title="Cluster Mesh & Remote Node Aggregator">🕸️ Cluster: <span id="mesh-node-count">1 Node</span></button>
       <button id="healing-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.15); color: #10b981; display: inline-flex; align-items: center; gap: 4px;" onclick="openHealingModal()" title="Autonomous Self-Healing Container Policies">🛡️ Healing: <span id="healing-status-text">Active</span></button>
+      <button id="anomaly-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(168, 85, 247, 0.4); background: rgba(168, 85, 247, 0.15); color: #c084fc; display: inline-flex; align-items: center; gap: 4px;" onclick="openAnomalyModal()" title="Predictive Anomaly Engine & Early OOM Alarms">🔮 OOM Radar: <span id="anomaly-badge-text">Normal</span></button>
       <a href="/metrics" target="_blank" id="metrics-badge" class="status-pill" style="font-size: 11px; text-decoration: none; color: #38bdf8; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); display: inline-flex; align-items: center; gap: 4px;" title="Prometheus Metrics Exporter">📊 /metrics</a>
       <button id="btn-export-audit" class="status-pill" style="font-size: 11px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;" onclick="exportAuditTrail()" title="Export Audit Trail in NDJSON format">📋 Export Audit</button>
       <span>•</span>
@@ -726,13 +727,14 @@
           <th>Image</th>
           <th>State</th>
           <th>Status</th>
+          <th>OOM Forecast</th>
           <th>ID</th>
           <th style="text-align: right;">Actions</th>
         </tr>
       </thead>
       <tbody id="containers-body">
         <tr>
-          <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 24px;">
+          <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 24px;">
             Scanning container sockets...
           </td>
         </tr>
@@ -969,6 +971,73 @@
             </table>
           </div>
         </div>
+      </div>
+    <!-- Predictive Anomaly Engine & OOM Resource Forecast -->
+    <div class="card" id="anomaly-section" style="margin-top: 24px; margin-bottom: 24px; padding: 20px; border-color: rgba(168, 85, 247, 0.25);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <span style="font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: #c084fc;">
+            <span>🔮</span> Anomaly Detection Engine &amp; Predictive OOM Resource Alarms
+          </span>
+          <span class="status-pill status-running" id="anomaly-card-status-pill" style="font-size: 11px;">Nominal</span>
+          <span id="anomaly-critical-pill" class="status-pill" style="font-size: 11px; display: none; background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">0 Critical Imminent</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <button class="btn-action btn-restart" onclick="openAnomalyModal()" style="font-size: 11px; color: #c084fc; border-color: rgba(168, 85, 247, 0.4); background: rgba(168, 85, 247, 0.1);">⚙️ Configure Alarms</button>
+          <button class="btn-action btn-logs" id="btn-toggle-anomaly-filter" onclick="toggleAnomalyAtRiskFilter()" style="font-size: 11px;">🔍 Show At-Risk Only</button>
+        </div>
+      </div>
+
+      <!-- Anomaly KPI Grid -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px;">
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Monitored Containers</div>
+          <div id="stat-anomaly-monitored" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--text-main);">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Stable / Flat Memory</div>
+          <div id="stat-anomaly-stable" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--accent-green);">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Elevated / Warning</div>
+          <div id="stat-anomaly-warning" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #f59e0b;">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Critical OOM Imminent (&lt;60s)</div>
+          <div id="stat-anomaly-critical" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--accent-red);">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Fastest Growth Velocity</div>
+          <div id="stat-anomaly-fastest" style="font-size: 13px; font-weight: 600; color: #c084fc; margin-top: 4px;">0.00 MB/s (None)</div>
+        </div>
+      </div>
+
+      <!-- Container Trend Forecasts Table -->
+      <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; display: flex; justify-content: space-between; align-items: center;">
+        <span>Container Memory Regression Trends &amp; Time-to-Exhaustion (TTE)</span>
+        <span id="anomaly-predictions-count" style="font-size: 11px; font-weight: 400;">0 containers</span>
+      </div>
+      <div class="alert-events-scroll" style="max-height: 250px;">
+        <table class="alert-events-table" style="width: 100%;">
+          <thead>
+            <tr>
+              <th>Container</th>
+              <th>Current / Limit</th>
+              <th>Memory Slope</th>
+              <th>R² Confidence</th>
+              <th>Countdown to OOM</th>
+              <th>Status Risk</th>
+              <th style="text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="anomaly-predictions-body">
+            <tr>
+              <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                Collecting time-series metrics. Trends will appear momentarily.
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </div>
 
@@ -1214,6 +1283,85 @@
       <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;">
         <button class="btn btn-secondary" onclick="closeHealingModal()">Cancel</button>
         <button class="btn btn-primary-restart" id="btn-save-healing-policy" onclick="saveHealingPolicy()">Save Policy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Anomaly Configuration & Alarms Modal -->
+  <div class="modal-overlay" id="anomaly-modal">
+    <div class="modal" style="max-width: 680px;">
+      <div class="modal-header">
+        <div class="modal-title" style="color: #c084fc; display: flex; align-items: center; gap: 8px;">
+          <span>🔮</span> Predictive OOM Alarms Configuration
+        </div>
+        <button class="modal-close" onclick="closeAnomalyModal()">&times;</button>
+      </div>
+      <div class="modal-body" style="font-size: 13px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+          <span style="color: var(--text-muted);">Configure linear regression forecasting parameters and early warning webhook triggers.</span>
+          <label class="toggle-wrap">
+            <input type="checkbox" id="anom-enabled-check" checked>
+            <span>Enabled</span>
+          </label>
+        </div>
+
+        <div class="form-row" style="margin-bottom: 12px;">
+          <div class="form-col">
+            <label class="form-label" for="anom-warning-horizon">Warning Horizon (seconds)</label>
+            <input type="number" class="form-input" id="anom-warning-horizon" min="30" max="3600" value="300">
+          </div>
+          <div class="form-col">
+            <label class="form-label" for="anom-critical-horizon">Critical Horizon (seconds)</label>
+            <input type="number" class="form-input" id="anom-critical-horizon" min="10" max="600" value="60">
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-bottom: 12px;">
+          <div class="form-col">
+            <label class="form-label" for="anom-r2-threshold">Min R² Correlation Threshold</label>
+            <input type="number" step="0.05" class="form-input" id="anom-r2-threshold" min="0" max="1" value="0.50">
+          </div>
+          <div class="form-col">
+            <label class="form-label" for="anom-cooldown">Alarm Cooldown Window (sec)</label>
+            <input type="number" class="form-input" id="anom-cooldown" min="10" max="3600" value="300">
+          </div>
+        </div>
+
+        <div style="margin-bottom: 14px;">
+          <label class="toggle-wrap">
+            <input type="checkbox" id="anom-dispatch-webhooks" checked>
+            <span>Dispatch Early-Warning Webhooks to Discord &amp; Slack</span>
+          </label>
+        </div>
+
+        <div style="margin-top: 18px; margin-bottom: 8px; font-weight: 600; color: var(--text-muted); font-size: 11px; text-transform: uppercase;">
+          Recent Early-Warning OOM Incidents
+        </div>
+        <div class="alert-events-scroll" style="max-height: 180px;">
+          <table class="alert-events-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Severity</th>
+                <th>Container</th>
+                <th>TTE (sec)</th>
+                <th>Slope</th>
+                <th>Message</th>
+              </tr>
+            </thead>
+            <tbody id="anomaly-events-modal-body">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 12px;">
+                  No early warning incidents recorded.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;">
+        <button class="btn btn-secondary" onclick="closeAnomalyModal()">Cancel</button>
+        <button class="btn btn-primary-restart" id="btn-save-anomaly-config" onclick="saveAnomalyConfig()">Save Configuration</button>
       </div>
     </div>
   </div>
@@ -2375,12 +2523,29 @@
             const rawName = (c.names && c.names[0]) ? c.names[0].replace(/^\//, '') : 'unnamed';
             const isRunning = c.state === 'running';
             const nodeTag = c.node_name ? `<span class="badge-level badge-level-info" style="font-size: 10px; margin-right: 6px; padding: 1px 6px;">${escapeHTML(c.node_name)}</span>` : '';
+
+            const pred = cachedAnomalyPredictions[c.id] || cachedAnomalyPredictions[rawName];
+            let forecastBadge = '<span class="status-pill status-standby" style="font-size: 11px;">--</span>';
+            if (pred) {
+              if (pred.category === 'critical_oom_imminent') {
+                forecastBadge = `<span class="badge-level" style="background: rgba(239, 68, 68, 0.25); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.6); font-size: 11px; font-weight: 800; animation: pulse 1s infinite; cursor: pointer;" onclick="openAnomalyModal()" title="CRITICAL: OOM in ${Math.round(pred.seconds_to_oom)}s! Click for alarms.">🚨 OOM in ${Math.round(pred.seconds_to_oom)}s!</span>`;
+              } else if (pred.category === 'warning') {
+                forecastBadge = `<span class="badge-level" style="background: rgba(249, 115, 22, 0.2); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.5); font-size: 11px; font-weight: 700; cursor: pointer;" onclick="openAnomalyModal()" title="Warning: OOM in ~${Math.round(pred.seconds_to_oom)}s. Click for alarms.">🟠 ⚠️ OOM ~${Math.round(pred.seconds_to_oom)}s</span>`;
+              } else if (pred.category === 'moderate_growth') {
+                const slopeMB = (pred.slope_bytes_per_sec / (1024 * 1024)).toFixed(2);
+                forecastBadge = `<span class="badge-level" style="background: rgba(245, 158, 11, 0.15); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35); font-size: 11px; cursor: pointer;" onclick="openAnomalyModal()" title="Moderate Growth: +${slopeMB} MB/s (~${Math.round(pred.seconds_to_oom / 60)}m).">🟡 +${slopeMB} MB/s (~${Math.round(pred.seconds_to_oom / 60)}m)</span>`;
+              } else {
+                forecastBadge = `<span class="badge-level" style="background: rgba(16, 185, 129, 0.15); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); font-size: 11px; cursor: pointer;" onclick="openAnomalyModal()" title="Memory trend stable. Click for alarms.">🟢 Stable</span>`;
+              }
+            }
+
             return `
               <tr>
                 <td style="font-weight: 600;">${nodeTag}${rawName}</td>
                 <td style="color: #94a3b8; font-family: monospace;">${c.image}</td>
                 <td><span class="status-pill status-${isRunning ? 'running' : 'stopped'}">${c.state}</span></td>
                 <td style="color: #cbd5e1;">${c.status}</td>
+                <td>${forecastBadge}</td>
                 <td style="font-family: monospace; font-size: 11px; color: #64748b;">${c.id.substring(0, 12)}</td>
                 <td style="text-align: right;">
                   <div class="action-group" style="justify-content: flex-end;">
@@ -2396,7 +2561,7 @@
         } else {
           tbody.innerHTML = `
             <tr>
-              <td colspan="6" style="text-align: center; color: #94a3b8; padding: 28px;">
+              <td colspan="7" style="text-align: center; color: #94a3b8; padding: 28px;">
                 ${dockRes.available || containers.length > 0 ? 'No active containers match filter.' : 'Docker daemon offline. Running in Host Telemetry & Standby Mode.'}
               </td>
             </tr>
@@ -3075,6 +3240,300 @@
       }
     }
 
+    // ==========================================
+    // Predictive Anomaly Engine & OOM Forecasting
+    // ==========================================
+    let cachedAnomalyPredictions = {};
+    let anomalyFilterAtRisk = false;
+    let anomalyConfig = null;
+
+    function toggleAnomalyAtRiskFilter() {
+      anomalyFilterAtRisk = !anomalyFilterAtRisk;
+      const btn = document.getElementById('btn-toggle-anomaly-filter');
+      if (btn) {
+        btn.textContent = anomalyFilterAtRisk ? '🔍 Show All Containers' : '🔍 Show At-Risk Only';
+        btn.style.color = anomalyFilterAtRisk ? '#f59e0b' : '';
+      }
+      pollAnomalyPredictions();
+    }
+
+    async function pollAnomalyPredictions() {
+      try {
+        const url = anomalyFilterAtRisk ? '/api/anomaly/predictions?filter=at_risk' : '/api/anomaly/predictions';
+        const resp = await authFetch(url);
+        if (!resp.ok) return;
+        const data = await resp.json();
+
+        const summary = data.summary || {};
+        const predictions = data.predictions || [];
+
+        // Cache predictions for container radar table
+        const map = {};
+        for (const p of predictions) {
+          if (p.container_id) map[p.container_id] = p;
+          if (p.container_name) map[p.container_name] = p;
+        }
+        cachedAnomalyPredictions = map;
+
+        // Update Header Badge
+        const anomBadge = document.getElementById('anomaly-badge');
+        const anomText = document.getElementById('anomaly-badge-text');
+        if (anomText) {
+          if (summary.critical_count > 0) {
+            anomText.textContent = `🚨 Critical (${summary.critical_count})`;
+            if (anomBadge) {
+              anomBadge.className = 'status-pill status-stopped';
+              anomBadge.style.color = '#ef4444';
+              anomBadge.style.borderColor = 'rgba(239, 68, 68, 0.6)';
+            }
+          } else if (summary.warning_count > 0) {
+            anomText.textContent = `⚠️ Warning (${summary.warning_count})`;
+            if (anomBadge) {
+              anomBadge.className = 'status-pill status-standby';
+              anomBadge.style.color = '#f59e0b';
+              anomBadge.style.borderColor = 'rgba(245, 158, 11, 0.5)';
+            }
+          } else {
+            anomText.textContent = 'Normal';
+            if (anomBadge) {
+              anomBadge.className = 'status-pill status-running';
+              anomBadge.style.color = '#c084fc';
+              anomBadge.style.borderColor = 'rgba(168, 85, 247, 0.4)';
+            }
+          }
+        }
+
+        // Update Card KPIs
+        const cardPill = document.getElementById('anomaly-card-status-pill');
+        if (cardPill) {
+          if (summary.critical_count > 0) {
+            cardPill.className = 'status-pill status-stopped';
+            cardPill.textContent = 'OOM Critical Imminent';
+          } else if (summary.warning_count > 0) {
+            cardPill.className = 'status-pill status-standby';
+            cardPill.textContent = 'Resource Warning';
+          } else {
+            cardPill.className = 'status-pill status-running';
+            cardPill.textContent = 'Nominal';
+          }
+        }
+
+        const critPill = document.getElementById('anomaly-critical-pill');
+        if (critPill) {
+          if (summary.critical_count > 0) {
+            critPill.style.display = 'inline-block';
+            critPill.textContent = `${summary.critical_count} Critical Imminent`;
+          } else {
+            critPill.style.display = 'none';
+          }
+        }
+
+        const statMon = document.getElementById('stat-anomaly-monitored');
+        if (statMon) statMon.textContent = summary.monitored_containers || 0;
+        const statStab = document.getElementById('stat-anomaly-stable');
+        if (statStab) statStab.textContent = summary.stable_count || 0;
+        const statWarn = document.getElementById('stat-anomaly-warning');
+        if (statWarn) statWarn.textContent = summary.warning_count || 0;
+        const statCrit = document.getElementById('stat-anomaly-critical');
+        if (statCrit) statCrit.textContent = summary.critical_count || 0;
+        const statFast = document.getElementById('stat-anomaly-fastest');
+        if (statFast) {
+          const rateMB = (summary.fastest_growing_rate_mbs || 0).toFixed(2);
+          statFast.textContent = `+${rateMB} MB/s (${escapeHTML(summary.fastest_growing_name || 'None')})`;
+        }
+
+        const countLabel = document.getElementById('anomaly-predictions-count');
+        if (countLabel) countLabel.textContent = `${predictions.length} containers`;
+
+        // Render Anomaly Predictions Table
+        const tbody = document.getElementById('anomaly-predictions-body');
+        if (tbody) {
+          if (predictions.length === 0) {
+            tbody.innerHTML = `
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                  ${anomalyFilterAtRisk ? 'No containers currently at risk of resource exhaustion.' : 'Collecting time-series metrics. Trends will appear momentarily.'}
+                </td>
+              </tr>
+            `;
+          } else {
+            tbody.innerHTML = predictions.map(p => {
+              const currMB = (p.current_memory_bytes / (1024 * 1024)).toFixed(1);
+              const limitMB = (p.memory_limit_bytes / (1024 * 1024)).toFixed(1);
+              const pct = (p.memory_usage_percent || 0).toFixed(1);
+              const slopeMB = (p.slope_bytes_per_sec / (1024 * 1024)).toFixed(2);
+              const r2Val = (p.r_squared || 0).toFixed(2);
+
+              let r2Badge = `<span style="color: #10b981; font-weight: 700;">${r2Val}</span>`;
+              if (p.r_squared < 0.5) {
+                r2Badge = `<span style="color: #64748b;">${r2Val}</span>`;
+              } else if (p.r_squared < 0.75) {
+                r2Badge = `<span style="color: #f59e0b; font-weight: 600;">${r2Val}</span>`;
+              }
+
+              let tteHtml = '<span style="color: #10b981;">&gt;1h (Stable)</span>';
+              let catPill = '<span class="status-pill status-running" style="font-size: 10px;">Stable</span>';
+
+              if (p.category === 'critical_oom_imminent') {
+                tteHtml = `<span style="color: #ef4444; font-weight: 800; animation: pulse 1s infinite;">🚨 ~${Math.round(p.seconds_to_oom)}s</span>`;
+                catPill = '<span class="status-pill status-stopped" style="font-size: 10px; font-weight: 700;">Critical OOM</span>';
+              } else if (p.category === 'warning') {
+                tteHtml = `<span style="color: #f97316; font-weight: 700;">⏳ ~${Math.round(p.seconds_to_oom)}s</span>`;
+                catPill = '<span class="status-pill status-standby" style="font-size: 10px; color: #f97316;">Warning</span>';
+              } else if (p.category === 'moderate_growth') {
+                tteHtml = `<span style="color: #f59e0b;">⏳ ~${Math.round(p.seconds_to_oom / 60)}m</span>`;
+                catPill = '<span class="status-pill status-standby" style="font-size: 10px;">Moderate</span>';
+              }
+
+              return `
+                <tr>
+                  <td style="font-weight: 600; font-family: monospace;">
+                    <div>${escapeHTML(p.container_name || p.container_id)}</div>
+                    <div style="font-size: 10px; color: #64748b;">${(p.container_id || '').substring(0, 12)}</div>
+                  </td>
+                  <td>
+                    <div style="font-size: 11px; margin-bottom: 3px;">${currMB} MB / ${limitMB} MB <span style="color: var(--text-muted);">(${pct}%)</span></div>
+                    <div style="width: 100%; max-width: 120px; background: #1e293b; height: 5px; border-radius: 3px; overflow: hidden;">
+                      <div style="width: ${Math.min(pct, 100)}%; background: ${pct > 90 ? '#ef4444' : (pct > 75 ? '#f59e0b' : '#10b981')}; height: 100%;"></div>
+                    </div>
+                  </td>
+                  <td style="font-family: monospace; font-size: 12px; color: ${p.slope_bytes_per_sec > 1024*1024 ? '#ef4444' : (p.slope_bytes_per_sec > 102400 ? '#f59e0b' : '#94a3b8')};">
+                    ${p.slope_bytes_per_sec > 0 ? '+' : ''}${slopeMB} MB/s
+                  </td>
+                  <td>${r2Badge}</td>
+                  <td style="font-family: monospace; font-size: 12px;">${tteHtml}</td>
+                  <td>${catPill}</td>
+                  <td style="text-align: right;">
+                    <div class="action-group" style="justify-content: flex-end;">
+                      <button class="btn-action btn-restart" onclick="openActionModal('restart', '${p.container_id}', '${escapeHTML(p.container_name)}')">Restart</button>
+                      <button class="btn-action btn-logs" onclick="openAnomalyModal()">Configure</button>
+                    </div>
+                  </td>
+                </tr>
+              `;
+            }).join('');
+          }
+        }
+      } catch (err) {
+        log(`Failed polling anomaly predictions: ${err.message}`, 'warn');
+      }
+    }
+
+    async function openAnomalyModal() {
+      const modal = document.getElementById('anomaly-modal');
+      if (!modal) return;
+      modal.classList.add('active');
+
+      try {
+        const [cfgResp, evResp] = await Promise.all([
+          authFetch('/api/anomaly/config'),
+          authFetch('/api/anomaly/events?limit=30')
+        ]);
+
+        if (cfgResp.ok) {
+          anomalyConfig = await cfgResp.json();
+          document.getElementById('anom-enabled-check').checked = !!anomalyConfig.enabled;
+          document.getElementById('anom-warning-horizon').value = anomalyConfig.warning_horizon_seconds || 300;
+          document.getElementById('anom-critical-horizon').value = anomalyConfig.critical_horizon_seconds || 60;
+          document.getElementById('anom-r2-threshold').value = anomalyConfig.min_r_squared || 0.50;
+          const cdSec = anomalyConfig.cooldown_duration ? Math.round(anomalyConfig.cooldown_duration / 1000000000) : 300;
+          document.getElementById('anom-cooldown').value = cdSec;
+          document.getElementById('anom-dispatch-webhooks').checked = !!anomalyConfig.dispatch_webhooks;
+        }
+
+        if (evResp.ok) {
+          const evData = await evResp.json();
+          const evBody = document.getElementById('anomaly-events-modal-body');
+          if (evBody && evData.events) {
+            if (evData.events.length === 0) {
+              evBody.innerHTML = `
+                <tr>
+                  <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 12px;">
+                    No early warning incidents recorded.
+                  </td>
+                </tr>
+              `;
+            } else {
+              evBody.innerHTML = evData.events.map(e => {
+                const ts = e.triggered_at ? new Date(e.triggered_at).toLocaleTimeString() : '--';
+                const rateMB = ((e.growth_rate_bytes_per_sec || 0) / (1024 * 1024)).toFixed(2);
+                const sevBadge = e.severity === 'critical' ?
+                  '<span class="status-pill status-stopped" style="font-size: 10px;">CRITICAL</span>' :
+                  '<span class="status-pill status-standby" style="font-size: 10px;">WARNING</span>';
+                return `
+                  <tr>
+                    <td style="font-family: monospace; font-size: 11px; color: #94a3b8;">${ts}</td>
+                    <td>${sevBadge}</td>
+                    <td style="font-weight: 600;">${escapeHTML(e.container_name || e.container_id)}</td>
+                    <td style="font-family: monospace; color: #f59e0b;">~${Math.round(e.predicted_seconds_to_oom)}s</td>
+                    <td style="font-family: monospace;">+${rateMB} MB/s</td>
+                    <td style="color: var(--text-muted); font-size: 11px;">${escapeHTML(e.message)}</td>
+                  </tr>
+                `;
+              }).join('');
+            }
+          }
+        }
+      } catch (err) {
+        log(`Failed loading anomaly config: ${err.message}`, 'warn');
+      }
+    }
+
+    function closeAnomalyModal() {
+      const modal = document.getElementById('anomaly-modal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    async function saveAnomalyConfig() {
+      const btn = document.getElementById('btn-save-anomaly-config');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Saving...';
+      }
+
+      const cdSec = parseInt(document.getElementById('anom-cooldown').value, 10) || 300;
+      const payload = {
+        enabled: document.getElementById('anom-enabled-check').checked,
+        warning_horizon_seconds: parseInt(document.getElementById('anom-warning-horizon').value, 10) || 300,
+        critical_horizon_seconds: parseInt(document.getElementById('anom-critical-horizon').value, 10) || 60,
+        min_r_squared: parseFloat(document.getElementById('anom-r2-threshold').value) || 0.50,
+        cooldown_duration: cdSec * 1000000000,
+        dispatch_webhooks: document.getElementById('anom-dispatch-webhooks').checked
+      };
+
+      try {
+        const resp = await authFetch('/api/anomaly/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (resp.ok) {
+          showToast('✓ Anomaly Alarms configuration saved');
+          closeAnomalyModal();
+          pollAnomalyPredictions();
+        } else {
+          const errText = await resp.text();
+          showToast(`⚠️ Failed to save configuration: ${errText}`);
+        }
+      } catch (err) {
+        showToast(`⚠️ Network error: ${err.message}`);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = 'Save Configuration';
+        }
+      }
+    }
+
+    // Modal background click close for anomaly modal
+    const anomModalEl = document.getElementById('anomaly-modal');
+    if (anomModalEl) {
+      anomModalEl.addEventListener('click', (e) => {
+        if (e.target === anomModalEl) closeAnomalyModal();
+      });
+    }
+
     checkAuthStatus();
     setInterval(checkAuthStatus, 5000);
     pollTelemetry();
@@ -3090,6 +3549,8 @@
     setInterval(pollHealingStatus, 2500);
     pollHealingHistory();
     setInterval(pollHealingHistory, 3000);
+    pollAnomalyPredictions();
+    setInterval(pollAnomalyPredictions, 2500);
   </script>
 </body>
 </html>

@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-10-14
+
+### Added
+- Predictive Anomaly Detection Engine & Linear Regression Memory Trend Tracking (`internal/anomaly/regression.go`, `internal/anomaly/series.go`):
+  - In-memory thread-safe circular metric buffer (`ContainerSeries`) sampling active container memory and CPU points up to configurable capacities with automatic eviction.
+  - Robust Ordinary Least Squares (OLS) linear regression modeling time vs memory utilization with numerical stability guards against zero-variance divisions.
+  - Mathematical calculation of consumption slope ($m$, bytes/sec), intercept ($c$), coefficient of determination ($R^2$), and dynamic Time-to-Exhaustion (TTE) prediction.
+  - Multi-tier risk classification: `critical_oom_imminent` (exhaustion < 120s or usage > 92%), `warning` (exhaustion < 300s or growth rate > 10 MB/s), `moderate_growth`, and `stable`.
+- Early-Warning OOM Alert System (`internal/anomaly/alarm.go`, `internal/anomaly/detector.go`):
+  - Automated early warning alarm dispatch triggering before kernel OOM killer (`exit 137`) terminates containers.
+  - Non-blocking webhook dispatch bridge into Discord and Slack notification channels via `alert.Dispatcher` with timeout-bounded context execution.
+  - Incident event deduplication with configurable cooldown periods to prevent alert fatigue.
+  - Thread-safe circular event buffer recording recent OOM warning occurrences with sub-millisecond retrieval.
+- Anomaly & Predictive OOM REST APIs (`internal/api/anomaly.go`):
+  - `GET /api/anomaly/predictions`: Returns current linear regression predictions and risk states for all containers or targeted container IDs (`?id=`), with optional `?filter=at_risk` query support.
+  - `GET /api/anomaly/config`: Returns active anomaly detection thresholds, sampling interval, and alert window configurations (requires `RoleViewer`).
+  - `POST /api/anomaly/config`: Atomically updates anomaly thresholds and alert settings, guarded by `RoleAdmin` RBAC authorization and rate limiting.
+  - `GET /api/anomaly/events`: Returns bounded incident history of recent early-warning OOM triggers.
+- Prometheus Metrics Exporter Extension (`internal/metrics/prometheus.go`):
+  - Exposes `dock_radar_anomaly_containers_monitored`, `dock_radar_anomaly_critical_imminent_total`, `dock_radar_anomaly_warning_total`, `dock_radar_anomaly_memory_growth_rate_bytes_per_sec`, and `dock_radar_anomaly_predicted_oom_seconds` gauges for Grafana alerting.
+- Docker Stats Telemetry Engine (`internal/docker/stats.go`):
+  - Direct Docker socket `/stats?stream=false` inspection with effective memory calculation (deducting kernel reclaimable page caches `inactive_file`/`total_inactive_file` to match `docker stats` CLI fidelity).
+  - Accurate CPU delta utilization percent computation across polling intervals.
+- Embedded Dark-Mode Dashboard Glassmorphism UI (`web/dist/index.html`):
+  - Real-time header badge indicator (`🔮 OOM Radar: Normal / Warning / Critical`) with click-to-open configuration modal.
+  - Real-time `OOM Forecast` column in container overview table with glowing countdown badges (`🚨 OOM in 45s!`, `🟠 ~3m 20s`, `🟡 +X MB/s`, `🟢 Stable`).
+  - Predictive Anomaly Radar & OOM Forecast Card with summary KPI grid and container trend forecasts table.
+  - Predictive OOM Alarms Configuration Modal (`#anomaly-modal`) with threshold adjustment controls, webhook alert toggles, and incident history audit trail.
+- Comprehensive Unit & Integration Test Suites:
+  - Full test coverage in `internal/anomaly/regression_test.go`, `internal/anomaly/series_test.go`, `internal/anomaly/alarm_test.go`, `internal/anomaly/detector_test.go`, `internal/docker/stats_test.go`, and `internal/api/anomaly_test.go`.
+
 ## [1.5.0] - 2026-10-14
 
 ### Added
