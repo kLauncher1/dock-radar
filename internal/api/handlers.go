@@ -77,7 +77,7 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	auditLogger.Log(audit.AuditEvent{
 		Action:  "system_init",
 		Target:  "dock-radar",
-		Details: map[string]any{"version": "1.2.0"},
+		Details: map[string]any{"version": "1.3.0"},
 	})
 
 	cfg := &HandlerConfig{
@@ -88,7 +88,7 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 		AlertDispatcher:  alertDispatcher,
 		AlertMonitor:     alertMonitor,
 		AuditLogger:      auditLogger,
-		AppVersion:       "1.2.0",
+		AppVersion:       "1.3.0",
 		TokenAuth:        tokenAuth,
 		AllowRemote:      allowRemote,
 	}
@@ -105,6 +105,9 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 
 	// Real-time log streaming & WebSocket feed
 	mux.HandleFunc("/api/docker/logs", cfg.handleContainerLogs)
+
+	// Interactive in-browser container shell execution via WebSocket
+	mux.HandleFunc("/api/docker/exec", cfg.handleContainerExec)
 
 	// Prometheus metrics exporter endpoint
 	mux.HandleFunc("/metrics", cfg.handlePrometheusMetrics)
