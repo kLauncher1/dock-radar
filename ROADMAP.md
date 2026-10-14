@@ -27,9 +27,9 @@ This document outlines the architectural milestones and engineering priorities f
 ---
 
 ## Milestone 6: v1.1.0 (Metrics Export & Operations)
-- [ ] Prometheus metrics exporter endpoint (`/metrics`) for Grafana scraping.
-- [ ] Batch container actions (restart all running, prune exited containers).
-- [ ] Audit trail event exporter in NDJSON format.
+- [x] Prometheus metrics exporter endpoint (`/metrics`) for Grafana scraping.
+- [x] Batch container actions (restart all running, prune exited containers).
+- [x] Audit trail event exporter in NDJSON format.
 
 ---
 
@@ -72,3 +72,17 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] UDP broadcast discovery for auto-detecting nearby dock-radar daemon nodes.
 - [ ] Gossip-based state exchange for multi-server cluster metrics.
 - [ ] Unified multi-host aggregated view in the embedded dashboard.
+
+---
+
+## Milestone 13: v1.8.0 (Zero-Downtime Rolling Restarts)
+- [ ] Staggered sequential container restarts with health check readiness probing.
+- [ ] Traffic draining and reverse proxy health status integration.
+- [ ] Configurable batch concurrency limit and rollback abort triggers.
+
+---
+
+## Milestone 14: v1.9.0 (Distributed Ephemeral Log Storage & S3 Offloader)
+- [ ] Compressed log chunking and local ring buffer rotation to disk.
+- [ ] Background asynchronous offloader streaming logs to S3-compatible object stores (MinIO, AWS S3, Cloudflare R2).
+- [ ] Ephemeral retention policies with automatic cold storage tiering.

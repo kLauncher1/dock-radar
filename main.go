@@ -20,7 +20,7 @@ import (
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "1.0.0"
+const AppVersion = "1.1.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -82,6 +82,9 @@ func main() {
 
 	mux := http.NewServeMux()
 	handlerCfg := api.RegisterRoutesWithSecurity(mux, dockerClient, subFS, tokenAuth, allowRemote)
+	if handlerCfg != nil {
+		handlerCfg.AppVersion = AppVersion
+	}
 
 	// Launch background alert monitoring loop (10s interval)
 	if handlerCfg != nil && handlerCfg.AlertMonitor != nil {
