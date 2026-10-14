@@ -33,12 +33,14 @@ func (h *HandlerConfig) handleAlertConfig(w http.ResponseWriter, r *http.Request
 
 	switch r.Method {
 	case http.MethodGet:
+		if !h.authorize(w, r, security.RoleViewer) {
+			return
+		}
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(h.AlertConfigStore.Get())
 
 	case http.MethodPost:
-		if err := security.ValidateLoopbackOrigin(r); err != nil {
-			http.Error(w, err.Error(), http.StatusForbidden)
+		if !h.authorize(w, r, security.RoleAdmin) {
 			return
 		}
 
@@ -79,6 +81,10 @@ func (h *HandlerConfig) handleAlertEvents(w http.ResponseWriter, r *http.Request
 		return
 	}
 
+	if !h.authorize(w, r, security.RoleViewer) {
+		return
+	}
+
 	if h.AlertDispatcher == nil {
 		if h.AlertConfigStore == nil {
 			h.AlertConfigStore = alert.NewConfigStore(alert.DefaultConfig())
@@ -108,8 +114,7 @@ func (h *HandlerConfig) handleAlertTest(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	if err := security.ValidateLoopbackOrigin(r); err != nil {
-		http.Error(w, err.Error(), http.StatusForbidden)
+	if !h.authorize(w, r, security.RoleAdmin) {
 		return
 	}
 

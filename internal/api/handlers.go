@@ -43,10 +43,17 @@ type HandlerConfig struct {
 	AlertConfigStore *alert.ConfigStore
 	AlertDispatcher  *alert.Dispatcher
 	AlertMonitor     *alert.Monitor
+	TokenAuth        *security.TokenAuth
+	AllowRemote      bool
 }
 
 // RegisterRoutes sets up all API endpoints and static file serving on the provided ServeMux.
 func RegisterRoutes(mux *http.ServeMux, dockerClient *docker.Client, staticFS fs.FS) *HandlerConfig {
+	return RegisterRoutesWithSecurity(mux, dockerClient, staticFS, nil, false)
+}
+
+// RegisterRoutesWithSecurity sets up API endpoints with Bearer token authentication and remote access policies.
+func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client, staticFS fs.FS, tokenAuth *security.TokenAuth, allowRemote bool) *HandlerConfig {
 	// Initialize a burst of 5 actions with 1 refill per second
 	limiter := security.NewRateLimiter(5.0, 1.0)
 	ringBuffer := logs.NewRingBuffer(2000)
@@ -68,6 +75,8 @@ func RegisterRoutes(mux *http.ServeMux, dockerClient *docker.Client, staticFS fs
 		AlertConfigStore: alertCfgStore,
 		AlertDispatcher:  alertDispatcher,
 		AlertMonitor:     alertMonitor,
+		TokenAuth:        tokenAuth,
+		AllowRemote:      allowRemote,
 	}
 
 	// Real-time system telemetry
@@ -88,6 +97,10 @@ func RegisterRoutes(mux *http.ServeMux, dockerClient *docker.Client, staticFS fs
 	mux.HandleFunc("/api/alerts/events", cfg.handleAlertEvents)
 	mux.HandleFunc("/api/alerts/test", cfg.handleAlertTest)
 
+	// Authentication status and token verification
+	mux.HandleFunc("/api/auth/status", cfg.handleAuthStatus)
+	mux.HandleFunc("/api/auth/verify", cfg.handleAuthVerify)
+
 	// Embedded Static UI
 	if staticFS != nil {
 		mux.Handle("/", http.FileServer(http.FS(staticFS)))
@@ -96,9 +109,36 @@ func RegisterRoutes(mux *http.ServeMux, dockerClient *docker.Client, staticFS fs
 	return cfg
 }
 
+func (h *HandlerConfig) authorize(w http.ResponseWriter, r *http.Request, required security.Role) bool {
+	if h.TokenAuth != nil && h.TokenAuth.IsEnabled() {
+		_, err := h.TokenAuth.Authorize(r, required)
+		if err != nil {
+			if errors.Is(err, security.ErrUnauthorized) {
+				w.Header().Set("WWW-Authenticate", `Bearer realm="dock-radar"`)
+				http.Error(w, err.Error(), http.StatusUnauthorized)
+			} else {
+				http.Error(w, err.Error(), http.StatusForbidden)
+			}
+			return false
+		}
+		return true
+	}
+
+	if required == security.RoleAdmin {
+		if err := security.ValidateLoopbackOrigin(r); err != nil {
+			http.Error(w, err.Error(), http.StatusForbidden)
+			return false
+		}
+	}
+	return true
+}
+
 func (h *HandlerConfig) handleSystemMetrics(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !h.authorize(w, r, security.RoleViewer) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -109,6 +149,9 @@ func (h *HandlerConfig) handleSystemMetrics(w http.ResponseWriter, r *http.Reque
 func (h *HandlerConfig) handleDockerStatus(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+	if !h.authorize(w, r, security.RoleViewer) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -122,8 +165,7 @@ func (h *HandlerConfig) handleContainerRestart(w http.ResponseWriter, r *http.Re
 		return
 	}
 
-	if err := security.ValidateLoopbackOrigin(r); err != nil {
-		http.Error(w, err.Error(), http.StatusForbidden)
+	if !h.authorize(w, r, security.RoleAdmin) {
 		return
 	}
 
@@ -166,8 +208,7 @@ func (h *HandlerConfig) handleContainerStop(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	if err := security.ValidateLoopbackOrigin(r); err != nil {
-		http.Error(w, err.Error(), http.StatusForbidden)
+	if !h.authorize(w, r, security.RoleAdmin) {
 		return
 	}
 
@@ -257,6 +298,10 @@ func writeJSONResponse(w http.ResponseWriter, status int, data any) {
 func (h *HandlerConfig) handleContainerLogs(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	if !h.authorize(w, r, security.RoleViewer) {
 		return
 	}
 
