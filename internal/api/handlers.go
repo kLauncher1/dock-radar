@@ -17,6 +17,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
+	"github.com/kLauncher1/dock-radar/internal/rolling"
 	"github.com/kLauncher1/dock-radar/internal/security"
 	"github.com/kLauncher1/dock-radar/internal/system"
 )
@@ -51,6 +52,7 @@ type HandlerConfig struct {
 	MeshGossip       *mesh.GossipEngine
 	HealingEngine    *healing.RemediationEngine
 	AnomalyDetector  *anomaly.Detector
+	RollingEngine    *rolling.Engine
 	AppVersion       string
 	TokenAuth        *security.TokenAuth
 	AllowRemote      bool
@@ -88,6 +90,7 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	healingEngine := healing.NewRemediationEngine(dockerClient, healingPolicyStore, healingHistory, auditLogger)
 
 	anomalyDetector := anomaly.NewDetector(dockerClient, alertDispatcher)
+	rollingEngine := rolling.NewEngine(dockerClient, auditLogger, alertDispatcher)
 
 	cfg := &HandlerConfig{
 		DockerClient:     dockerClient,
@@ -99,7 +102,8 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 		AuditLogger:      auditLogger,
 		HealingEngine:    healingEngine,
 		AnomalyDetector:  anomalyDetector,
-		AppVersion:       "1.6.0",
+		RollingEngine:    rollingEngine,
+		AppVersion:       "1.8.0",
 		TokenAuth:        tokenAuth,
 		AllowRemote:      allowRemote,
 	}
@@ -164,6 +168,12 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	mux.HandleFunc("/api/mesh/discovery", cfg.handleMeshDiscovery)
 	mux.HandleFunc("/api/mesh/discovery/beacon", cfg.handleMeshDiscovery)
 	mux.HandleFunc("/api/mesh/gossip", cfg.handleMeshGossip)
+
+	// Zero-Downtime Rolling Restarts & Traffic Draining
+	mux.HandleFunc("/api/rolling/start", cfg.handleRollingStart)
+	mux.HandleFunc("/api/rolling/status", cfg.handleRollingStatus)
+	mux.HandleFunc("/api/rolling/operations", cfg.handleRollingOperations)
+	mux.HandleFunc("/api/rolling/abort", cfg.handleRollingAbort)
 
 	// Embedded Static UI
 	if staticFS != nil {

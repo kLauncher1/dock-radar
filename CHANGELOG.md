@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-10-15
+
+### Added
+- Zero-Downtime Rolling Restarts & Traffic Draining Engine (`internal/rolling/engine.go`, `internal/rolling/types.go`):
+  - Staggered sequential container restarts across replicas with configurable concurrency batch size (1 to 10).
+  - Multi-strategy target resolution supporting specific container ID lists, Docker Compose stacks (`com.docker.compose.project`), and arbitrary label selectors (`key=val`).
+  - Active execution tracking with cancellable context trees, manual abort triggers, and automatic progress timeline updates.
+- Graceful Traffic Draining & Reverse Proxy Integration (`internal/rolling/drain.go`, `internal/rolling/drain_test.go`):
+  - In-flight request evacuation with configurable countdown timeouts (0 to 300 seconds).
+  - Outgoing HTTP webhook notifications dispatching drain and undrain signals to reverse proxies (Nginx, Traefik, Envoy, HAProxy) with container ID token substitution.
+- Multi-Stage Container Readiness Prober (`internal/rolling/probe.go`, `internal/rolling/probe_test.go`):
+  - Deep container inspection ensuring containers transition to running state and exit code 0.
+  - Native Docker health check monitoring waiting for `(healthy)` and fast-aborting on `(unhealthy)`.
+  - HTTP readiness probes querying configurable application endpoints (`/healthz`) on target ports.
+  - Configurable post-readiness grace periods confirming container stability before advancing to subsequent batches.
+- Automated Failure Abort & Rollback Mechanism (`internal/rolling/engine.go`, `internal/rolling/store.go`):
+  - Instant halt of rolling pipeline upon reaching the failure threshold to safeguard healthy running replicas.
+  - Automated rollback triggering container recovery and audit trail event generation.
+  - High-priority alert notification dispatch to Discord and Slack webhook channels.
+- Rolling Restart REST APIs (`internal/api/rolling.go`, `internal/api/rolling_test.go`):
+  - `POST /api/rolling/start`: Launches a rolling restart operation with parameter validation (requires `RoleAdmin`).
+  - `GET /api/rolling/status`: Returns current engine statistics and active operations in flight (requires `RoleViewer`).
+  - `GET /api/rolling/operations`: Lists historical operations and provides detailed step timelines (`?id=`, `?limit=`).
+  - `POST /api/rolling/abort`: Cancels an active rolling restart execution (requires `RoleAdmin`).
+- Prometheus Metrics Exporter Extension (`internal/metrics/rolling.go`, `internal/metrics/prometheus.go`):
+  - Exposes `dock_radar_rolling_operations_total`, `dock_radar_rolling_operations_active`, `dock_radar_rolling_containers_restarted_total`, `dock_radar_rolling_containers_failed_total`, and `dock_radar_rolling_rollbacks_total` metrics for Grafana dashboards.
+- Embedded Dark-Mode Dashboard Glassmorphism UI (`web/dist/index.html`):
+  - Zero-Downtime Rolling Restarts card with summary KPI counters and real-time execution progress bar.
+  - Interactive launcher modal with strategy selector, batch size slider, drain timeout, HTTP probe settings, and auto-rollback toggle.
+  - Active container step indicators (Pending ➔ Draining ➔ Restarting ➔ Probing ➔ Healthy).
+  - Historical execution audit table with one-click manual abort triggers.
+
 ## [1.7.0] - 2026-10-15
 
 ### Added

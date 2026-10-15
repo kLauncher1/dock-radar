@@ -12,6 +12,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
+	"github.com/kLauncher1/dock-radar/internal/rolling"
 	"github.com/kLauncher1/dock-radar/internal/system"
 )
 
@@ -419,6 +420,36 @@ func TestFormatMetrics_MeshDiscoveryAndGossip(t *testing.T) {
 		}
 	}
 }
+
+func TestFormatMetrics_RollingRestarts(t *testing.T) {
+	sys := system.Metrics{OS: "linux", Arch: "amd64", Hostname: "node-1"}
+	dock := docker.DaemonStatus{Available: true}
+
+	rollingStats := &rolling.RollingStats{
+		TotalOperations:          5,
+		ActiveOperations:         1,
+		TotalContainersRestarted: 14,
+		TotalContainersFailed:    1,
+		TotalRollbacks:           1,
+	}
+
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, rollingStats, "1.8.0")
+
+	expectedMetrics := []string{
+		"dock_radar_rolling_operations_total 5",
+		"dock_radar_rolling_operations_active 1",
+		"dock_radar_rolling_containers_restarted_total 14",
+		"dock_radar_rolling_containers_failed_total 1",
+		"dock_radar_rolling_rollbacks_total 1",
+	}
+
+	for _, m := range expectedMetrics {
+		if !strings.Contains(output, m) {
+			t.Errorf("expected output to contain %q, but was missing:\n%s", m, output)
+		}
+	}
+}
+
 
 
 

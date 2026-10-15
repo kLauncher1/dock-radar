@@ -8,6 +8,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/metrics"
+	"github.com/kLauncher1/dock-radar/internal/rolling"
 	"github.com/kLauncher1/dock-radar/internal/security"
 	"github.com/kLauncher1/dock-radar/internal/system"
 )
@@ -72,7 +73,13 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		gossipMembers = h.MeshGossip.Members()
 	}
 
-	text := metrics.FormatMetricsFull(
+	var rollingStats *rolling.RollingStats
+	if h.RollingEngine != nil {
+		st := h.RollingEngine.Stats()
+		rollingStats = &st
+	}
+
+	text := metrics.FormatMetricsAll(
 		sysMetrics,
 		dockerStatus,
 		h.LogBuffer,
@@ -86,6 +93,7 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		discStatus,
 		gossipSummary,
 		gossipMembers,
+		rollingStats,
 		version,
 	)
 

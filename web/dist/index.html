@@ -1199,6 +1199,98 @@
         </div>
       </div>
     </div>
+
+    <!-- Zero-Downtime Rolling Restarts & Traffic Draining Section -->
+    <div class="card" id="rolling-section" style="margin-top: 24px; margin-bottom: 24px; padding: 20px; border-color: rgba(168, 85, 247, 0.25);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <span style="font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: #c084fc;">
+            <span>🔄</span> Zero-Downtime Rolling Restarts &amp; Traffic Draining
+          </span>
+          <span class="status-pill status-running" id="rolling-status-pill" style="font-size: 11px;">Engine Ready</span>
+          <span class="status-pill" id="rolling-active-pill" style="font-size: 11px; display: none; background: rgba(168, 85, 247, 0.2); color: #c084fc; border: 1px solid rgba(168, 85, 247, 0.4);">In Progress</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <button class="btn-action btn-restart" onclick="openRollingModal()" style="font-size: 11px; color: #c084fc; border-color: rgba(168, 85, 247, 0.4); background: rgba(168, 85, 247, 0.1);" title="Launch sequential rolling restart with health probing and traffic draining">🚀 Launch Rolling Restart</button>
+          <button class="btn-action btn-stop" id="btn-rolling-abort-all" onclick="abortActiveRolling()" style="font-size: 11px; display: none;">⛔ Abort Active Execution</button>
+        </div>
+      </div>
+
+      <!-- Rolling KPI Grid -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px;">
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Total Operations</div>
+          <div id="stat-rolling-total" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #c084fc;">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Active Operations</div>
+          <div id="stat-rolling-active" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--accent-blue);">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Containers Restarted</div>
+          <div id="stat-rolling-restarted" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--accent-green);">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Readiness Failures</div>
+          <div id="stat-rolling-failed" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--accent-red);">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Rollbacks Triggered</div>
+          <div id="stat-rolling-rollbacks" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #f59e0b;">0</div>
+        </div>
+      </div>
+
+      <!-- Active Rolling Progress Timeline (when operation is running) -->
+      <div id="rolling-active-card" style="display: none; background: #090d16; border: 1px solid rgba(168, 85, 247, 0.3); border-radius: 8px; padding: 16px; margin-bottom: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <div>
+            <span style="font-size: 13px; font-weight: 700; color: #c084fc;" id="active-op-id">Operation: None</span>
+            <span style="font-size: 11px; color: var(--text-muted); margin-left: 10px;" id="active-op-target">Target: None</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="status-pill status-running" id="active-op-status">Draining</span>
+            <button class="btn-action btn-stop" onclick="abortActiveRolling()" style="font-size: 11px; padding: 2px 8px;">Abort</button>
+          </div>
+        </div>
+        <!-- Progress bar -->
+        <div style="width: 100%; height: 8px; background: rgba(255,255,255,0.06); border-radius: 999px; overflow: hidden; margin-bottom: 12px;">
+          <div id="active-op-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, #a855f7, #38bdf8); transition: width 0.3s ease;"></div>
+        </div>
+        <div id="active-op-containers-list" style="display: flex; flex-direction: column; gap: 6px; font-size: 12px;">
+          <!-- Active containers steps -->
+        </div>
+      </div>
+
+      <!-- Rolling Restart Execution History -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+        <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Rolling Execution History &amp; Diagnostics</span>
+        <span id="rolling-history-count" style="font-size: 11px; font-weight: 400; color: var(--text-muted);">0 runs</span>
+      </div>
+      <div class="alert-events-scroll" style="max-height: 220px;">
+        <table class="alert-events-table" style="width: 100%;">
+          <thead>
+            <tr>
+              <th>Operation ID</th>
+              <th>Target</th>
+              <th>Batch Size</th>
+              <th>Drain</th>
+              <th>Probe</th>
+              <th>Status</th>
+              <th>Progress</th>
+              <th>Timestamp</th>
+              <th style="text-align: right;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="rolling-history-body">
+            <tr>
+              <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                No rolling restart operations recorded.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </main>
 
   <!-- Lifecycle Action Confirmation Modal -->
@@ -1488,6 +1580,83 @@
       <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;">
         <button class="btn btn-secondary" onclick="closeAnomalyModal()">Cancel</button>
         <button class="btn btn-primary-restart" id="btn-save-anomaly-config" onclick="saveAnomalyConfig()">Save Configuration</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Rolling Restart Plan & Launcher Modal -->
+  <div class="modal-overlay" id="rolling-modal">
+    <div class="modal-card" style="max-width: 620px;">
+      <div class="modal-title" style="display: flex; align-items: center; gap: 8px; color: #c084fc; margin-bottom: 12px;">
+        <span>🔄</span> Launch Zero-Downtime Rolling Restart
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">
+          Sequentially restart replicas with graceful traffic draining, readiness health probing, and automated rollback abort on failure.
+        </p>
+
+        <!-- Target Type -->
+        <div class="form-row" style="margin-bottom: 12px;">
+          <div class="form-col">
+            <label class="form-label" for="rolling-target-type">Targeting Strategy</label>
+            <select class="form-input" id="rolling-target-type" onchange="onRollingTargetTypeChange()" style="cursor: pointer;">
+              <option value="containers">Specific Container ID(s)</option>
+              <option value="compose_stack">Docker Compose Stack</option>
+              <option value="label">Label Selector (key=val)</option>
+            </select>
+          </div>
+          <div class="form-col" id="rolling-target-val-wrap">
+            <label class="form-label" for="rolling-target-val" id="rolling-target-val-label">Target Value / Name</label>
+            <input type="text" class="form-input" id="rolling-target-val" placeholder="e.g. web-stack or tier=backend">
+          </div>
+        </div>
+
+        <div class="form-group" id="rolling-containers-input-wrap">
+          <label class="form-label" for="rolling-container-ids">Container IDs or Names (comma-separated)</label>
+          <input type="text" class="form-input" id="rolling-container-ids" placeholder="e.g. app-1, app-2, app-3">
+        </div>
+
+        <div class="form-row">
+          <div class="form-col">
+            <label class="form-label" for="rolling-batch-size">Concurrency / Batch Size</label>
+            <input type="number" class="form-input" id="rolling-batch-size" min="1" max="10" value="1">
+          </div>
+          <div class="form-col">
+            <label class="form-label" for="rolling-drain-timeout">Drain Timeout (sec)</label>
+            <input type="number" class="form-input" id="rolling-drain-timeout" min="0" max="300" value="5">
+          </div>
+          <div class="form-col">
+            <label class="form-label" for="rolling-probe-timeout">Probe Timeout (sec)</label>
+            <input type="number" class="form-input" id="rolling-probe-timeout" min="3" max="300" value="30">
+          </div>
+        </div>
+
+        <div class="form-row" style="margin-top: 12px;">
+          <div class="form-col">
+            <label class="form-label" for="rolling-probe-port">HTTP Probe Port (Optional)</label>
+            <input type="number" class="form-input" id="rolling-probe-port" placeholder="e.g. 8080 (0 to disable)" value="">
+          </div>
+          <div class="form-col">
+            <label class="form-label" for="rolling-probe-path">HTTP Probe Path</label>
+            <input type="text" class="form-input" id="rolling-probe-path" placeholder="/healthz" value="/healthz">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top: 12px;">
+          <label class="form-label" for="rolling-drain-hook">Reverse Proxy Drain Webhook URL (Optional)</label>
+          <input type="text" class="form-input" id="rolling-drain-hook" placeholder="http://proxy:8080/api/drain?container={container_id}">
+        </div>
+
+        <div style="display: flex; gap: 16px; margin-top: 14px; flex-wrap: wrap;">
+          <label class="toggle-wrap">
+            <input type="checkbox" id="rolling-auto-rollback" checked>
+            <span>Auto-Rollback on Readiness Failure</span>
+          </label>
+        </div>
+      </div>
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;">
+        <button class="btn btn-secondary" onclick="closeRollingModal()">Cancel</button>
+        <button class="btn btn-primary-restart" id="btn-start-rolling" onclick="launchRollingRestart()" style="background: #a855f7; border-color: #9333ea;">🚀 Start Rolling Restart</button>
       </div>
     </div>
   </div>
@@ -3860,6 +4029,283 @@
       });
     }
 
+    // ==========================================
+    // Zero-Downtime Rolling Restarts & Traffic Draining
+    // ==========================================
+    let cachedRollingActiveOp = null;
+
+    function openRollingModal() {
+      const modal = document.getElementById('rolling-modal');
+      if (modal) modal.classList.add('active');
+      onRollingTargetTypeChange();
+    }
+
+    function closeRollingModal() {
+      const modal = document.getElementById('rolling-modal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    function onRollingTargetTypeChange() {
+      const typeSelect = document.getElementById('rolling-target-type');
+      if (!typeSelect) return;
+      const type = typeSelect.value;
+      const targetValWrap = document.getElementById('rolling-target-val-wrap');
+      const targetValLabel = document.getElementById('rolling-target-val-label');
+      const targetValInput = document.getElementById('rolling-target-val');
+      const containersWrap = document.getElementById('rolling-containers-input-wrap');
+
+      if (type === 'containers') {
+        if (targetValWrap) targetValWrap.style.display = 'none';
+        if (containersWrap) containersWrap.style.display = 'block';
+      } else if (type === 'compose_stack') {
+        if (targetValWrap) targetValWrap.style.display = 'block';
+        if (targetValLabel) targetValLabel.textContent = 'Compose Project Name';
+        if (targetValInput) targetValInput.placeholder = 'e.g. web-stack';
+        if (containersWrap) containersWrap.style.display = 'none';
+      } else if (type === 'label') {
+        if (targetValWrap) targetValWrap.style.display = 'block';
+        if (targetValLabel) targetValLabel.textContent = 'Label Selector (key=val)';
+        if (targetValInput) targetValInput.placeholder = 'e.g. app=web or tier=backend';
+        if (containersWrap) containersWrap.style.display = 'none';
+      }
+    }
+
+    async function launchRollingRestart() {
+      const btn = document.getElementById('btn-start-rolling');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Initiating...';
+      }
+
+      const targetType = document.getElementById('rolling-target-type').value;
+      const targetVal = (document.getElementById('rolling-target-val').value || '').trim();
+      const rawContainers = (document.getElementById('rolling-container-ids').value || '').trim();
+      const containerIds = rawContainers ? rawContainers.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+      const batchSize = parseInt(document.getElementById('rolling-batch-size').value, 10) || 1;
+      const drainTimeout = parseInt(document.getElementById('rolling-drain-timeout').value, 10) || 0;
+      const probeTimeout = parseInt(document.getElementById('rolling-probe-timeout').value, 10) || 30;
+      const probePortRaw = (document.getElementById('rolling-probe-port').value || '').trim();
+      const probePort = probePortRaw ? parseInt(probePortRaw, 10) : 0;
+      const probePath = (document.getElementById('rolling-probe-path').value || '/healthz').trim();
+      const drainHook = (document.getElementById('rolling-drain-hook').value || '').trim();
+      const autoRollback = document.getElementById('rolling-auto-rollback').checked;
+
+      const payload = {
+        target_type: targetType,
+        target_value: targetVal,
+        container_ids: containerIds,
+        batch_size: batchSize,
+        drain_timeout_sec: drainTimeout,
+        probe_timeout_sec: probeTimeout,
+        http_probe_port: probePort,
+        http_probe_path: probePath,
+        drain_hook_url: drainHook,
+        auto_rollback: autoRollback
+      };
+
+      try {
+        const resp = await authFetch('/api/rolling/start', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const resData = await resp.json();
+        if (resp.ok && resData.success) {
+          showToast(`✓ Rolling restart initiated: ${resData.operation ? resData.operation.id : ''}`);
+          closeRollingModal();
+          pollRollingStatus();
+        } else {
+          showToast(`⚠️ Failed to start rolling restart: ${resData.error || 'Unknown error'}`);
+        }
+      } catch (err) {
+        showToast(`⚠️ Network error: ${err.message}`);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '🚀 Start Rolling Restart';
+        }
+      }
+    }
+
+    async function abortActiveRolling(targetOpId) {
+      const opId = targetOpId || (cachedRollingActiveOp ? cachedRollingActiveOp.id : '');
+      if (!opId) {
+        showToast('⚠️ No active rolling restart operation to abort');
+        return;
+      }
+
+      try {
+        const resp = await authFetch('/api/rolling/abort', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: opId })
+        });
+        const resData = await resp.json();
+        if (resp.ok && resData.success) {
+          showToast(`✓ Rolling restart ${opId} aborted`);
+          pollRollingStatus();
+        } else {
+          showToast(`⚠️ Failed to abort: ${resData.error || 'Unknown error'}`);
+        }
+      } catch (err) {
+        showToast(`⚠️ Network error: ${err.message}`);
+      }
+    }
+
+    async function pollRollingStatus() {
+      try {
+        const [statusResp, opsResp] = await Promise.all([
+          authFetch('/api/rolling/status'),
+          authFetch('/api/rolling/operations?limit=15')
+        ]);
+
+        if (statusResp.ok) {
+          const statusData = await statusResp.json();
+          const stats = statusData.stats || {};
+
+          const totalEl = document.getElementById('stat-rolling-total');
+          if (totalEl) totalEl.textContent = stats.total_operations || 0;
+
+          const activeEl = document.getElementById('stat-rolling-active');
+          if (activeEl) activeEl.textContent = stats.active_operations || 0;
+
+          const restartedEl = document.getElementById('stat-rolling-restarted');
+          if (restartedEl) restartedEl.textContent = stats.total_containers_restarted || 0;
+
+          const failedEl = document.getElementById('stat-rolling-failed');
+          if (failedEl) failedEl.textContent = stats.total_containers_failed || 0;
+
+          const rollbacksEl = document.getElementById('stat-rolling-rollbacks');
+          if (rollbacksEl) rollbacksEl.textContent = stats.total_rollbacks || 0;
+
+          const activeCard = document.getElementById('rolling-active-card');
+          const activePill = document.getElementById('rolling-active-pill');
+          const abortAllBtn = document.getElementById('btn-rolling-abort-all');
+
+          const activeOps = statusData.active_operations || [];
+          if (activeOps.length > 0) {
+            const activeOp = activeOps[0];
+            cachedRollingActiveOp = activeOp;
+            if (activeCard) activeCard.style.display = 'block';
+            if (activePill) activePill.style.display = 'inline-block';
+            if (abortAllBtn) abortAllBtn.style.display = 'inline-block';
+
+            const opIdEl = document.getElementById('active-op-id');
+            if (opIdEl) opIdEl.textContent = `Operation: ${activeOp.id}`;
+
+            const targetEl = document.getElementById('active-op-target');
+            if (targetEl) targetEl.textContent = `Target: ${activeOp.config.target_type} (${activeOp.config.target_value || (activeOp.config.container_ids ? activeOp.config.container_ids.join(', ') : '')})`;
+
+            const opStatusEl = document.getElementById('active-op-status');
+            if (opStatusEl) {
+              opStatusEl.textContent = activeOp.status.toUpperCase();
+              opStatusEl.className = `status-pill status-${activeOp.status === 'restarting' ? 'standby' : 'running'}`;
+            }
+
+            const totalC = activeOp.total_containers || 1;
+            const completedC = activeOp.completed_count || 0;
+            const pct = Math.round((completedC / totalC) * 100);
+            const progressBar = document.getElementById('active-op-progress-bar');
+            if (progressBar) progressBar.style.width = `${pct}%`;
+
+            const containersList = document.getElementById('active-op-containers-list');
+            if (containersList && activeOp.containers) {
+              containersList.innerHTML = activeOp.containers.map(c => {
+                let badgeClass = 'status-standby';
+                let icon = '⏳';
+                if (c.step === 'healthy') { badgeClass = 'status-running'; icon = '✅'; }
+                else if (c.step === 'failed' || c.step === 'rolled_back') { badgeClass = 'status-stopped'; icon = '🚨'; }
+                else if (c.step === 'draining') { icon = '💧'; }
+                else if (c.step === 'restarting') { icon = '🔄'; }
+                else if (c.step === 'probing') { icon = '🩺'; }
+
+                return `
+                  <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(255,255,255,0.03); padding: 6px 10px; border-radius: 6px;">
+                    <div>
+                      <strong>${escapeHTML(c.container_name || c.container_id)}</strong>
+                      <span style="font-family: monospace; font-size: 11px; color: var(--text-muted); margin-left: 8px;">${c.container_id.substring(0, 12)}</span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span class="status-pill ${badgeClass}" style="font-size: 10px;">${icon} ${c.step.toUpperCase()}</span>
+                      ${c.error ? `<span style="color: #ef4444; font-size: 11px;">${escapeHTML(c.error)}</span>` : ''}
+                    </div>
+                  </div>
+                `;
+              }).join('');
+            }
+          } else {
+            cachedRollingActiveOp = null;
+            if (activeCard) activeCard.style.display = 'none';
+            if (activePill) activePill.style.display = 'none';
+            if (abortAllBtn) abortAllBtn.style.display = 'none';
+          }
+        }
+
+        if (opsResp.ok) {
+          const opsData = await opsResp.json();
+          const operations = opsData.operations || [];
+          const countEl = document.getElementById('rolling-history-count');
+          if (countEl) countEl.textContent = `${operations.length} runs`;
+
+          const bodyEl = document.getElementById('rolling-history-body');
+          if (bodyEl) {
+            if (operations.length === 0) {
+              bodyEl.innerHTML = `
+                <tr>
+                  <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                    No rolling restart operations recorded.
+                  </td>
+                </tr>
+              `;
+            } else {
+              bodyEl.innerHTML = operations.map(op => {
+                const ts = op.created_at ? new Date(op.created_at).toLocaleTimeString() : '--';
+                const targetDesc = op.config.target_type === 'compose_stack' ?
+                  `Stack: ${escapeHTML(op.config.target_value)}` :
+                  (op.config.target_type === 'label' ? `Label: ${escapeHTML(op.config.target_value)}` : `${op.total_containers} Containers`);
+
+                let statusBadge = 'status-running';
+                if (op.status === 'failed' || op.status === 'aborted') statusBadge = 'status-stopped';
+                else if (op.status === 'rolled_back') statusBadge = 'status-standby';
+                else if (op.status === 'completed') statusBadge = 'status-running';
+                else statusBadge = 'status-standby';
+
+                const isRunning = op.status === 'pending' || op.status === 'draining' || op.status === 'restarting' || op.status === 'probing';
+
+                return `
+                  <tr>
+                    <td style="font-family: monospace; font-size: 11px; font-weight: 600; color: #c084fc;">${escapeHTML(op.id)}</td>
+                    <td style="font-weight: 600;">${targetDesc}</td>
+                    <td style="font-family: monospace;">batch ${op.config.batch_size}</td>
+                    <td style="font-family: monospace;">${op.config.drain_timeout_sec}s</td>
+                    <td style="font-family: monospace;">${op.config.probe_timeout_sec}s</td>
+                    <td><span class="status-pill ${statusBadge}" style="font-size: 10px;">${op.status.toUpperCase()}</span></td>
+                    <td style="font-family: monospace; font-size: 11px;">${op.completed_count}/${op.total_containers} ready</td>
+                    <td style="font-family: monospace; font-size: 11px; color: #94a3b8;">${ts}</td>
+                    <td style="text-align: right;">
+                      ${isRunning ? `<button class="btn-action btn-stop" onclick="abortActiveRolling('${op.id}')" style="font-size: 10px; padding: 2px 6px;">Abort</button>` : '<span style="color: var(--text-muted); font-size: 11px;">--</span>'}
+                    </td>
+                  </tr>
+                `;
+              }).join('');
+            }
+          }
+        }
+      } catch (err) {
+        // Silent fail on background polling error
+      }
+    }
+
+    // Modal background click close for rolling modal
+    const rollingModalEl = document.getElementById('rolling-modal');
+    if (rollingModalEl) {
+      rollingModalEl.addEventListener('click', (e) => {
+        if (e.target === rollingModalEl) closeRollingModal();
+      });
+    }
+
     checkAuthStatus();
     setInterval(checkAuthStatus, 5000);
     pollTelemetry();
@@ -3881,6 +4327,8 @@
     setInterval(pollMeshDiscovery, 3000);
     pollMeshGossip();
     setInterval(pollMeshGossip, 2500);
+    pollRollingStatus();
+    setInterval(pollRollingStatus, 2500);
   </script>
 </body>
 </html>
