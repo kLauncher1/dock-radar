@@ -75,10 +75,10 @@ This document outlines the architectural milestones and engineering priorities f
 
 ---
 
-## Milestone 13: v1.8.0 (Zero-Downtime Rolling Restarts)
-- [ ] Staggered sequential container restarts with health check readiness probing.
-- [ ] Traffic draining and reverse proxy health status integration.
-- [ ] Configurable batch concurrency limit and rollback abort triggers.
+## Milestone 13: v1.8.0 (Zero-Downtime Rolling Restarts & Traffic Draining)
+- [x] Staggered sequential container restarts with health check readiness probing.
+- [x] Traffic draining and reverse proxy health status integration.
+- [x] Configurable batch concurrency limit and rollback abort triggers.
 
 ---
 
@@ -170,4 +170,19 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] End-to-end encrypted cluster secret sharing and synchronized configuration replication.
 - [ ] Hardware-backed key derivation with automatic rotation and revocable cluster join tokens.
 - [ ] Ephemeral secret leases with automated audit shredding.
+
+---
+
+## Milestone 27: v3.2.0 (Automated TLS ACME Let's Encrypt Certbot & Dynamic SNI)
+- [ ] Automated ACME HTTP-01/DNS-01 challenge automation with Let's Encrypt and ZeroSSL.
+- [ ] Dynamic SNI multiplexing routing multiple domain names over single 443 port.
+- [ ] Ephemeral zero-downtime certificate rotation before expiration.
+
+---
+
+## Milestone 28: v3.3.0 (Zero-Copy Kernel BPF Ring Buffer Telemetry & Perf Profiler)
+- [ ] Userspace zero-copy BPF ring buffer consumption reducing CPU overhead < 0.5%.
+- [ ] Real-time kernel stack flame graph generator for active containers.
+- [ ] Continuous on-CPU / off-CPU profiling telemetry exporter.
+
 

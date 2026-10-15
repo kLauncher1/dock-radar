@@ -11,6 +11,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
+	"github.com/kLauncher1/dock-radar/internal/rolling"
 	"github.com/kLauncher1/dock-radar/internal/system"
 )
 
@@ -87,6 +88,31 @@ func FormatMetricsFull(
 	discStatus *mesh.DiscoveryStatus,
 	gossipSummary *mesh.GossipSummary,
 	gossipMembers []mesh.GossipMember,
+	appVersion string,
+) string {
+	return FormatMetricsAll(
+		sys, dock, ringBuffer, alertDispatcher, auditLogger,
+		meshSummary, meshNodes, healingStats, anomalySummary, anomalyPreds,
+		discStatus, gossipSummary, gossipMembers, nil, appVersion,
+	)
+}
+
+// FormatMetricsAll serializes full system telemetry including zero-downtime rolling restart metrics.
+func FormatMetricsAll(
+	sys system.Metrics,
+	dock docker.DaemonStatus,
+	ringBuffer *logs.RingBuffer,
+	alertDispatcher *alert.Dispatcher,
+	auditLogger *audit.Logger,
+	meshSummary *mesh.ClusterSummary,
+	meshNodes []*mesh.Node,
+	healingStats *healing.HealingStats,
+	anomalySummary *anomaly.AnomalySummary,
+	anomalyPreds []anomaly.TrendPrediction,
+	discStatus *mesh.DiscoveryStatus,
+	gossipSummary *mesh.GossipSummary,
+	gossipMembers []mesh.GossipMember,
+	rollingStats *rolling.RollingStats,
 	appVersion string,
 ) string {
 	var b strings.Builder
@@ -409,6 +435,9 @@ func FormatMetricsFull(
 		b.WriteString("# TYPE dock_radar_mesh_gossip_messages_received_total counter\n")
 		b.WriteString(fmt.Sprintf("dock_radar_mesh_gossip_messages_received_total %d\n\n", gossipSummary.MessagesRecv))
 	}
+
+	// 13. Zero-Downtime Rolling Restarts & Traffic Draining
+	AppendRollingMetrics(&b, rollingStats)
 
 	return b.String()
 }

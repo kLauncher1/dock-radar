@@ -22,7 +22,7 @@ import (
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "1.7.0"
+const AppVersion = "1.8.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -267,6 +267,7 @@ func main() {
 	fmt.Printf(" 💬 SWIM Gossip        : Active (%s failure detection interval)\n", gossipInterval)
 	fmt.Printf(" 🛡️ Self-Healing       : Autonomous Policy & Remediation Engine Active\n")
 	fmt.Printf(" 🔮 Anomaly Radar      : Predictive OOM Regression & Early Warning Active\n")
+	fmt.Printf(" 🔄 Rolling Restarts   : Zero-Downtime Traffic Draining & Readiness Engine Active\n")
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")
 	fmt.Println("=========================================================")
 
