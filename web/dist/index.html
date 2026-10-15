@@ -1106,6 +1106,99 @@
         </table>
       </div>
     </div>
+
+    <!-- Dynamic Multi-Node Cluster Mesh & Gossip Protocol Discovery -->
+    <div class="card" id="mesh-gossip-section" style="margin-top: 24px; margin-bottom: 24px; padding: 20px; border-color: rgba(56, 189, 248, 0.25);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <span style="font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: #38bdf8;">
+            <span>🕸️</span> Dynamic Multi-Node Cluster Mesh &amp; Gossip Protocol
+          </span>
+          <span class="status-pill status-running" id="gossip-status-pill" style="font-size: 11px;">Consensus Active</span>
+          <span class="status-pill" id="discovery-beacon-pill" style="font-size: 11px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">📡 Beacon UDP: 9085</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <button class="btn-action btn-logs" id="btn-trigger-beacon" onclick="triggerDiscoveryBeacon()" style="font-size: 11px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.1);" title="Broadcast UDP auto-discovery beacon across the local network immediately">📡 Broadcast Beacon Now</button>
+          <button class="btn-action" onclick="openMeshModal()" style="font-size: 11px; color: var(--text-main); border-color: var(--border-subtle); background: var(--bg-surface-elevated);" title="Manage configured cluster nodes and LAN discovery">⚙️ Mesh &amp; Nodes</button>
+        </div>
+      </div>
+
+      <!-- Cluster Mesh KPI Grid -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px;">
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">SWIM Incarnation</div>
+          <div id="stat-gossip-incarnation" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #38bdf8;">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Alive Members</div>
+          <div id="stat-gossip-alive" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--accent-green);">1</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Suspect / Dead</div>
+          <div id="stat-gossip-suspect-dead" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--text-muted);">0 / 0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">LAN Peers Detected</div>
+          <div id="stat-discovery-peers" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #c084fc;">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Gossip Messages (Tx/Rx)</div>
+          <div id="stat-gossip-messages" style="font-size: 14px; font-weight: 700; font-family: monospace; color: var(--text-main); margin-top: 4px;">0 / 0</div>
+        </div>
+      </div>
+
+      <!-- Multi-Host Cross-Node Overview Topology Grid -->
+      <div style="margin-bottom: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Multi-Host Cross-Node Topology Grid</span>
+          <span style="font-size: 11px; color: var(--text-muted);" id="cluster-nodes-count-label">1 Node Registered</span>
+        </div>
+        <div id="cluster-node-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px;">
+          <!-- Node cards populated dynamically -->
+          <div class="alert-card-sub" style="padding: 14px; border-left: 3px solid var(--accent-green);">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+              <div>
+                <strong style="color: var(--text-main); font-size: 13px;">local (Coordinator)</strong>
+                <div style="font-size: 11px; color: var(--text-muted); font-family: monospace;">http://localhost:9080</div>
+              </div>
+              <span class="status-pill status-running" style="font-size: 10px;">Online</span>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">Compute: <strong>0.0% CPU</strong> • <strong>0 MB RAM</strong></div>
+            <div style="font-size: 11px; color: var(--text-muted);">Containers: <strong style="color: var(--accent-green);">0 running</strong> • 0 total</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SWIM Gossip Protocol Consensus Table -->
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <span style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">SWIM Protocol Membership &amp; Failure Consensus</span>
+          <span style="font-size: 11px; color: var(--text-muted);" id="gossip-membership-count">1 Member Active</span>
+        </div>
+        <div style="overflow-x: auto;">
+          <table class="containers-table" style="font-size: 12px;">
+            <thead>
+              <tr>
+                <th>Node ID</th>
+                <th>Node Name</th>
+                <th>Address</th>
+                <th>SWIM State</th>
+                <th>Incarnation</th>
+                <th>Latency</th>
+                <th>Last Seen</th>
+              </tr>
+            </thead>
+            <tbody id="gossip-members-body">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                  Ingesting gossip protocol membership...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- Lifecycle Action Confirmation Modal -->
@@ -1186,6 +1279,39 @@
             </div>
           </div>
           <button class="btn btn-primary-restart" id="btn-register-node" style="padding: 7px 16px; font-size: 12px; font-weight: 600;">+ Register Node</button>
+        </div>
+
+        <!-- LAN Auto-Discovery Status & Detected Peers -->
+        <div class="alert-card-sub" style="margin-bottom: 18px; padding: 14px; border: 1px solid rgba(56, 189, 248, 0.25);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <div style="font-size: 12px; font-weight: 700; color: #38bdf8; text-transform: uppercase;">LAN UDP Auto-Discovery &amp; Beacon Broadcast</div>
+            <button class="btn-action btn-logs" onclick="triggerDiscoveryBeacon()" style="font-size: 11px; padding: 3px 10px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">📡 Broadcast Beacon</button>
+          </div>
+          <div style="display: flex; gap: 14px; font-size: 11px; color: var(--text-muted); margin-bottom: 10px; flex-wrap: wrap;">
+            <span>State: <strong id="modal-discovery-status" style="color: var(--accent-green);">Active</strong></span>
+            <span>Port: <strong id="modal-discovery-port" style="color: var(--text-main);">UDP 9085</strong></span>
+            <span>Cluster Key: <strong id="modal-discovery-key" style="color: var(--text-main);">dock-radar-cluster</strong></span>
+            <span>Beacons (Sent/Recv): <strong id="modal-discovery-beacons" style="color: var(--text-main);">0 / 0</strong></span>
+          </div>
+          <div style="max-height: 140px; overflow-y: auto; border: 1px solid var(--border-subtle); border-radius: 6px; background: #070b14;">
+            <table class="alert-events-table" style="width: 100%; font-size: 11px;">
+              <thead>
+                <tr>
+                  <th>Discovered Node</th>
+                  <th>Endpoint</th>
+                  <th>First Seen</th>
+                  <th>Last Beacon</th>
+                </tr>
+              </thead>
+              <tbody id="modal-discovery-peers-body">
+                <tr>
+                  <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 10px;">
+                    Listening on UDP broadcast for LAN peers...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <!-- Nodes Table -->
@@ -2407,6 +2533,205 @@
       }
     }
 
+    async function triggerDiscoveryBeacon() {
+      const btn = document.getElementById('btn-trigger-beacon');
+      if (btn) {
+        btn.disabled = true;
+        btn.textContent = '📡 Broadcasting...';
+      }
+      try {
+        const resp = await authFetch('/api/mesh/discovery/beacon', { method: 'POST' });
+        if (resp.ok) {
+          showToast('✓ LAN discovery beacon transmitted on UDP broadcast');
+          pollMeshDiscovery();
+        } else {
+          const err = await resp.text();
+          showToast(`⚠️ Beacon failed: ${err}`);
+        }
+      } catch (e) {
+        showToast(`⚠️ Network error: ${e.message}`);
+      } finally {
+        if (btn) {
+          btn.disabled = false;
+          btn.textContent = '📡 Broadcast Beacon Now';
+        }
+      }
+    }
+
+    async function pollMeshDiscovery() {
+      try {
+        const resp = await authFetch('/api/mesh/discovery');
+        if (!resp.ok) return;
+        const data = await resp.json();
+
+        const beaconPill = document.getElementById('discovery-beacon-pill');
+        if (beaconPill) {
+          beaconPill.textContent = `📡 Beacon UDP: ${data.port || 9085}`;
+          beaconPill.className = data.listening ? 'status-pill status-running' : 'status-pill status-stopped';
+        }
+
+        const statPeers = document.getElementById('stat-discovery-peers');
+        if (statPeers) statPeers.textContent = data.peers_count || 0;
+
+        const modalStatus = document.getElementById('modal-discovery-status');
+        if (modalStatus) modalStatus.textContent = data.listening ? 'Active (Listening)' : 'Disabled';
+        const modalPort = document.getElementById('modal-discovery-port');
+        if (modalPort) modalPort.textContent = `UDP ${data.port || 9085}`;
+        const modalKey = document.getElementById('modal-discovery-key');
+        if (modalKey) modalKey.textContent = data.cluster_key || 'dock-radar-cluster';
+        const modalBeacons = document.getElementById('modal-discovery-beacons');
+        if (modalBeacons) modalBeacons.textContent = `${data.beacons_sent || 0} / ${data.beacons_received || 0}`;
+
+        const tbody = document.getElementById('modal-discovery-peers-body');
+        if (tbody) {
+          const peers = data.peers || [];
+          if (peers.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="4" style="text-align: center; color: var(--text-muted); padding: 10px;">No LAN peers detected yet. Listening on UDP broadcast...</td></tr>`;
+          } else {
+            tbody.innerHTML = peers.map(p => `
+              <tr>
+                <td><strong>${escapeHTML(p.node_name || p.node_id)}</strong></td>
+                <td><code style="font-size: 10px; color: #38bdf8;">${escapeHTML(p.address)}</code></td>
+                <td>${p.first_seen ? new Date(p.first_seen).toLocaleTimeString() : '--'}</td>
+                <td>${p.last_seen ? new Date(p.last_seen).toLocaleTimeString() : '--'} (${p.beacons_count || 1} pkts)</td>
+              </tr>
+            `).join('');
+          }
+        }
+      } catch (err) {
+        // silent
+      }
+    }
+
+    async function pollMeshGossip() {
+      try {
+        const resp = await authFetch('/api/mesh/gossip');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const summary = data.summary || {};
+        const members = data.members || [];
+
+        const statInc = document.getElementById('stat-gossip-incarnation');
+        if (statInc) statInc.textContent = summary.incarnation || 0;
+        const statAlive = document.getElementById('stat-gossip-alive');
+        if (statAlive) statAlive.textContent = summary.alive_members || 0;
+        const statSusp = document.getElementById('stat-gossip-suspect-dead');
+        if (statSusp) statSusp.textContent = `${summary.suspect_members || 0} / ${summary.dead_members || 0}`;
+        const statMsgs = document.getElementById('stat-gossip-messages');
+        if (statMsgs) statMsgs.textContent = `${summary.messages_sent || 0} Tx / ${summary.messages_recv || 0} Rx`;
+
+        const pill = document.getElementById('gossip-status-pill');
+        if (pill) {
+          if (summary.dead_members > 0) {
+            pill.className = 'status-pill status-stopped';
+            pill.textContent = `Consensus: ${summary.dead_members} Node(s) Dead`;
+          } else if (summary.suspect_members > 0) {
+            pill.className = 'status-pill status-standby';
+            pill.textContent = `Consensus: ${summary.suspect_members} Suspect`;
+          } else {
+            pill.className = 'status-pill status-running';
+            pill.textContent = `Consensus Active (#${summary.incarnation || 0})`;
+          }
+        }
+
+        const countLabel = document.getElementById('gossip-membership-count');
+        if (countLabel) countLabel.textContent = `${members.length} Member(s) in Mesh`;
+
+        const tbody = document.getElementById('gossip-members-body');
+        if (tbody) {
+          if (members.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 18px;">No members active in gossip mesh.</td></tr>`;
+          } else {
+            tbody.innerHTML = members.map(m => {
+              const stateClass = m.state === 'alive' ? 'status-running' : (m.state === 'suspect' ? 'status-standby' : 'status-stopped');
+              const stateIcon = m.state === 'alive' ? '🟢' : (m.state === 'suspect' ? '🟡' : '🔴');
+              return `
+                <tr>
+                  <td><code>${escapeHTML(m.node_id)}</code></td>
+                  <td><strong>${escapeHTML(m.node_name || m.node_id)}</strong></td>
+                  <td style="font-family: monospace; font-size: 11px; color: #94a3b8;">${escapeHTML(m.address)}</td>
+                  <td><span class="status-pill ${stateClass}">${stateIcon} ${escapeHTML(m.state.toUpperCase())}</span></td>
+                  <td><span style="font-family: monospace; color: #38bdf8;">#${m.incarnation || 0}</span></td>
+                  <td style="font-family: monospace;">${m.latency_ms || 0} ms</td>
+                  <td style="font-size: 11px; color: var(--text-muted);">${m.last_seen ? new Date(m.last_seen).toLocaleTimeString() : '--'}</td>
+                </tr>
+              `;
+            }).join('');
+          }
+        }
+      } catch (err) {
+        // silent
+      }
+    }
+
+    function renderClusterNodeCards(nodes) {
+      const container = document.getElementById('cluster-node-cards-grid');
+      const countLabel = document.getElementById('cluster-nodes-count-label');
+      if (!container) return;
+
+      if (!nodes || nodes.length === 0) {
+        container.innerHTML = `
+          <div class="alert-card-sub" style="padding: 14px; text-align: center; color: var(--text-muted); grid-column: 1 / -1;">
+            No cluster nodes detected.
+          </div>
+        `;
+        return;
+      }
+
+      if (countLabel) {
+        countLabel.textContent = `${nodes.length} Node${nodes.length > 1 ? 's' : ''} in Topology`;
+      }
+
+      const activeFilter = nodeFilterSelect ? nodeFilterSelect.value : 'all';
+
+      container.innerHTML = nodes.map(n => {
+        const isOnline = n.status === 'online';
+        const isSelected = activeFilter === n.id;
+        const borderCol = isSelected ? '#38bdf8' : (isOnline ? 'var(--accent-green)' : (n.status === 'degraded' ? '#f59e0b' : '#ef4444'));
+        const m = n.metrics || {};
+        const cpuStr = (m.cpu_percent || 0).toFixed(1);
+        const ramMB = ((m.memory_used_bytes || 0) / (1024 * 1024)).toFixed(0);
+        const ramTotMB = ((m.memory_total_bytes || 0) / (1024 * 1024)).toFixed(0);
+        const cntRunning = m.containers_running || 0;
+        const cntTotal = m.containers_total || (n.containers ? n.containers.length : 0);
+
+        return `
+          <div class="alert-card-sub" style="padding: 14px; border-left: 3px solid ${borderCol}; background: ${isSelected ? 'rgba(56, 189, 248, 0.08)' : 'rgba(15, 23, 42, 0.6)'}; transition: all 0.2s ease;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+              <div>
+                <strong style="color: var(--text-main); font-size: 13px;">${escapeHTML(n.name || n.id)}</strong>
+                <div style="font-size: 11px; color: var(--text-muted); font-family: monospace;">${escapeHTML(n.id)}</div>
+              </div>
+              <span class="status-pill status-${isOnline ? 'running' : (n.status === 'degraded' ? 'standby' : 'stopped')}" style="font-size: 10px;">${escapeHTML(n.status)}</span>
+            </div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 4px; font-family: monospace;">
+              ${escapeHTML(n.address)}
+            </div>
+            <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-muted); margin-bottom: 4px;">
+              <span>Compute: <strong>${cpuStr}% CPU</strong></span>
+              <span>RAM: <strong>${ramMB} / ${ramTotMB} MB</strong></span>
+            </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,0.05);">
+              <span style="font-size: 11px; color: var(--text-muted);">Containers: <strong style="color: var(--accent-green);">${cntRunning}</strong> / ${cntTotal}</span>
+              <button class="btn-action btn-logs" onclick="selectNodeFilter('${escapeHTML(n.id)}')" style="font-size: 10px; padding: 2px 8px; color: ${isSelected ? '#38bdf8' : 'var(--text-muted)'};">
+                ${isSelected ? '✓ Filtered' : 'Filter Node'}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function selectNodeFilter(nodeId) {
+      if (!nodeFilterSelect) return;
+      if (nodeFilterSelect.value === nodeId) {
+        nodeFilterSelect.value = 'all';
+      } else {
+        nodeFilterSelect.value = nodeId;
+      }
+      pollTelemetry();
+    }
+
     async function pollTelemetry() {
       try {
         const [sysRes, dockRes, clusterSummaryRes, clusterContainersRes, nodesRes] = await Promise.all([
@@ -2463,6 +2788,7 @@
             nodeFilterSelect.innerHTML = opts.join('');
             nodeFilterSelect.value = currentFilter;
           }
+          renderClusterNodeCards(cachedNodes);
         }
 
         // Aggregate unified container list across nodes
@@ -3551,6 +3877,10 @@
     setInterval(pollHealingHistory, 3000);
     pollAnomalyPredictions();
     setInterval(pollAnomalyPredictions, 2500);
+    pollMeshDiscovery();
+    setInterval(pollMeshDiscovery, 3000);
+    pollMeshGossip();
+    setInterval(pollMeshGossip, 2500);
   </script>
 </body>
 </html>

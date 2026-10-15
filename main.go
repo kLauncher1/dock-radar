@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -21,7 +22,7 @@ import (
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "1.6.0"
+const AppVersion = "1.7.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -33,6 +34,9 @@ func main() {
 	allowRemoteFlag := flag.Bool("allow-remote", false, "Permit remote clients without loopback origin check (env: DOCK_RADAR_ALLOW_REMOTE)")
 	nodesFlag := flag.String("nodes", "", "Comma-separated list of remote dock-radar nodes to aggregate (env: DOCK_RADAR_NODES)")
 	nodeNameFlag := flag.String("node-name", "", "Human-readable name for this node (env: DOCK_RADAR_NODE_NAME)")
+	meshDiscoveryFlag := flag.Bool("mesh-discovery", true, "Enable LAN UDP peer auto-discovery (env: DOCK_RADAR_MESH_DISCOVERY)")
+	meshPortFlag := flag.Int("mesh-port", 9085, "UDP port for LAN peer auto-discovery (env: DOCK_RADAR_MESH_PORT)")
+	gossipIntervalFlag := flag.Duration("gossip-interval", 2*time.Second, "SWIM gossip failure detection interval (env: DOCK_RADAR_GOSSIP_INTERVAL)")
 	versionFlag := flag.Bool("version", false, "Print dock-radar version and exit")
 	flag.Parse()
 
@@ -180,6 +184,23 @@ func main() {
 		}
 	}
 
+	enableDiscovery := *meshDiscoveryFlag
+	if envDisc := os.Getenv("DOCK_RADAR_MESH_DISCOVERY"); envDisc != "" {
+		enableDiscovery = strings.EqualFold(envDisc, "true") || envDisc == "1"
+	}
+	discoveryPort := *meshPortFlag
+	if envPort := os.Getenv("DOCK_RADAR_MESH_PORT"); envPort != "" {
+		if p, err := strconv.Atoi(envPort); err == nil && p > 0 {
+			discoveryPort = p
+		}
+	}
+	gossipInterval := *gossipIntervalFlag
+	if envGossip := os.Getenv("DOCK_RADAR_GOSSIP_INTERVAL"); envGossip != "" {
+		if d, err := time.ParseDuration(envGossip); err == nil && d > 0 {
+			gossipInterval = d
+		}
+	}
+
 	proberToken := adminToken
 	if proberToken == "" {
 		proberToken = viewerToken
@@ -190,14 +211,38 @@ func main() {
 		Token:    proberToken,
 	})
 
+	meshDiscovery := mesh.NewDiscoveryEngine(mesh.DiscoveryConfig{
+		Enabled:    enableDiscovery,
+		Port:       discoveryPort,
+		NodeID:     "coordinator",
+		NodeName:   nodeName,
+		Address:    localAddr,
+		ClusterKey: "dock-radar-cluster",
+	}, meshRegistry)
+
+	meshGossip := mesh.NewGossipEngine("coordinator", nodeName, localAddr, meshRegistry, mesh.GossipConfig{
+		PingInterval: gossipInterval,
+		AuthToken:    proberToken,
+	})
+
 	if handlerCfg != nil {
 		handlerCfg.MeshRegistry = meshRegistry
 		handlerCfg.MeshProber = meshProber
+		handlerCfg.MeshDiscovery = meshDiscovery
+		handlerCfg.MeshGossip = meshGossip
 	}
 
 	proberCtx, proberCancel := context.WithCancel(context.Background())
 	defer proberCancel()
 	go meshProber.Start(proberCtx)
+
+	discCtx, discCancel := context.WithCancel(context.Background())
+	defer discCancel()
+	_ = meshDiscovery.Start(discCtx)
+
+	gossipCtx, gossipCancel := context.WithCancel(context.Background())
+	defer gossipCancel()
+	meshGossip.Start(gossipCtx)
 
 	authStatus := "Disabled (Local Admin Default)"
 	if tokenAuth.IsEnabled() {
@@ -218,6 +263,8 @@ func main() {
 	fmt.Printf(" 🔑 Access Control     : %s\n", authStatus)
 	fmt.Printf(" 🌐 Remote Access      : %s\n", map[bool]string{true: "Allowed", false: "Restricted to Loopback"}[allowRemote])
 	fmt.Printf(" 🕸️ Cluster Mesh       : %d node(s) configured (%s)\n", len(meshRegistry.List()), nodeName)
+	fmt.Printf(" 📡 LAN Discovery      : %s (UDP:%d)\n", map[bool]string{true: "Active", false: "Disabled"}[enableDiscovery], discoveryPort)
+	fmt.Printf(" 💬 SWIM Gossip        : Active (%s failure detection interval)\n", gossipInterval)
 	fmt.Printf(" 🛡️ Self-Healing       : Autonomous Policy & Remediation Engine Active\n")
 	fmt.Printf(" 🔮 Anomaly Radar      : Predictive OOM Regression & Early Warning Active\n")
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")

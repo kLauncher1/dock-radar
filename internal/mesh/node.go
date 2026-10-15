@@ -347,6 +347,20 @@ func (r *Registry) AllContainers() []RemoteContainer {
 	return all
 }
 
+// LocalID returns the local node identifier.
+func (r *Registry) LocalID() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.localNodeID
+}
+
+// LocalName returns the local node friendly name.
+func (r *Registry) LocalName() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.localNodeName
+}
+
 func copyNode(src *Node) *Node {
 	labels := make(map[string]string, len(src.Labels))
 	for k, v := range src.Labels {

@@ -69,6 +69,26 @@ func FormatMetricsWithAnomaly(
 	anomalyPreds []anomaly.TrendPrediction,
 	appVersion string,
 ) string {
+	return FormatMetricsFull(sys, dock, ringBuffer, alertDispatcher, auditLogger, meshSummary, meshNodes, healingStats, anomalySummary, anomalyPreds, nil, nil, nil, appVersion)
+}
+
+// FormatMetricsFull serializes all telemetry including anomaly detection, mesh discovery, and SWIM gossip consensus.
+func FormatMetricsFull(
+	sys system.Metrics,
+	dock docker.DaemonStatus,
+	ringBuffer *logs.RingBuffer,
+	alertDispatcher *alert.Dispatcher,
+	auditLogger *audit.Logger,
+	meshSummary *mesh.ClusterSummary,
+	meshNodes []*mesh.Node,
+	healingStats *healing.HealingStats,
+	anomalySummary *anomaly.AnomalySummary,
+	anomalyPreds []anomaly.TrendPrediction,
+	discStatus *mesh.DiscoveryStatus,
+	gossipSummary *mesh.GossipSummary,
+	gossipMembers []mesh.GossipMember,
+	appVersion string,
+) string {
 	var b strings.Builder
 
 	// 1. Build & Host Info
@@ -345,6 +365,49 @@ func FormatMetricsWithAnomaly(
 			))
 		}
 		b.WriteString("\n")
+	}
+
+	// 11. Cluster Mesh Auto-Discovery & SWIM Gossip Telemetry
+	if discStatus != nil {
+		b.WriteString("# HELP dock_radar_mesh_discovery_enabled Whether LAN UDP auto-discovery is active (1) or disabled (0).\n")
+		b.WriteString("# TYPE dock_radar_mesh_discovery_enabled gauge\n")
+		enabledVal := 0
+		if discStatus.Enabled {
+			enabledVal = 1
+		}
+		b.WriteString(fmt.Sprintf("dock_radar_mesh_discovery_enabled %d\n\n", enabledVal))
+
+		b.WriteString("# HELP dock_radar_mesh_discovery_peers_detected_total Count of active LAN peers currently detected via broadcast.\n")
+		b.WriteString("# TYPE dock_radar_mesh_discovery_peers_detected_total gauge\n")
+		b.WriteString(fmt.Sprintf("dock_radar_mesh_discovery_peers_detected_total %d\n\n", discStatus.PeersCount))
+
+		b.WriteString("# HELP dock_radar_mesh_discovery_beacons_sent_total Total broadcast announcement beacons transmitted.\n")
+		b.WriteString("# TYPE dock_radar_mesh_discovery_beacons_sent_total counter\n")
+		b.WriteString(fmt.Sprintf("dock_radar_mesh_discovery_beacons_sent_total %d\n\n", discStatus.BeaconsSent))
+
+		b.WriteString("# HELP dock_radar_mesh_discovery_beacons_received_total Total valid peer broadcast beacons received.\n")
+		b.WriteString("# TYPE dock_radar_mesh_discovery_beacons_received_total counter\n")
+		b.WriteString(fmt.Sprintf("dock_radar_mesh_discovery_beacons_received_total %d\n\n", discStatus.BeaconsReceived))
+	}
+
+	if gossipSummary != nil {
+		b.WriteString("# HELP dock_radar_mesh_gossip_incarnation Current local SWIM node incarnation counter for refutation.\n")
+		b.WriteString("# TYPE dock_radar_mesh_gossip_incarnation gauge\n")
+		b.WriteString(fmt.Sprintf("dock_radar_mesh_gossip_incarnation %d\n\n", gossipSummary.Incarnation))
+
+		b.WriteString("# HELP dock_radar_mesh_gossip_members Number of cluster members by SWIM state.\n")
+		b.WriteString("# TYPE dock_radar_mesh_gossip_members gauge\n")
+		b.WriteString(fmt.Sprintf("dock_radar_mesh_gossip_members{state=\"alive\"} %d\n", gossipSummary.AliveMembers))
+		b.WriteString(fmt.Sprintf("dock_radar_mesh_gossip_members{state=\"suspect\"} %d\n", gossipSummary.SuspectMembers))
+		b.WriteString(fmt.Sprintf("dock_radar_mesh_gossip_members{state=\"dead\"} %d\n\n", gossipSummary.DeadMembers))
+
+		b.WriteString("# HELP dock_radar_mesh_gossip_messages_sent_total Total SWIM gossip protocol messages sent.\n")
+		b.WriteString("# TYPE dock_radar_mesh_gossip_messages_sent_total counter\n")
+		b.WriteString(fmt.Sprintf("dock_radar_mesh_gossip_messages_sent_total %d\n\n", gossipSummary.MessagesSent))
+
+		b.WriteString("# HELP dock_radar_mesh_gossip_messages_received_total Total SWIM gossip protocol messages received.\n")
+		b.WriteString("# TYPE dock_radar_mesh_gossip_messages_received_total counter\n")
+		b.WriteString(fmt.Sprintf("dock_radar_mesh_gossip_messages_received_total %d\n\n", gossipSummary.MessagesRecv))
 	}
 
 	return b.String()

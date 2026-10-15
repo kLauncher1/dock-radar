@@ -47,6 +47,8 @@ type HandlerConfig struct {
 	AuditLogger      *audit.Logger
 	MeshRegistry     *mesh.Registry
 	MeshProber       *mesh.Prober
+	MeshDiscovery    *mesh.DiscoveryEngine
+	MeshGossip       *mesh.GossipEngine
 	HealingEngine    *healing.RemediationEngine
 	AnomalyDetector  *anomaly.Detector
 	AppVersion       string
@@ -157,6 +159,11 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	mux.HandleFunc("/api/nodes/heartbeat", cfg.handleNodeHeartbeat)
 	mux.HandleFunc("/api/cluster/summary", cfg.handleClusterSummary)
 	mux.HandleFunc("/api/cluster/containers", cfg.handleClusterContainers)
+
+	// Dynamic Multi-Node Cluster Mesh & Gossip Protocol Discovery
+	mux.HandleFunc("/api/mesh/discovery", cfg.handleMeshDiscovery)
+	mux.HandleFunc("/api/mesh/discovery/beacon", cfg.handleMeshDiscovery)
+	mux.HandleFunc("/api/mesh/gossip", cfg.handleMeshGossip)
 
 	// Embedded Static UI
 	if staticFS != nil {
