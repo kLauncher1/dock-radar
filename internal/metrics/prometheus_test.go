@@ -378,5 +378,47 @@ func TestFormatMetrics_AnomalyDetection(t *testing.T) {
 	}
 }
 
+func TestFormatMetrics_MeshDiscoveryAndGossip(t *testing.T) {
+	sys := system.Metrics{OS: "linux", Arch: "amd64", Hostname: "node-1"}
+	dock := docker.DaemonStatus{Available: true}
+
+	discStatus := &mesh.DiscoveryStatus{
+		Enabled:         true,
+		PeersCount:      3,
+		BeaconsSent:     42,
+		BeaconsReceived: 108,
+	}
+
+	gossipSummary := &mesh.GossipSummary{
+		Incarnation:    7,
+		AliveMembers:   3,
+		SuspectMembers: 1,
+		DeadMembers:    0,
+		MessagesSent:   250,
+		MessagesRecv:   248,
+	}
+
+	output := FormatMetricsFull(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, discStatus, gossipSummary, nil, "1.7.0")
+
+	expectedGauges := []string{
+		"dock_radar_mesh_discovery_enabled 1",
+		"dock_radar_mesh_discovery_peers_detected_total 3",
+		"dock_radar_mesh_discovery_beacons_sent_total 42",
+		"dock_radar_mesh_discovery_beacons_received_total 108",
+		"dock_radar_mesh_gossip_incarnation 7",
+		`dock_radar_mesh_gossip_members{state="alive"} 3`,
+		`dock_radar_mesh_gossip_members{state="suspect"} 1`,
+		`dock_radar_mesh_gossip_members{state="dead"} 0`,
+		"dock_radar_mesh_gossip_messages_sent_total 250",
+		"dock_radar_mesh_gossip_messages_received_total 248",
+	}
+
+	for _, g := range expectedGauges {
+		if !strings.Contains(output, g) {
+			t.Errorf("expected Prometheus output to contain %q, but was missing:\n%s", g, output)
+		}
+	}
+}
+
 
 

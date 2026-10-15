@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-10-15
+
+### Added
+- Dynamic LAN Auto-Discovery Engine (`internal/mesh/discovery.go`, `internal/mesh/discovery_test.go`):
+  - Zero-configuration local network peer detection broadcasting periodic announcements over UDP port 9085.
+  - Multi-interface broadcast traversal automatically reaching across all physical LAN adapters and link interfaces.
+  - Strict packet bounds checking (capped to 1 KB datagrams) and cluster domain key isolation (`dock-radar-cluster`).
+  - Automatic peer TTL expiration and state synchronization into the central node mesh registry.
+- SWIM-Based Gossip Protocol Consensus Engine (`internal/mesh/gossip.go`, `internal/mesh/gossip_test.go`):
+  - Distributed failure detection implementing Structured Weakly-consistent Infection-style Process Group Membership (SWIM).
+  - Two-phase health probing: direct randomized peer pings with configurable timeouts (800ms) and indirect fallback pings via $k$-random helper nodes ($k=3$) to eliminate false network hiccup penalties.
+  - Incarnation refutation protocol: nodes receiving suspicion updates concerning themselves automatically increment local incarnation counters and broadcast alive assertions to immediately refute transient network partitions.
+  - State update precedence guarantees (`Dead > Suspect > Alive` within identical incarnation numbers; higher incarnation always supersedes lower).
+  - Configurable suspicion timeout watchdogs transitioning unrefuted suspect nodes to dead status.
+- Cluster Mesh Discovery & Gossip REST APIs (`internal/api/gossip.go`, `internal/api/gossip_test.go`):
+  - `GET /api/mesh/discovery`: Returns auto-discovery listener status, broadcast port, cluster key, and detected LAN peers.
+  - `POST /api/mesh/discovery`: Manually triggers an immediate broadcast announcement across all local network interfaces (requires `RoleAdmin`).
+  - `GET /api/mesh/gossip`: Reports SWIM cluster health consensus, local incarnation, member states, and transmission counters.
+  - `POST /api/mesh/gossip`: High-performance HTTP peer transport for exchanging SWIM protocol packets, membership state infection, and ACK handshakes.
+- Prometheus Metrics Exporter Extension (`internal/metrics/prometheus.go`):
+  - Exposes `dock_radar_mesh_discovery_enabled`, `dock_radar_mesh_discovery_peers_detected_total`, `dock_radar_mesh_discovery_beacons_sent_total`, `dock_radar_mesh_discovery_beacons_received_total`, `dock_radar_mesh_gossip_incarnation`, `dock_radar_mesh_gossip_members`, `dock_radar_mesh_gossip_messages_sent_total`, and `dock_radar_mesh_gossip_messages_received_total` gauges.
+- Multi-Host Cross-Node Overview Dashboard (`web/dist/index.html`):
+  - Real-time LAN auto-discovery status card with active UDP beacon indicator and immediate broadcast trigger button.
+  - SWIM protocol consensus card displaying live member states (🟢 Alive, 🟡 Suspect, 🔴 Dead), incarnation counter, and round-trip ping latencies.
+  - Interactive multi-host topology grid showing compute load (CPU/RAM) and container allocation per node with instant one-click node isolation filters.
+
 ## [1.6.0] - 2026-10-14
 
 ### Added

@@ -68,10 +68,10 @@ This document outlines the architectural milestones and engineering priorities f
 
 ---
 
-## Milestone 12: v1.7.0 (Zero-Config LAN Peer Synchronization)
-- [ ] UDP broadcast discovery for auto-detecting nearby dock-radar daemon nodes.
-- [ ] Gossip-based state exchange for multi-server cluster metrics.
-- [ ] Unified multi-host aggregated view in the embedded dashboard.
+## Milestone 12: v1.7.0 (Zero-Config LAN Peer Synchronization & Gossip Discovery)
+- [x] UDP broadcast discovery for auto-detecting nearby dock-radar daemon nodes.
+- [x] Gossip-based state exchange for multi-server cluster metrics.
+- [x] Unified multi-host aggregated view in the embedded dashboard.
 
 ---
 
@@ -156,3 +156,18 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Automatic container crash kernel core dump interception and ELF stack backtrace extraction.
 - [ ] Symbolicated crash telemetry aggregation and root-cause classification.
 - [ ] Crash signature deduplication and instant alert dispatch.
+
+---
+
+## Milestone 25: v3.0.0 (Self-Optimizing Query Cache & Event Ingestion Pipeline)
+- [ ] In-memory adaptive query cache for high-frequency Prometheus scraping and telemetry feeds.
+- [ ] Non-blocking Docker engine event multiplexer (`/events`) with dynamic backpressure regulation.
+- [ ] Distributed event deduplication across mesh peers.
+
+---
+
+## Milestone 26: v3.1.0 (Zero-Knowledge Distributed Configuration Vault)
+- [ ] End-to-end encrypted cluster secret sharing and synchronized configuration replication.
+- [ ] Hardware-backed key derivation with automatic rotation and revocable cluster join tokens.
+- [ ] Ephemeral secret leases with automated audit shredding.
+

@@ -58,7 +58,21 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		anomalyPreds = h.AnomalyDetector.GetPredictions()
 	}
 
-	text := metrics.FormatMetricsWithAnomaly(
+	var discStatus *mesh.DiscoveryStatus
+	if h.MeshDiscovery != nil {
+		st := h.MeshDiscovery.Status()
+		discStatus = &st
+	}
+
+	var gossipSummary *mesh.GossipSummary
+	var gossipMembers []mesh.GossipMember
+	if h.MeshGossip != nil {
+		summ := h.MeshGossip.Summary()
+		gossipSummary = &summ
+		gossipMembers = h.MeshGossip.Members()
+	}
+
+	text := metrics.FormatMetricsFull(
 		sysMetrics,
 		dockerStatus,
 		h.LogBuffer,
@@ -69,6 +83,9 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		healingStats,
 		anomalySummary,
 		anomalyPreds,
+		discStatus,
+		gossipSummary,
+		gossipMembers,
 		version,
 	)
 

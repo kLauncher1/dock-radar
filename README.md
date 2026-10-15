@@ -10,7 +10,7 @@
 
 **Ultra-lightweight single-binary container & system metrics monitor with embedded real-time dark-mode web dashboard.**
 
-[![Release](https://img.shields.io/badge/Release-v1.6.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
+[![Release](https://img.shields.io/badge/Release-v1.7.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg?style=flat&logo=go)](https://golang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6%2B-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
@@ -27,6 +27,7 @@
 
 - **Single Executable Deployment**: The web dashboard is baked directly into the Go binary via `//go:embed`. No Node.js runtime, external assets, or separate frontend servers needed.
 - **Ultra-Low Memory Footprint**: Runs persistently under **15 MB of RAM** with bounded circular ring buffers, making it ideal for low-spec VPS, Raspberry Pi, and homelab environments.
+- **Dynamic Multi-Node Cluster Mesh & Gossip Discovery**: Zero-configuration LAN UDP broadcast auto-discovery (port 9085) paired with a lightweight SWIM-based gossip protocol. Features direct randomized ping/ack, indirect helper pings ($k=3$), suspicion watchdog timers, incarnation refutation, and decentralized cluster health consensus with dedicated multi-host cards in the web dashboard.
 - **Predictive Anomaly Detection & OOM Exhaustion Radar**: Real-time Ordinary Least Squares (OLS) linear regression trend analysis forecasting memory saturation slope ($m$), intercept ($c$), and dynamic Time-to-Exhaustion (TTE). Early-warning webhook notifications fire before kernel OOM killer terminates containers, paired with glowing countdown meters and trend cards in the web dashboard.
 - **Autonomous Self-Healing Container Engine**: Automated remediation rules triggering container recovery on out-of-memory crashes (`exit 137`) and unhealthy flapping states, protected by exponential backoff jitter, circuit-breaking quarantine thresholds, and real-time Prometheus healing telemetry.
 - **Docker Compose Topology & Stack Visualizer**: Automatic grouping of containers by `com.docker.compose.project` labels with interactive SVG dependency topology graphs, architectural service tier detection (database, cache, queue, gateway, worker), whole-stack lifecycle actions (restart, stop, recreate), and dedicated Prometheus stack metrics.
@@ -96,6 +97,9 @@ go build -ldflags="-s -w" -o dock-radar .
 | `--allow-remote` | `DOCK_RADAR_ALLOW_REMOTE`| `false` | Permit remote network requests without loopback check |
 | `--nodes` | `DOCK_RADAR_NODES` | `""` | Comma-separated list of remote dock-radar nodes to aggregate |
 | `--node-name` | `DOCK_RADAR_NODE_NAME` | `hostname` | Human-readable display name for this node |
+| `--mesh-discovery` | `DOCK_RADAR_MESH_DISCOVERY` | `false` | Enable zero-config UDP broadcast LAN peer auto-discovery |
+| `--mesh-port` | `DOCK_RADAR_MESH_PORT` | `9085` | UDP port for LAN peer auto-discovery beacons |
+| `--gossip-interval` | `DOCK_RADAR_GOSSIP_INTERVAL` | `5s` | Ping interval for SWIM decentralized cluster gossip |
 | `--version` | — | — | Print dock-radar version and exit |
 
 ---
@@ -115,7 +119,8 @@ go build -ldflags="-s -w" -o dock-radar .
 │   internal/mesh          │      internal/logs          │
 │   • Node Discovery/Probe │      • Circular Ring Buffer │
 │   • Aggregate Telemetry  │      • Strict <15MB Ceiling │
-│   • Multi-Host Inventory │                             │
+│   • SWIM Gossip Protocol │                             │
+│   • UDP Broadcast Beacon │                             │
 ├──────────────────────────┼─────────────────────────────┤
 │   internal/alert         │      internal/audit         │
 │   • Discord & Slack Web  │      • Circular Event Log   │
@@ -128,9 +133,9 @@ go build -ldflags="-s -w" -o dock-radar .
 │   • Circuit Breaker      │      • /api/healing/*       │
 ├──────────────────────────┤      • /api/nodes/*         │
 │   internal/metrics       │      • /api/cluster/*       │
-│   • Standard Prometheus  │      • /api/audit/*         │
-│   • Exposition Formatter │      • Pure RFC 6455 WS     │
-│   • Multi-Node Mesh Stats│                             │
+│   • Standard Prometheus  │      • /api/mesh/*          │
+│   • Exposition Formatter │      • /api/audit/*         │
+│   • Multi-Node Mesh Stats│      • Pure RFC 6455 WS     │
 ├──────────────────────────┤                             │
 │   internal/security      │                             │
 │   • In-Memory ECDSA TLS  │                             │
@@ -174,6 +179,8 @@ go build -ldflags="-s -w" -o dock-radar .
 | `/api/nodes/heartbeat` | `POST` | `viewer` | Remote agent telemetry and container synchronization push endpoint |
 | `/api/cluster/summary` | `GET` | `viewer` | Aggregate cluster metrics (total/online/offline nodes, CPU, memory, container totals) |
 | `/api/cluster/containers` | `GET` | `viewer` | Unified container inventory across all cluster nodes (`?node_id=&state=`) |
+| `/api/mesh/discovery` | `GET` / `POST` | `viewer` / `admin` | LAN UDP auto-discovery peer status and manual beacon trigger (`POST {"action":"broadcast"}`) |
+| `/api/mesh/gossip` | `GET` / `POST` | `viewer` / `none` | Cluster SWIM gossip membership state and P2P gossip message ingestion |
 | `/api/audit/export` | `GET` | `viewer` | Exports audit log trail in NDJSON or JSON format (`?format=ndjson&limit=2000&action=`) |
 | `/api/alerts/config` | `GET` / `POST` | `viewer` / `admin` | Fetches or updates active alert rules, webhook destinations, and threshold limits |
 | `/api/alerts/events` | `GET` | `viewer` | Fetches recent incident and fired alert history buffer (`?limit=50`) |
