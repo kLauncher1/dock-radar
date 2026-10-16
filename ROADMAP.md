@@ -83,9 +83,12 @@ This document outlines the architectural milestones and engineering priorities f
 ---
 
 ## Milestone 14: v1.9.0 (Distributed Ephemeral Log Storage & S3 Offloader)
-- [ ] Compressed log chunking and local ring buffer rotation to disk.
-- [ ] Background asynchronous offloader streaming logs to S3-compatible object stores (MinIO, AWS S3, Cloudflare R2).
-- [ ] Ephemeral retention policies with automatic cold storage tiering.
+- [x] Compressed log chunking and local ring buffer rotation to disk.
+- [x] Pure standard-library AWS SigV4 request signer with zero external dependencies.
+- [x] Background asynchronous offloader streaming logs to S3-compatible object stores (MinIO, AWS S3, Cloudflare R2).
+- [x] Ephemeral retention policies with capacity caps and offload-priority cold storage tiering.
+- [x] Storage REST APIs, RBAC authorization, and Prometheus exporter metrics.
+- [x] Glassmorphism chunk explorer, live KPI grid, download, and S3 configuration modal.
 
 ---
 
@@ -184,5 +187,19 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Userspace zero-copy BPF ring buffer consumption reducing CPU overhead < 0.5%.
 - [ ] Real-time kernel stack flame graph generator for active containers.
 - [ ] Continuous on-CPU / off-CPU profiling telemetry exporter.
+
+---
+
+## Milestone 29: v3.4.0 (Adaptive Memory Compression & NUMA-Aware Container Balancer)
+- [ ] Userspace zstandard/zstd chunk compression for cold container process memory pages.
+- [ ] NUMA node topology discovery and CPU/RAM affinity pinning recommendations.
+- [ ] Automatic memory pressure relief balancing across multi-socket NUMA domains.
+
+---
+
+## Milestone 30: v3.5.0 (Decentralized Cluster Event Log Streaming & P2P Gossip Relay)
+- [ ] Gossip-propagated real-time event distribution tree with anti-entropy reconciliation.
+- [ ] Dynamic peer relay routing minimizing inter-host WAN egress overhead.
+- [ ] Ephemeral distributed search query broadcast with Merkle tree verification.
 
 

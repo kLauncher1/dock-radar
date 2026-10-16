@@ -10,6 +10,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/metrics"
 	"github.com/kLauncher1/dock-radar/internal/rolling"
 	"github.com/kLauncher1/dock-radar/internal/security"
+	"github.com/kLauncher1/dock-radar/internal/storage"
 	"github.com/kLauncher1/dock-radar/internal/system"
 )
 
@@ -79,6 +80,12 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		rollingStats = &st
 	}
 
+	var storageStatus *storage.StorageStatus
+	if h.StorageManager != nil {
+		st := h.StorageManager.Status()
+		storageStatus = &st
+	}
+
 	text := metrics.FormatMetricsAll(
 		sysMetrics,
 		dockerStatus,
@@ -94,6 +101,7 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		gossipSummary,
 		gossipMembers,
 		rollingStats,
+		storageStatus,
 		version,
 	)
 

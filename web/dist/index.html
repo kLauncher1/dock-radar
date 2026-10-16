@@ -646,6 +646,7 @@
       <button id="healing-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.15); color: #10b981; display: inline-flex; align-items: center; gap: 4px;" onclick="openHealingModal()" title="Autonomous Self-Healing Container Policies">🛡️ Healing: <span id="healing-status-text">Active</span></button>
       <button id="anomaly-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(168, 85, 247, 0.4); background: rgba(168, 85, 247, 0.15); color: #c084fc; display: inline-flex; align-items: center; gap: 4px;" onclick="openAnomalyModal()" title="Predictive Anomaly Engine & Early OOM Alarms">🔮 OOM Radar: <span id="anomaly-badge-text">Normal</span></button>
       <a href="/metrics" target="_blank" id="metrics-badge" class="status-pill" style="font-size: 11px; text-decoration: none; color: #38bdf8; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); display: inline-flex; align-items: center; gap: 4px;" title="Prometheus Metrics Exporter">📊 /metrics</a>
+      <button id="storage-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: inline-flex; align-items: center; gap: 4px;" onclick="openStorageModal()" title="Ephemeral Log Storage & S3 Offloader">💾 Log Storage: <span id="storage-badge-text">0 Chunks (0 MB)</span></button>
       <button id="btn-export-audit" class="status-pill" style="font-size: 11px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;" onclick="exportAuditTrail()" title="Export Audit Trail in NDJSON format">📋 Export Audit</button>
       <span>•</span>
       <span id="host-badge">Loading...</span>
@@ -1291,6 +1292,95 @@
         </table>
       </div>
     </div>
+
+    <!-- Distributed Ephemeral Log Storage & S3 Offloader Section -->
+    <div class="card" id="storage-section" style="margin-top: 24px; margin-bottom: 24px; padding: 20px; border-color: rgba(56, 189, 248, 0.25);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <span style="font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: #38bdf8;">
+            <span>💾</span> Distributed Ephemeral Log Storage &amp; S3 Offloader
+          </span>
+          <span class="status-pill status-running" id="storage-status-pill" style="font-size: 11px;">Active</span>
+          <span class="status-pill" id="storage-s3-target-pill" style="font-size: 11px; background: rgba(56, 189, 248, 0.15); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4);">S3: Standby</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <button class="btn-action btn-logs" onclick="triggerStorageFlush()" style="font-size: 11px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.1);" title="Immediately flush pending memory buffers to compressed chunk files on disk and S3">⚡ Flush Buffer Now</button>
+          <button class="btn-action" onclick="openStorageModal()" style="font-size: 11px; color: var(--text-main); border-color: var(--border-subtle); background: var(--bg-surface-elevated);" title="Configure S3 endpoint, credentials, and local ephemeral retention rules">⚙️ Storage &amp; S3 Settings</button>
+        </div>
+      </div>
+
+      <!-- Storage KPI Grid -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px;">
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Local Chunks</div>
+          <div id="stat-storage-local-chunks" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #38bdf8;">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Disk Used</div>
+          <div id="stat-storage-disk-used" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--accent-green);">0 MB</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Offloaded to S3</div>
+          <div id="stat-storage-offloaded" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #c084fc;">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Queue Depth</div>
+          <div id="stat-storage-queue-depth" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--accent-yellow);">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">S3 Target</div>
+          <div id="stat-storage-s3-target" style="font-size: 13px; font-weight: 700; font-family: monospace; color: var(--text-main); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Standby</div>
+        </div>
+      </div>
+
+      <!-- Chunk Explorer Filter Bar -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+        <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+          <input type="text" id="storage-filter-container" class="form-input" placeholder="Filter container ID..." style="width: 170px; padding: 4px 10px; font-size: 11px;" onkeyup="debounceLoadStorageChunks()">
+          <select id="storage-filter-stream" class="form-input" style="width: auto; padding: 4px 10px; font-size: 11px;" onchange="loadStorageChunks()">
+            <option value="">All Streams</option>
+            <option value="stdout">stdout</option>
+            <option value="stderr">stderr</option>
+            <option value="system">system</option>
+          </select>
+          <select id="storage-filter-status" class="form-input" style="width: auto; padding: 4px 10px; font-size: 11px;" onchange="loadStorageChunks()">
+            <option value="">All S3 Statuses</option>
+            <option value="offloaded">Offloaded</option>
+            <option value="pending">Pending</option>
+            <option value="failed">Failed</option>
+            <option value="disabled">Disabled</option>
+          </select>
+          <button class="btn-action" onclick="loadStorageChunks()" style="font-size: 11px; padding: 4px 10px;">🔄 Refresh</button>
+        </div>
+        <span id="storage-chunks-count" style="font-size: 11px; color: var(--text-muted);">0 chunks cataloged</span>
+      </div>
+
+      <!-- Chunk Explorer Table -->
+      <div class="alert-events-scroll" style="max-height: 280px;">
+        <table class="alert-events-table" style="width: 100%;">
+          <thead>
+            <tr>
+              <th>Chunk ID</th>
+              <th>Container</th>
+              <th>Stream</th>
+              <th>Entries</th>
+              <th>Raw / Compressed</th>
+              <th>Ratio</th>
+              <th>S3 Status</th>
+              <th>Time Range</th>
+              <th style="text-align: right;">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="storage-chunks-body">
+            <tr>
+              <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                No log chunks archived yet. Logs accumulate in memory buffers and rotate automatically.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </main>
 
   <!-- Lifecycle Action Confirmation Modal -->
@@ -1657,6 +1747,150 @@
       <div class="modal-actions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 18px;">
         <button class="btn btn-secondary" onclick="closeRollingModal()">Cancel</button>
         <button class="btn btn-primary-restart" id="btn-start-rolling" onclick="launchRollingRestart()" style="background: #a855f7; border-color: #9333ea;">🚀 Start Rolling Restart</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Storage & S3 Configuration Modal -->
+  <div class="modal-backdrop" id="storage-modal">
+    <div class="modal-card" style="max-width: 680px; width: 95%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div class="modal-title" style="color: #38bdf8; margin-bottom: 0;">Distributed Ephemeral Log Storage &amp; S3 Offloader</div>
+        <button class="btn-action" onclick="closeStorageModal()" style="padding: 4px 10px;">✕</button>
+      </div>
+      <div class="modal-body" style="margin-bottom: 16px; max-height: 70vh; overflow-y: auto; padding-right: 6px;">
+        
+        <!-- S3 Object Store Settings -->
+        <div class="alert-card-sub" style="margin-bottom: 18px; padding: 14px; border: 1px solid rgba(56, 189, 248, 0.25);">
+          <div style="font-size: 12px; font-weight: 700; color: #38bdf8; margin-bottom: 10px; text-transform: uppercase;">
+            S3-Compatible Object Store (AWS S3, MinIO, Cloudflare R2)
+          </div>
+          <div class="form-row" style="margin-bottom: 10px;">
+            <div class="form-col" style="flex: 2;">
+              <label class="form-label" for="s3-input-endpoint">Endpoint URL</label>
+              <input type="text" class="form-input" id="s3-input-endpoint" placeholder="e.g. s3.amazonaws.com or http://localhost:9000">
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="s3-input-region">Region</label>
+              <input type="text" class="form-input" id="s3-input-region" placeholder="us-east-1" value="us-east-1">
+            </div>
+          </div>
+          <div class="form-row" style="margin-bottom: 10px;">
+            <div class="form-col">
+              <label class="form-label" for="s3-input-bucket">Bucket Name</label>
+              <input type="text" class="form-input" id="s3-input-bucket" placeholder="my-log-bucket">
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="s3-input-prefix">Object Prefix</label>
+              <input type="text" class="form-input" id="s3-input-prefix" placeholder="dock-radar/logs" value="dock-radar/logs">
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="s3-input-storage-class">Storage Class</label>
+              <input type="text" class="form-input" id="s3-input-storage-class" placeholder="STANDARD" value="STANDARD">
+            </div>
+          </div>
+          <div class="form-row" style="margin-bottom: 10px;">
+            <div class="form-col">
+              <label class="form-label" for="s3-input-access-key">Access Key ID</label>
+              <input type="text" class="form-input" id="s3-input-access-key" placeholder="AKIAIOSFODNN7EXAMPLE">
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="s3-input-secret-key">Secret Access Key</label>
+              <input type="password" class="form-input" id="s3-input-secret-key" placeholder="Leave unchanged or enter secret key">
+            </div>
+          </div>
+          <div style="display: flex; gap: 16px; margin-top: 10px; align-items: center;">
+            <label class="toggle-wrap">
+              <input type="checkbox" id="s3-input-path-style" checked>
+              <span>Force Path-Style Addressing (MinIO / R2 compatible)</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Local Ephemeral Retention Settings -->
+        <div class="alert-card-sub" style="margin-bottom: 18px; padding: 14px; border: 1px solid rgba(16, 185, 129, 0.25);">
+          <div style="font-size: 12px; font-weight: 700; color: var(--accent-green); margin-bottom: 10px; text-transform: uppercase;">
+            Local Ephemeral Retention &amp; Chunk Rotation Policies
+          </div>
+          <div class="form-row" style="margin-bottom: 10px;">
+            <div class="form-col">
+              <label class="form-label" for="ret-input-max-chunks">Max Local Chunks</label>
+              <input type="number" class="form-input" id="ret-input-max-chunks" min="5" max="10000" value="100">
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="ret-input-max-disk-mb">Max Disk Space (MB)</label>
+              <input type="number" class="form-input" id="ret-input-max-disk-mb" min="1" max="102400" value="100">
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="ret-input-retention-hours">Retention Age (Hours)</label>
+              <input type="number" class="form-input" id="ret-input-retention-hours" min="1" max="8760" value="24">
+            </div>
+          </div>
+          <div class="form-row" style="margin-bottom: 10px;">
+            <div class="form-col">
+              <label class="form-label" for="ret-input-chunk-size">Chunk Size (Entries)</label>
+              <input type="number" class="form-input" id="ret-input-chunk-size" min="10" max="10000" value="500">
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="ret-input-flush-interval">Flush Interval (Sec)</label>
+              <input type="number" class="form-input" id="ret-input-flush-interval" min="5" max="3600" value="60">
+            </div>
+          </div>
+          <div style="display: flex; gap: 16px; margin-top: 10px; align-items: center;">
+            <label class="toggle-wrap">
+              <input type="checkbox" id="ret-input-prune-after-offload">
+              <span>Prune Local Files Immediately After S3 Offload (Zero Disk Waste)</span>
+            </label>
+          </div>
+        </div>
+
+        <div id="storage-test-result" style="font-size: 12px; margin-bottom: 8px; display: none;"></div>
+      </div>
+      <div class="modal-actions" style="display: flex; justify-content: space-between; align-items: center;">
+        <button class="btn btn-secondary" onclick="testS3Connection()" id="btn-test-s3" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">🔌 Test S3 Connection</button>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary" onclick="closeStorageModal()">Cancel</button>
+          <button class="btn btn-primary-restart" onclick="saveStorageConfig()" id="btn-save-storage">Save Settings</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Chunk Details & Inspector Modal -->
+  <div class="modal-backdrop" id="chunk-details-modal">
+    <div class="modal-card" style="max-width: 820px; width: 95%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <div class="modal-title" style="color: #38bdf8; margin-bottom: 0;">Chunk Metadata &amp; Log Explorer</div>
+        <button class="btn-action" onclick="closeChunkDetails()" style="padding: 4px 10px;">✕</button>
+      </div>
+      <div class="modal-body" style="margin-bottom: 14px;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin-bottom: 14px; font-size: 11px; font-family: monospace;">
+          <div class="alert-card-sub" style="padding: 10px;">
+            <span style="color: var(--text-muted);">Chunk ID:</span>
+            <div id="cd-id" style="color: #38bdf8; font-weight: 700; word-break: break-all;">--</div>
+          </div>
+          <div class="alert-card-sub" style="padding: 10px;">
+            <span style="color: var(--text-muted);">Container / Stream:</span>
+            <div id="cd-target" style="color: var(--text-main); font-weight: 700;">--</div>
+          </div>
+          <div class="alert-card-sub" style="padding: 10px;">
+            <span style="color: var(--text-muted);">Entries / Size / Ratio:</span>
+            <div id="cd-size" style="color: var(--accent-green); font-weight: 700;">--</div>
+          </div>
+          <div class="alert-card-sub" style="padding: 10px;">
+            <span style="color: var(--text-muted);">S3 Status &amp; Key:</span>
+            <div id="cd-s3" style="color: #c084fc; font-weight: 700; word-break: break-all;">--</div>
+          </div>
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">SHA-256 Checksum: <span id="cd-sha256" style="font-family: monospace; color: var(--text-main);">--</span></div>
+        <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">Unpacked Log Records:</div>
+        <div id="chunk-logs-viewer" class="log-console" style="max-height: 280px; height: 280px;">
+          <!-- Decoded entries go here -->
+        </div>
+      </div>
+      <div class="modal-actions" style="display: flex; justify-content: space-between;">
+        <button class="btn btn-action btn-logs" id="btn-download-chunk-gz" onclick="downloadActiveChunkGz()" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">⬇️ Download Raw .gz</button>
+        <button class="btn btn-secondary" onclick="closeChunkDetails()">Close</button>
       </div>
     </div>
   </div>
@@ -4306,6 +4540,406 @@
       });
     }
 
+    // ==========================================
+    // Distributed Ephemeral Log Storage & S3 Offloader
+    // ==========================================
+    let activeChunkDetailId = null;
+    let storageDebounceTimer = null;
+
+    function openStorageModal() {
+      const modal = document.getElementById('storage-modal');
+      if (modal) modal.style.display = 'flex';
+      loadStorageConfig();
+    }
+
+    function closeStorageModal() {
+      const modal = document.getElementById('storage-modal');
+      if (modal) modal.style.display = 'none';
+      const testRes = document.getElementById('storage-test-result');
+      if (testRes) testRes.style.display = 'none';
+    }
+
+    const storageModalEl = document.getElementById('storage-modal');
+    if (storageModalEl) {
+      storageModalEl.addEventListener('click', (e) => {
+        if (e.target === storageModalEl) closeStorageModal();
+      });
+    }
+
+    function openChunkDetails(chunkId) {
+      activeChunkDetailId = chunkId;
+      const modal = document.getElementById('chunk-details-modal');
+      if (modal) modal.style.display = 'flex';
+      fetchChunkDetails(chunkId);
+    }
+
+    function closeChunkDetails() {
+      const modal = document.getElementById('chunk-details-modal');
+      if (modal) modal.style.display = 'none';
+      activeChunkDetailId = null;
+    }
+
+    const chunkDetailsModalEl = document.getElementById('chunk-details-modal');
+    if (chunkDetailsModalEl) {
+      chunkDetailsModalEl.addEventListener('click', (e) => {
+        if (e.target === chunkDetailsModalEl) closeChunkDetails();
+      });
+    }
+
+    function downloadActiveChunkGz() {
+      if (activeChunkDetailId) downloadChunk(activeChunkDetailId);
+    }
+
+    function downloadChunk(chunkId) {
+      const token = getStoredToken();
+      let url = `/api/logs/storage/chunk?id=${encodeURIComponent(chunkId)}&download=true`;
+      if (token) url += `&token=${encodeURIComponent(token)}`;
+      window.location.href = url;
+    }
+
+    async function loadStorageConfig() {
+      try {
+        const resp = await authFetch('/api/logs/storage/config');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const s3 = data.s3 || {};
+        const ret = data.retention || {};
+
+        const setVal = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.value = val !== undefined ? val : '';
+        };
+
+        setVal('s3-input-endpoint', s3.endpoint || '');
+        setVal('s3-input-region', s3.region || 'us-east-1');
+        setVal('s3-input-bucket', s3.bucket || '');
+        setVal('s3-input-prefix', s3.prefix || 'dock-radar/logs');
+        setVal('s3-input-storage-class', s3.storage_class || 'STANDARD');
+        setVal('s3-input-access-key', s3.access_key || '');
+        setVal('s3-input-secret-key', s3.secret_key || '');
+
+        const pathStyleEl = document.getElementById('s3-input-path-style');
+        if (pathStyleEl) pathStyleEl.checked = s3.force_path_style !== false;
+
+        setVal('ret-input-max-chunks', ret.max_local_chunks || 100);
+        setVal('ret-input-max-disk-mb', Math.round((ret.max_local_disk_bytes || 104857600) / (1024 * 1024)));
+        setVal('ret-input-retention-hours', ret.local_retention_hours || 24);
+        setVal('ret-input-chunk-size', ret.chunk_size_entries || 500);
+        setVal('ret-input-flush-interval', ret.chunk_flush_interval_sec || 60);
+
+        const pruneEl = document.getElementById('ret-input-prune-after-offload');
+        if (pruneEl) pruneEl.checked = !!ret.prune_after_offload;
+      } catch (err) {
+        showToast(`✗ Failed to load storage config: ${err.message}`);
+      }
+    }
+
+    async function saveStorageConfig() {
+      const btn = document.getElementById('btn-save-storage');
+      if (btn) { btn.disabled = true; btn.textContent = 'Saving...'; }
+
+      try {
+        const getVal = id => {
+          const el = document.getElementById(id);
+          return el ? el.value.trim() : '';
+        };
+
+        const maxDiskMB = parseInt(getVal('ret-input-max-disk-mb'), 10) || 100;
+        const payload = {
+          s3: {
+            endpoint: getVal('s3-input-endpoint'),
+            region: getVal('s3-input-region') || 'us-east-1',
+            bucket: getVal('s3-input-bucket'),
+            prefix: getVal('s3-input-prefix') || 'dock-radar/logs',
+            storage_class: getVal('s3-input-storage-class') || 'STANDARD',
+            access_key: getVal('s3-input-access-key'),
+            secret_key: getVal('s3-input-secret-key'),
+            force_path_style: document.getElementById('s3-input-path-style')?.checked ?? true
+          },
+          retention: {
+            max_local_chunks: parseInt(getVal('ret-input-max-chunks'), 10) || 100,
+            max_local_disk_bytes: maxDiskMB * 1024 * 1024,
+            local_retention_hours: parseInt(getVal('ret-input-retention-hours'), 10) || 24,
+            chunk_size_entries: parseInt(getVal('ret-input-chunk-size'), 10) || 500,
+            chunk_flush_interval_sec: parseInt(getVal('ret-input-flush-interval'), 10) || 60,
+            prune_after_offload: !!document.getElementById('ret-input-prune-after-offload')?.checked
+          }
+        };
+
+        const resp = await authFetch('/api/logs/storage/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!resp.ok) {
+          const errText = await resp.text();
+          throw new Error(errText || 'Update failed');
+        }
+
+        showToast('✓ Storage & S3 configuration updated successfully');
+        closeStorageModal();
+        pollStorageStatus();
+      } catch (err) {
+        showToast(`✗ Failed to save settings: ${err.message}`);
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = 'Save Settings'; }
+      }
+    }
+
+    async function testS3Connection() {
+      const btn = document.getElementById('btn-test-s3');
+      const testRes = document.getElementById('storage-test-result');
+      if (btn) { btn.disabled = true; btn.textContent = 'Testing...'; }
+      if (testRes) {
+        testRes.style.display = 'block';
+        testRes.style.color = '#38bdf8';
+        testRes.textContent = 'Probing S3 bucket connectivity...';
+      }
+
+      try {
+        const getVal = id => {
+          const el = document.getElementById(id);
+          return el ? el.value.trim() : '';
+        };
+
+        const payload = {
+          endpoint: getVal('s3-input-endpoint'),
+          region: getVal('s3-input-region') || 'us-east-1',
+          bucket: getVal('s3-input-bucket'),
+          prefix: getVal('s3-input-prefix') || 'dock-radar/logs',
+          access_key: getVal('s3-input-access-key'),
+          secret_key: getVal('s3-input-secret-key'),
+          force_path_style: document.getElementById('s3-input-path-style')?.checked ?? true
+        };
+
+        const resp = await authFetch('/api/logs/storage/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        const data = await resp.json();
+        if (testRes) {
+          if (data.success) {
+            testRes.style.color = 'var(--accent-green)';
+            testRes.textContent = `✓ ${data.message || 'S3 connection verified successfully!'}`;
+          } else {
+            testRes.style.color = '#ef4444';
+            testRes.textContent = `✗ S3 check failed: ${data.error || 'Connection error'}`;
+          }
+        }
+      } catch (err) {
+        if (testRes) {
+          testRes.style.color = '#ef4444';
+          testRes.textContent = `✗ Network error: ${err.message}`;
+        }
+      } finally {
+        if (btn) { btn.disabled = false; btn.textContent = '🔌 Test S3 Connection'; }
+      }
+    }
+
+    async function triggerStorageFlush() {
+      try {
+        const resp = await authFetch('/api/logs/storage/flush', { method: 'POST' });
+        if (!resp.ok) {
+          const txt = await resp.text();
+          throw new Error(txt || 'Flush failed');
+        }
+        const data = await resp.json();
+        showToast(`⚡ Flushed ${data.flushed_chunks || 0} chunk(s) to local storage & S3 queue`);
+        pollStorageStatus();
+        loadStorageChunks();
+      } catch (err) {
+        showToast(`✗ Flush error: ${err.message}`);
+      }
+    }
+
+    async function pollStorageStatus() {
+      try {
+        const resp = await authFetch('/api/logs/storage/status');
+        if (!resp.ok) return;
+        const status = await resp.json();
+
+        const diskMB = ((status.local_disk_bytes || 0) / (1024 * 1024)).toFixed(1);
+        const badgeEl = document.getElementById('storage-badge-text');
+        if (badgeEl) badgeEl.textContent = `${status.local_chunks || 0} Chunks (${Math.round(diskMB)} MB)`;
+
+        const setTxt = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = val;
+        };
+
+        setTxt('stat-storage-local-chunks', status.local_chunks || 0);
+        setTxt('stat-storage-disk-used', `${diskMB} MB`);
+        setTxt('stat-storage-offloaded', status.offloaded_chunks || 0);
+        setTxt('stat-storage-queue-depth', status.queue_depth || 0);
+
+        const targetPill = document.getElementById('storage-s3-target-pill');
+        const targetStat = document.getElementById('stat-storage-s3-target');
+        if (status.s3_enabled) {
+          if (targetPill) {
+            targetPill.textContent = 'S3: Connected';
+            targetPill.style.color = '#10b981';
+            targetPill.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+            targetPill.style.background = 'rgba(16, 185, 129, 0.15)';
+          }
+          if (targetStat) {
+            targetStat.textContent = 'Active & Connected';
+            targetStat.style.color = 'var(--accent-green)';
+          }
+        } else {
+          if (targetPill) {
+            targetPill.textContent = 'S3: Standby';
+            targetPill.style.color = '#38bdf8';
+            targetPill.style.borderColor = 'rgba(56, 189, 248, 0.4)';
+            targetPill.style.background = 'rgba(56, 189, 248, 0.15)';
+          }
+          if (targetStat) {
+            targetStat.textContent = 'Standby (Local Only)';
+            targetStat.style.color = 'var(--text-muted)';
+          }
+        }
+      } catch (err) {
+        // Silent fail on background polling error
+      }
+    }
+
+    function debounceLoadStorageChunks() {
+      if (storageDebounceTimer) clearTimeout(storageDebounceTimer);
+      storageDebounceTimer = setTimeout(loadStorageChunks, 250);
+    }
+
+    function formatBytes(bytes) {
+      if (!bytes || bytes <= 0) return '0 B';
+      const k = 1024;
+      const dm = 1;
+      const sizes = ['B', 'KB', 'MB', 'GB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
+    }
+
+    async function loadStorageChunks() {
+      try {
+        const containerVal = (document.getElementById('storage-filter-container')?.value || '').trim();
+        const streamVal = (document.getElementById('storage-filter-stream')?.value || '').trim();
+        const statusVal = (document.getElementById('storage-filter-status')?.value || '').trim();
+
+        let q = `/api/logs/storage/chunks?limit=50`;
+        if (containerVal) q += `&container=${encodeURIComponent(containerVal)}`;
+        if (streamVal) q += `&stream=${encodeURIComponent(streamVal)}`;
+        if (statusVal) q += `&s3_status=${encodeURIComponent(statusVal)}`;
+
+        const resp = await authFetch(q);
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const chunks = data.chunks || [];
+        const total = data.total || 0;
+
+        const countEl = document.getElementById('storage-chunks-count');
+        if (countEl) countEl.textContent = `${total} chunk(s) cataloged`;
+
+        const bodyEl = document.getElementById('storage-chunks-body');
+        if (!bodyEl) return;
+
+        if (chunks.length === 0) {
+          bodyEl.innerHTML = `
+            <tr>
+              <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                No matching log chunks found.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        bodyEl.innerHTML = chunks.map(c => {
+          const ratio = (c.raw_bytes > 0 && c.compressed_bytes > 0) ?
+            (c.raw_bytes / c.compressed_bytes).toFixed(1) + 'x' : '1.0x';
+
+          let statusBadge = 'status-standby';
+          if (c.s3_status === 'offloaded') statusBadge = 'status-running';
+          else if (c.s3_status === 'failed') statusBadge = 'status-stopped';
+          else if (c.s3_status === 'disabled') statusBadge = 'status-standby';
+
+          const startStr = c.start_time ? new Date(c.start_time).toLocaleTimeString() : '--';
+          const endStr = c.end_time ? new Date(c.end_time).toLocaleTimeString() : '--';
+          const hasLocal = !!c.local_path;
+
+          return `
+            <tr>
+              <td style="font-family: monospace; font-size: 11px; font-weight: 600; color: #38bdf8;">${escapeHTML(c.id)}</td>
+              <td style="font-weight: 600;">${escapeHTML(c.container_id)}</td>
+              <td><span class="log-badge log-badge-${(c.stream || 'stdout').toLowerCase()}">${escapeHTML(c.stream || 'stdout')}</span></td>
+              <td style="font-family: monospace;">${c.entry_count}</td>
+              <td style="font-family: monospace; font-size: 11px;">${formatBytes(c.raw_bytes)} / ${formatBytes(c.compressed_bytes)}</td>
+              <td style="font-family: monospace; font-weight: 600; color: var(--accent-green);">${ratio}</td>
+              <td><span class="status-pill ${statusBadge}" style="font-size: 10px;">${(c.s3_status || 'pending').toUpperCase()}</span></td>
+              <td style="font-family: monospace; font-size: 11px; color: var(--text-muted);">${startStr} - ${endStr}</td>
+              <td style="text-align: right; white-space: nowrap;">
+                <button class="btn-action" onclick="openChunkDetails('${escapeHTML(c.id)}')" style="font-size: 10px; padding: 2px 7px;">🔍 View</button>
+                ${hasLocal ? `<button class="btn-action btn-logs" onclick="downloadChunk('${escapeHTML(c.id)}')" style="font-size: 10px; padding: 2px 7px; margin-left: 4px; color: #38bdf8;">⬇️ .gz</button>` : ''}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        // Silent fail on chunk load error
+      }
+    }
+
+    async function fetchChunkDetails(chunkId) {
+      const viewer = document.getElementById('chunk-logs-viewer');
+      if (viewer) viewer.innerHTML = '<div style="color: var(--text-muted); padding: 12px;">Decompressing and loading chunk log records...</div>';
+
+      try {
+        const resp = await authFetch(`/api/logs/storage/chunk?id=${encodeURIComponent(chunkId)}&entries=true`);
+        if (!resp.ok) {
+          if (viewer) viewer.innerHTML = '<div style="color: #ef4444; padding: 12px;">Failed to load chunk details or chunk local file was pruned.</div>';
+          return;
+        }
+        const data = await resp.json();
+        const c = data.chunk || {};
+        const entries = data.entries || [];
+
+        const setTxt = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = val;
+        };
+
+        setTxt('cd-id', c.id || chunkId);
+        setTxt('cd-target', `${c.container_id || '--'} (${c.stream || 'all'})`);
+        const ratio = (c.raw_bytes > 0 && c.compressed_bytes > 0) ? (c.raw_bytes / c.compressed_bytes).toFixed(1) + 'x' : '1.0x';
+        setTxt('cd-size', `${c.entry_count || entries.length} entries · ${formatBytes(c.raw_bytes)} -> ${formatBytes(c.compressed_bytes)} (${ratio})`);
+        setTxt('cd-s3', `${(c.s3_status || 'pending').toUpperCase()} ${c.s3_key ? '· ' + c.s3_key : ''}`);
+        setTxt('cd-sha256', c.checksum_sha256 || '--');
+
+        const dlBtn = document.getElementById('btn-download-chunk-gz');
+        if (dlBtn) dlBtn.style.display = data.has_local_file ? 'inline-block' : 'none';
+
+        if (!viewer) return;
+        if (entries.length === 0) {
+          viewer.innerHTML = `<div style="color: var(--text-muted); padding: 12px;">${data.has_local_file ? 'No log lines in chunk.' : 'Chunk local file pruned under retention policy. Metadata preserved from S3 offloader.'}</div>`;
+          return;
+        }
+
+        viewer.innerHTML = entries.map(e => {
+          const streamName = (e.stream || 'stdout').toLowerCase();
+          const badgeClass = `log-badge log-badge-${streamName === 'stderr' ? 'stderr' : (streamName === 'system' ? 'system' : 'stdout')}`;
+          const tsText = e.timestamp ? new Date(e.timestamp).toLocaleTimeString() : '--';
+          return `
+            <div class="log-line">
+              <span class="log-ts">[${tsText}]</span>
+              <span class="${badgeClass}">${streamName}</span>
+              <span class="log-msg">${escapeHTML(e.message)}</span>
+            </div>
+          `;
+        }).join('');
+      } catch (err) {
+        if (viewer) viewer.innerHTML = `<div style="color: #ef4444; padding: 12px;">Error: ${escapeHTML(err.message)}</div>`;
+      }
+    }
+
     checkAuthStatus();
     setInterval(checkAuthStatus, 5000);
     pollTelemetry();
@@ -4329,6 +4963,9 @@
     setInterval(pollMeshGossip, 2500);
     pollRollingStatus();
     setInterval(pollRollingStatus, 2500);
+    pollStorageStatus();
+    setInterval(pollStorageStatus, 3000);
+    loadStorageChunks();
   </script>
 </body>
 </html>

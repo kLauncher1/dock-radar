@@ -12,6 +12,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/rolling"
+	"github.com/kLauncher1/dock-radar/internal/storage"
 	"github.com/kLauncher1/dock-radar/internal/system"
 )
 
@@ -93,11 +94,11 @@ func FormatMetricsFull(
 	return FormatMetricsAll(
 		sys, dock, ringBuffer, alertDispatcher, auditLogger,
 		meshSummary, meshNodes, healingStats, anomalySummary, anomalyPreds,
-		discStatus, gossipSummary, gossipMembers, nil, appVersion,
+		discStatus, gossipSummary, gossipMembers, nil, nil, appVersion,
 	)
 }
 
-// FormatMetricsAll serializes full system telemetry including zero-downtime rolling restart metrics.
+// FormatMetricsAll serializes full system telemetry including zero-downtime rolling restart and storage metrics.
 func FormatMetricsAll(
 	sys system.Metrics,
 	dock docker.DaemonStatus,
@@ -113,6 +114,7 @@ func FormatMetricsAll(
 	gossipSummary *mesh.GossipSummary,
 	gossipMembers []mesh.GossipMember,
 	rollingStats *rolling.RollingStats,
+	storageStatus *storage.StorageStatus,
 	appVersion string,
 ) string {
 	var b strings.Builder
@@ -438,6 +440,9 @@ func FormatMetricsAll(
 
 	// 13. Zero-Downtime Rolling Restarts & Traffic Draining
 	AppendRollingMetrics(&b, rollingStats)
+
+	// 14. Ephemeral Log Storage & S3 Offloader Telemetry
+	AppendStorageMetrics(&b, storageStatus)
 
 	return b.String()
 }
