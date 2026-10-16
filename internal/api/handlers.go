@@ -14,6 +14,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/anomaly"
 	"github.com/kLauncher1/dock-radar/internal/audit"
 	"github.com/kLauncher1/dock-radar/internal/docker"
+	"github.com/kLauncher1/dock-radar/internal/ebpf"
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
@@ -55,6 +56,7 @@ type HandlerConfig struct {
 	AnomalyDetector  *anomaly.Detector
 	RollingEngine    *rolling.Engine
 	StorageManager   *storage.Manager
+	EBPFEngine       *ebpf.Engine
 	AppVersion       string
 	TokenAuth        *security.TokenAuth
 	AllowRemote      bool
@@ -93,6 +95,7 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 
 	anomalyDetector := anomaly.NewDetector(dockerClient, alertDispatcher)
 	rollingEngine := rolling.NewEngine(dockerClient, auditLogger, alertDispatcher)
+	ebpfEngine := ebpf.NewEngine(ebpf.DefaultEBPFConfig(), dockerClient, alertDispatcher, auditLogger)
 
 	cfg := &HandlerConfig{
 		DockerClient:     dockerClient,
@@ -105,7 +108,8 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 		HealingEngine:    healingEngine,
 		AnomalyDetector:  anomalyDetector,
 		RollingEngine:    rollingEngine,
-		AppVersion:       "1.8.0",
+		EBPFEngine:       ebpfEngine,
+		AppVersion:       "2.0.0",
 		TokenAuth:        tokenAuth,
 		AllowRemote:      allowRemote,
 	}
@@ -184,6 +188,14 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	mux.HandleFunc("/api/logs/storage/flush", cfg.handleStorageFlush)
 	mux.HandleFunc("/api/logs/storage/config", cfg.handleStorageConfig)
 	mux.HandleFunc("/api/logs/storage/test", cfg.handleStorageTest)
+
+	// Adaptive Kernel eBPF Telemetry & Security Engine
+	mux.HandleFunc("/api/ebpf/status", cfg.handleEBPFStatus)
+	mux.HandleFunc("/api/ebpf/flows", cfg.handleEBPFFlows)
+	mux.HandleFunc("/api/ebpf/security/events", cfg.handleEBPFSecurityEvents)
+	mux.HandleFunc("/api/ebpf/security/rules", cfg.handleEBPFSecurityRules)
+	mux.HandleFunc("/api/ebpf/reset", cfg.handleEBPFReset)
+	mux.HandleFunc("/api/ebpf/trigger-test", cfg.handleEBPFTriggerTest)
 
 	// Embedded Static UI
 	if staticFS != nil {

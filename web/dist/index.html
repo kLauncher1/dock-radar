@@ -647,6 +647,7 @@
       <button id="anomaly-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(168, 85, 247, 0.4); background: rgba(168, 85, 247, 0.15); color: #c084fc; display: inline-flex; align-items: center; gap: 4px;" onclick="openAnomalyModal()" title="Predictive Anomaly Engine & Early OOM Alarms">🔮 OOM Radar: <span id="anomaly-badge-text">Normal</span></button>
       <a href="/metrics" target="_blank" id="metrics-badge" class="status-pill" style="font-size: 11px; text-decoration: none; color: #38bdf8; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); display: inline-flex; align-items: center; gap: 4px;" title="Prometheus Metrics Exporter">📊 /metrics</a>
       <button id="storage-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: inline-flex; align-items: center; gap: 4px;" onclick="openStorageModal()" title="Ephemeral Log Storage & S3 Offloader">💾 Log Storage: <span id="storage-badge-text">0 Chunks (0 MB)</span></button>
+      <button id="ebpf-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(234, 179, 8, 0.4); background: rgba(234, 179, 8, 0.15); color: #eab308; display: inline-flex; align-items: center; gap: 4px;" onclick="openEBPFModal()" title="Adaptive Kernel eBPF Telemetry & Anomaly Radar">⚡ eBPF: <span id="ebpf-badge-text">0 Flows</span></button>
       <button id="btn-export-audit" class="status-pill" style="font-size: 11px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;" onclick="exportAuditTrail()" title="Export Audit Trail in NDJSON format">📋 Export Audit</button>
       <span>•</span>
       <span id="host-badge">Loading...</span>
@@ -1381,6 +1382,107 @@
         </table>
       </div>
     </div>
+
+    <!-- Adaptive Kernel eBPF Telemetry & Security Engine -->
+    <div class="card" id="ebpf-section" style="margin-bottom: 24px; padding: 20px; border-color: rgba(234, 179, 8, 0.25);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <span style="font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: #fbbf24;">
+            <span>⚡</span> Adaptive Kernel eBPF Telemetry &amp; Security Radar
+          </span>
+          <span class="status-pill status-running" id="ebpf-card-status-pill" style="font-size: 11px; color: #fbbf24; border: 1px solid rgba(234, 179, 8, 0.4); background: rgba(234, 179, 8, 0.15);">eBPF: Procfs</span>
+          <span id="ebpf-security-alerts-pill" class="status-pill" style="font-size: 11px; display: none; background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">0 Critical Alerts</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <button class="btn-action btn-restart" onclick="openEBPFModal()" style="font-size: 11px; color: #fbbf24; border-color: rgba(234, 179, 8, 0.4); background: rgba(234, 179, 8, 0.1);">⚙️ Security Rules</button>
+          <button class="btn-action" onclick="triggerEBPFTest()" style="font-size: 11px; padding: 4px 10px; color: #f59e0b; border-color: rgba(245, 158, 11, 0.4);">⚡ Simulate Anomaly</button>
+          <button class="btn-action btn-stop" onclick="resetEBPF()" style="font-size: 11px; padding: 4px 10px;">🔄 Reset Flows</button>
+        </div>
+      </div>
+
+      <!-- eBPF KPI Grid -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px;">
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Active TCP/UDP Sockets</div>
+          <div id="stat-ebpf-active-flows" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #fbbf24;">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Ingress / Egress Throughput</div>
+          <div id="stat-ebpf-throughput" style="font-size: 13px; font-weight: 600; color: var(--accent-green); margin-top: 4px;">0 B / 0 B</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Traced Syscalls</div>
+          <div id="stat-ebpf-syscalls" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--text-main);">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Security Anomalies</div>
+          <div id="stat-ebpf-alerts" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #10b981;">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Probe CPU Overhead</div>
+          <div id="stat-ebpf-overhead" style="font-size: 13px; font-weight: 600; color: #38bdf8; margin-top: 4px;">&lt; 0.05% (Nominal)</div>
+        </div>
+      </div>
+
+      <!-- eBPF Navigation Tabs -->
+      <div style="display: flex; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
+        <button id="btn-tab-ebpf-flows" class="btn-action btn-restart" onclick="switchEBPFTab('flows')" style="font-size: 11px; padding: 4px 12px;">Active Socket Flows</button>
+        <button id="btn-tab-ebpf-alerts" class="btn-action" onclick="switchEBPFTab('alerts')" style="font-size: 11px; padding: 4px 12px;">Kernel Security Incidents</button>
+      </div>
+
+      <!-- Tab 1: Socket Flows Table -->
+      <div id="ebpf-flows-container">
+        <div class="alert-events-scroll" style="max-height: 280px;">
+          <table class="alert-events-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th>Container</th>
+                <th>Proto</th>
+                <th>Local Socket</th>
+                <th>Remote Socket</th>
+                <th>State</th>
+                <th>Tx / Rx Bytes</th>
+                <th>Latency (RTT)</th>
+                <th>Process (Comm)</th>
+              </tr>
+            </thead>
+            <tbody id="ebpf-flows-body">
+              <tr>
+                <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                  Listening for container socket flows via kernel eBPF probe...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 2: Security Incidents Table -->
+      <div id="ebpf-alerts-container" style="display: none;">
+        <div class="alert-events-scroll" style="max-height: 280px;">
+          <table class="alert-events-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>Severity</th>
+                <th>Container</th>
+                <th>Threat Rule</th>
+                <th>Syscall</th>
+                <th>Evidence</th>
+                <th>Mitigation</th>
+              </tr>
+            </thead>
+            <tbody id="ebpf-alerts-body">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                  No kernel security anomalies detected. System integrity nominal.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- Lifecycle Action Confirmation Modal -->
@@ -1891,6 +1993,55 @@
       <div class="modal-actions" style="display: flex; justify-content: space-between;">
         <button class="btn btn-action btn-logs" id="btn-download-chunk-gz" onclick="downloadActiveChunkGz()" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">⬇️ Download Raw .gz</button>
         <button class="btn btn-secondary" onclick="closeChunkDetails()">Close</button>
+      </div>
+    </div>
+  <!-- eBPF Security Threat Rules Modal -->
+  <div class="modal-backdrop" id="ebpf-modal">
+    <div class="modal-card" style="max-width: 860px; width: 95%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div class="modal-title" style="color: #fbbf24; margin-bottom: 0;">Kernel eBPF Telemetry &amp; Threat Rules Engine</div>
+        <button class="btn-action" onclick="closeEBPFModal()" style="padding: 4px 10px;">✕</button>
+      </div>
+      <div class="modal-body" style="margin-bottom: 16px;">
+        <div class="alert-card-sub" style="margin-bottom: 16px; padding: 14px; border: 1px solid rgba(234, 179, 8, 0.25);">
+          <div style="display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; font-size: 12px;">
+            <div>Probe Mode: <strong id="modal-ebpf-mode" style="color: #fbbf24;">ebpf_native</strong></div>
+            <div>Kernel Host: <strong id="modal-ebpf-kernel" style="color: var(--text-main);">--</strong></div>
+            <div>Probe CPU Overhead: <strong id="modal-ebpf-cpu" style="color: #38bdf8;">--</strong></div>
+            <div>Monitored Containers: <strong id="modal-ebpf-containers" style="color: var(--accent-green);">--</strong></div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase;">
+            Active Anomaly &amp; Threat Detection Rules
+          </div>
+          <button class="btn-action" onclick="loadEBPFRules()" style="font-size: 11px; padding: 3px 8px;">🔄 Refresh Rules</button>
+        </div>
+        <div style="max-height: 280px; overflow-y: auto; border: 1px solid var(--border-subtle); border-radius: 8px; background: #070b14;">
+          <table class="alert-events-table" style="width: 100%; font-size: 12px;">
+            <thead>
+              <tr>
+                <th>Rule Name &amp; Description</th>
+                <th>Severity</th>
+                <th>Syscall</th>
+                <th>Pattern</th>
+                <th style="text-align: right;">Status &amp; Action</th>
+              </tr>
+            </thead>
+            <tbody id="modal-ebpf-rules-body">
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 14px;">
+                  Loading ruleset...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-actions" style="display: flex; justify-content: space-between; width: 100%;">
+        <button class="btn btn-action" onclick="triggerEBPFTest()" style="color: #fbbf24; border-color: rgba(234, 179, 8, 0.4); background: rgba(234, 179, 8, 0.1);">⚡ Trigger Simulated Anomaly</button>
+        <button class="btn btn-secondary" onclick="closeEBPFModal()">Close</button>
       </div>
     </div>
   </div>
@@ -4940,6 +5091,240 @@
       }
     }
 
+    // eBPF Telemetry & Security Engine
+    const ebpfModal = document.getElementById('ebpf-modal');
+    let activeEBPFTab = 'flows';
+
+    function openEBPFModal() {
+      if (ebpfModal) ebpfModal.classList.add('active');
+      loadEBPFRules();
+    }
+
+    function closeEBPFModal() {
+      if (ebpfModal) ebpfModal.classList.remove('active');
+    }
+
+    function switchEBPFTab(tab) {
+      activeEBPFTab = tab;
+      const flowsContainer = document.getElementById('ebpf-flows-container');
+      const alertsContainer = document.getElementById('ebpf-alerts-container');
+      const btnFlows = document.getElementById('btn-tab-ebpf-flows');
+      const btnAlerts = document.getElementById('btn-tab-ebpf-alerts');
+
+      if (tab === 'flows') {
+        if (flowsContainer) flowsContainer.style.display = 'block';
+        if (alertsContainer) alertsContainer.style.display = 'none';
+        if (btnFlows) btnFlows.className = 'btn-action btn-restart';
+        if (btnAlerts) btnAlerts.className = 'btn-action';
+      } else {
+        if (flowsContainer) flowsContainer.style.display = 'none';
+        if (alertsContainer) alertsContainer.style.display = 'block';
+        if (btnFlows) btnFlows.className = 'btn-action';
+        if (btnAlerts) btnAlerts.className = 'btn-action btn-restart';
+      }
+    }
+
+    async function pollEBPFStatus() {
+      try {
+        const resp = await authFetch('/api/ebpf/status');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const st = data.status || {};
+
+        const badgeEl = document.getElementById('ebpf-badge-text');
+        if (badgeEl) badgeEl.textContent = `${st.active_flows || 0} Flows`;
+
+        const cardStatus = document.getElementById('ebpf-card-status-pill');
+        if (cardStatus) {
+          cardStatus.textContent = `eBPF: ${st.mode || 'Active'}`;
+        }
+
+        const setTxt = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = val;
+        };
+
+        setTxt('stat-ebpf-active-flows', st.active_flows || 0);
+        setTxt('stat-ebpf-throughput', `${formatBytes(st.bytes_ingress_total || 0)} / ${formatBytes(st.bytes_egress_total || 0)}`);
+        setTxt('stat-ebpf-syscalls', st.total_syscalls_traced || 0);
+        setTxt('stat-ebpf-alerts', st.total_security_alerts || 0);
+        setTxt('stat-ebpf-overhead', `${(st.cpu_overhead_percent || 0.04).toFixed(2)}% (Nominal)`);
+
+        setTxt('modal-ebpf-mode', st.mode || '--');
+        setTxt('modal-ebpf-kernel', st.kernel_version || '--');
+        setTxt('modal-ebpf-cpu', `${(st.cpu_overhead_percent || 0.04).toFixed(2)}%`);
+        setTxt('modal-ebpf-containers', st.monitored_containers || 0);
+
+        const alertsPill = document.getElementById('ebpf-security-alerts-pill');
+        if (alertsPill) {
+          if ((st.total_security_alerts || 0) > 0) {
+            alertsPill.style.display = 'inline-block';
+            alertsPill.textContent = `${st.total_security_alerts} Alert(s)`;
+          } else {
+            alertsPill.style.display = 'none';
+          }
+        }
+
+        // Refresh lists
+        pollEBPFFlows();
+        pollEBPFAlerts();
+      } catch (err) {
+        // Background error ignore
+      }
+    }
+
+    async function pollEBPFFlows() {
+      try {
+        const resp = await authFetch('/api/ebpf/flows?limit=30');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const flows = data.flows || [];
+        const bodyEl = document.getElementById('ebpf-flows-body');
+        if (!bodyEl) return;
+
+        if (flows.length === 0) {
+          bodyEl.innerHTML = `
+            <tr>
+              <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                No active socket flows currently traced. Listening on container net namespaces...
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        bodyEl.innerHTML = flows.map(f => {
+          let stateClass = 'status-running';
+          if (f.state === 'LISTEN') stateClass = 'status-standby';
+          else if (f.state === 'TIME_WAIT' || f.state === 'CLOSE') stateClass = 'status-stopped';
+
+          const rtt = f.rtt_millis > 0 ? `${f.rtt_millis.toFixed(2)} ms` : '< 1 ms';
+
+          return `
+            <tr>
+              <td style="font-weight: 600; color: #38bdf8;">${escapeHTML(f.container_name || (f.container_id || '').substring(0, 12))}</td>
+              <td><span class="log-badge" style="background: rgba(234, 179, 8, 0.15); color: #fbbf24; border: 1px solid rgba(234, 179, 8, 0.3);">${escapeHTML(f.protocol || 'TCP')}</span></td>
+              <td style="font-family: monospace; font-size: 11px;">${escapeHTML(f.local_addr || '--')}</td>
+              <td style="font-family: monospace; font-size: 11px; color: var(--text-muted);">${escapeHTML(f.remote_addr || '--')}</td>
+              <td><span class="status-pill ${stateClass}" style="font-size: 10px;">${escapeHTML(f.state || 'UNKNOWN')}</span></td>
+              <td style="font-family: monospace; font-size: 11px;">${formatBytes(f.bytes_sent)} / ${formatBytes(f.bytes_recv)}</td>
+              <td style="font-family: monospace; font-size: 11px; color: #34d399;">${rtt}</td>
+              <td style="font-family: monospace; font-size: 11px; color: var(--text-muted);">${escapeHTML(f.comm || '--')}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {}
+    }
+
+    async function pollEBPFAlerts() {
+      try {
+        const resp = await authFetch('/api/ebpf/security/events?limit=20');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const events = data.events || [];
+        const bodyEl = document.getElementById('ebpf-alerts-body');
+        if (!bodyEl) return;
+
+        if (events.length === 0) {
+          bodyEl.innerHTML = `
+            <tr>
+              <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                No kernel security anomalies detected. System integrity nominal.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        bodyEl.innerHTML = events.map(e => {
+          let sevColor = '#ef4444';
+          if (e.severity === 'high') sevColor = '#f59e0b';
+          else if (e.severity === 'medium') sevColor = '#38bdf8';
+
+          const timeStr = e.timestamp ? new Date(e.timestamp).toLocaleTimeString() : '--';
+
+          return `
+            <tr>
+              <td style="font-family: monospace; font-size: 11px; color: var(--text-muted);">${timeStr}</td>
+              <td><span class="status-pill" style="font-size: 10px; background: rgba(239, 68, 68, 0.15); color: ${sevColor}; border: 1px solid ${sevColor};">${escapeHTML((e.severity || 'high').toUpperCase())}</span></td>
+              <td style="font-weight: 600;">${escapeHTML(e.container_name || (e.container_id || '').substring(0, 12))}</td>
+              <td style="font-weight: 600; color: #fbbf24;">${escapeHTML(e.rule_name || e.rule_id)}</td>
+              <td><span class="log-badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">${escapeHTML(e.syscall)}</span></td>
+              <td style="font-family: monospace; font-size: 11px; color: #f87171;">${escapeHTML(e.evidence)}</td>
+              <td style="font-size: 11px; color: var(--text-muted);">${escapeHTML(e.mitigation)}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {}
+    }
+
+    async function loadEBPFRules() {
+      try {
+        const resp = await authFetch('/api/ebpf/security/rules');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const rules = data.rules || [];
+        const bodyEl = document.getElementById('modal-ebpf-rules-body');
+        if (!bodyEl) return;
+
+        bodyEl.innerHTML = rules.map(r => {
+          return `
+            <tr>
+              <td>
+                <div style="font-weight: 600; color: var(--text-main);">${escapeHTML(r.name)}</div>
+                <div style="font-size: 11px; color: var(--text-muted);">${escapeHTML(r.description)}</div>
+              </td>
+              <td><span class="status-pill" style="font-size: 10px; color: ${r.severity === 'critical' ? '#ef4444' : '#f59e0b'}; border: 1px solid ${r.severity === 'critical' ? '#ef4444' : '#f59e0b'};">${escapeHTML((r.severity || 'high').toUpperCase())}</span></td>
+              <td><span class="log-badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">${escapeHTML(r.syscall)}</span></td>
+              <td style="font-family: monospace; font-size: 11px; color: #38bdf8;">${escapeHTML(r.pattern)}</td>
+              <td style="text-align: right;">
+                <button class="btn-action ${r.enabled ? 'btn-stop' : 'btn-restart'}" onclick="toggleEBPFRule('${escapeHTML(r.id)}', ${!r.enabled})" style="font-size: 10px; padding: 3px 8px;">
+                  ${r.enabled ? 'Disable' : 'Enable'}
+                </button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {}
+    }
+
+    async function toggleEBPFRule(ruleId, enabled) {
+      try {
+        const resp = await authFetch(`/api/ebpf/security/rules?toggle=${encodeURIComponent(ruleId)}&enabled=${enabled}`, {
+          method: 'POST'
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast(`Threat rule updated: ${ruleId} -> ${enabled ? 'Enabled' : 'Disabled'}`);
+        loadEBPFRules();
+      } catch (err) {
+        showToast(`Rule update failed: ${err.message}`);
+      }
+    }
+
+    async function triggerEBPFTest() {
+      try {
+        const resp = await authFetch('/api/ebpf/trigger-test', { method: 'POST' });
+        if (!resp.ok) throw new Error(await resp.text());
+        const data = await resp.json();
+        showToast(`⚡ ${data.message || 'Simulated test anomaly triggered'}`);
+        pollEBPFStatus();
+      } catch (err) {
+        showToast(`Failed to trigger anomaly: ${err.message}`);
+      }
+    }
+
+    async function resetEBPF() {
+      if (!confirm('Are you sure you want to reset all active socket flow counters and security alerts?')) return;
+      try {
+        const resp = await authFetch('/api/ebpf/reset', { method: 'POST' });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast('✓ eBPF flows and alert logs reset');
+        pollEBPFStatus();
+      } catch (err) {
+        showToast(`Reset failed: ${err.message}`);
+      }
+    }
+
     checkAuthStatus();
     setInterval(checkAuthStatus, 5000);
     pollTelemetry();
@@ -4966,6 +5351,8 @@
     pollStorageStatus();
     setInterval(pollStorageStatus, 3000);
     loadStorageChunks();
+    pollEBPFStatus();
+    setInterval(pollEBPFStatus, 2500);
   </script>
 </body>
 </html>

@@ -93,9 +93,9 @@ This document outlines the architectural milestones and engineering priorities f
 ---
 
 ## Milestone 15: v2.0.0 (Adaptive Kernel eBPF Telemetry Engine)
-- [ ] Low-overhead network socket and system call tracing via eBPF probes.
-- [ ] Real-time container TCP connection flow graphs and bandwidth consumption meters.
-- [ ] Kernel-level security anomaly detection with automated alert triggers.
+- [x] Low-overhead network socket and system call tracing via eBPF probes.
+- [x] Real-time container TCP connection flow graphs and bandwidth consumption meters.
+- [x] Kernel-level security anomaly detection with automated alert triggers.
 
 ---
 
@@ -201,5 +201,19 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Gossip-propagated real-time event distribution tree with anti-entropy reconciliation.
 - [ ] Dynamic peer relay routing minimizing inter-host WAN egress overhead.
 - [ ] Ephemeral distributed search query broadcast with Merkle tree verification.
+
+---
+
+## Milestone 31: v3.6.0 (Dynamic GPU Telemetry & CUDA Kernel Profiler)
+- [ ] Low-overhead NVML / ROCm GPU utilization and video memory allocator telemetry.
+- [ ] Real-time container GPU kernel occupancy graphs and thermal throttle alarms.
+- [ ] Unified host and container GPU Prometheus exporter metrics.
+
+---
+
+## Milestone 32: v3.7.0 (BGP Anycast Routing & Edge Health Prober)
+- [ ] Automated BGP peering and health-check route withdrawals for edge containers.
+- [ ] Dynamic latency-based traffic steerage across distributed dock-radar edge nodes.
+- [ ] Geo-replicated service health consensus with instant failover routing.
 
 

@@ -10,7 +10,7 @@
 
 **Ultra-lightweight single-binary container & system metrics monitor with embedded real-time dark-mode web dashboard.**
 
-[![Release](https://img.shields.io/badge/Release-v1.9.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
+[![Release](https://img.shields.io/badge/Release-v2.0.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg?style=flat&logo=go)](https://golang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6%2B-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
@@ -27,6 +27,7 @@
 
 - **Single Executable Deployment**: The web dashboard is baked directly into the Go binary via `//go:embed`. No Node.js runtime, external assets, or separate frontend servers needed.
 - **Ultra-Low Memory Footprint**: Runs persistently under **15 MB of RAM** with bounded circular ring buffers, making it ideal for low-spec VPS, Raspberry Pi, and homelab environments.
+- **Adaptive Kernel eBPF Telemetry & Behavioral Security Engine**: Pure standard-library socket flow tracker and Linux `/proc/net/tcp` inspector measuring real-time TCP/UDP socket connections, byte throughput, and round-trip latency. Built-in behavioral security engine monitors container system calls with automated detection rules for unexpected shell execution (`execve`), privilege escalation (`setuid`), memory inspection (`ptrace`), sensitive host credential access (`/etc/shadow`), Docker socket abuse, and outbound mining connections, paired with a live visual flow monitor and incident mitigation feed.
 - **Distributed Ephemeral Log Storage & S3 Offloader**: Compresses in-memory container logs into gzip (`.gz`) chunks with cryptographic SHA-256 integrity checksums and atomic disk writing. Background asynchronous offloader streams chunk archives to S3-compatible cloud object storage (AWS S3, MinIO, Cloudflare R2) using a zero-dependency pure standard-library AWS SigV4 signer. Includes local disk capacity caps, age-based rotation, offload-priority retention pruning, and dedicated chunk explorer table with direct gzip download.
 - **Zero-Downtime Rolling Restarts & Traffic Draining**: Orchestrates staggered sequential container restarts across replicas, Compose stacks, or label groups. Incorporates graceful in-flight traffic draining with configurable timeouts and reverse proxy webhook notification, multi-stage container readiness probing (Docker state, container healthcheck, HTTP `/healthz` endpoints, readiness grace windows), and automated rollback abort triggers preventing downtime during cascading failures.
 - **Dynamic Multi-Node Cluster Mesh & Gossip Discovery**: Zero-configuration LAN UDP broadcast auto-discovery (port 9085) paired with a lightweight SWIM-based gossip protocol. Features direct randomized ping/ack, indirect helper pings ($k=3$), suspicion watchdog timers, incarnation refutation, and decentralized cluster health consensus with dedicated multi-host cards in the web dashboard.

@@ -8,6 +8,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/anomaly"
 	"github.com/kLauncher1/dock-radar/internal/audit"
 	"github.com/kLauncher1/dock-radar/internal/docker"
+	"github.com/kLauncher1/dock-radar/internal/ebpf"
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
@@ -94,11 +95,11 @@ func FormatMetricsFull(
 	return FormatMetricsAll(
 		sys, dock, ringBuffer, alertDispatcher, auditLogger,
 		meshSummary, meshNodes, healingStats, anomalySummary, anomalyPreds,
-		discStatus, gossipSummary, gossipMembers, nil, nil, appVersion,
+		discStatus, gossipSummary, gossipMembers, nil, nil, nil, appVersion,
 	)
 }
 
-// FormatMetricsAll serializes full system telemetry including zero-downtime rolling restart and storage metrics.
+// FormatMetricsAll serializes full system telemetry including zero-downtime rolling restart, storage, and eBPF metrics.
 func FormatMetricsAll(
 	sys system.Metrics,
 	dock docker.DaemonStatus,
@@ -115,6 +116,7 @@ func FormatMetricsAll(
 	gossipMembers []mesh.GossipMember,
 	rollingStats *rolling.RollingStats,
 	storageStatus *storage.StorageStatus,
+	ebpfStatus *ebpf.EBPFStatus,
 	appVersion string,
 ) string {
 	var b strings.Builder
@@ -443,6 +445,11 @@ func FormatMetricsAll(
 
 	// 14. Ephemeral Log Storage & S3 Offloader Telemetry
 	AppendStorageMetrics(&b, storageStatus)
+
+	// 15. Adaptive Kernel eBPF Telemetry & Security Engine
+	if ebpfStatus != nil {
+		AppendEBPFMetrics(&b, *ebpfStatus)
+	}
 
 	return b.String()
 }

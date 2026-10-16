@@ -5,6 +5,7 @@ import (
 
 	"github.com/kLauncher1/dock-radar/internal/anomaly"
 	"github.com/kLauncher1/dock-radar/internal/docker"
+	"github.com/kLauncher1/dock-radar/internal/ebpf"
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/metrics"
@@ -86,6 +87,12 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		storageStatus = &st
 	}
 
+	var ebpfStatus *ebpf.EBPFStatus
+	if h.EBPFEngine != nil {
+		st := h.EBPFEngine.Status()
+		ebpfStatus = &st
+	}
+
 	text := metrics.FormatMetricsAll(
 		sysMetrics,
 		dockerStatus,
@@ -102,6 +109,7 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		gossipMembers,
 		rollingStats,
 		storageStatus,
+		ebpfStatus,
 		version,
 	)
 
