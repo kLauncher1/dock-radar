@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-10-16
+
+### Added
+- Adaptive Kernel eBPF Telemetry & Behavioral Security Engine (`internal/ebpf/`):
+  - Pure standard-library socket connection flow tracker tracing active TCP/UDP sockets, connection states (ESTABLISHED, LISTEN, TIME_WAIT), throughput counters, and estimated RTT latency (`internal/ebpf/flow.go`, `internal/ebpf/flow_test.go`).
+  - Native Linux `/proc/net/tcp` and `/proc/net/tcp6` little-endian hex address and socket table decoder with container network namespace PID correlation and portable fallback engine for non-Linux hosts (`internal/ebpf/probe.go`, `internal/ebpf/probe_test.go`).
+  - Behavioral system call and container anomaly detection engine with built-in threat rules: interactive shell execution (`execve`), privilege escalation (`setuid`), ptrace injection, sensitive credential access (`/etc/shadow`), Docker socket mount abuse, and suspicious cryptominer outbound connections (`internal/ebpf/security.go`, `internal/ebpf/security_test.go`).
+  - Central eBPF Engine orchestrating adaptive sampling backpressure, thread-safe configuration updates, container discovery correlation, and alert webhook dispatch (`internal/ebpf/engine.go`, `internal/ebpf/engine_test.go`).
+- eBPF & Kernel Security REST APIs (`internal/api/ebpf.go`, `internal/api/ebpf_test.go`):
+  - `GET /api/ebpf/status`: Returns probe mode, host kernel information, active flows, and probe CPU overhead percentage (requires `RoleViewer`).
+  - `GET /api/ebpf/flows`: Queries tracked container socket flows with filtering by container ID, state, protocol, and result limits (requires `RoleViewer`).
+  - `GET /api/ebpf/security/events`: Lists recent container security anomaly alerts with severity and container filters (requires `RoleViewer`).
+  - `GET /api/ebpf/security/rules`: Returns active threat detection rules and patterns (requires `RoleViewer`).
+  - `POST /api/ebpf/security/rules`: Updates security ruleset or toggles individual rules via quick toggle queries (requires `RoleAdmin`).
+  - `POST /api/ebpf/reset`: Resets active socket flows and security anomaly history (requires `RoleAdmin`).
+  - `POST /api/ebpf/trigger-test`: Simulates test anomaly events to verify notification pathways and UI reaction (requires `RoleAdmin`).
+- Prometheus Metrics Exporter Extension (`internal/metrics/ebpf.go`, `internal/metrics/prometheus.go`):
+  - Exposes `dock_radar_ebpf_flows_active`, `dock_radar_ebpf_flows_total`, `dock_radar_ebpf_bytes_ingress_total`, `dock_radar_ebpf_bytes_egress_total`, `dock_radar_ebpf_security_alerts_total`, `dock_radar_ebpf_syscalls_traced_total`, `dock_radar_ebpf_cpu_overhead_percent`, and `dock_radar_ebpf_probe_active` metrics for Grafana monitoring.
+- Embedded Dark-Mode Dashboard Glassmorphism UI (`web/dist/index.html`):
+  - Header eBPF status pill (`⚡ eBPF: X Flows`) with direct launcher to rules configuration modal.
+  - Dedicated Kernel eBPF Telemetry card with live KPI metrics (Active Sockets, Bandwidth Throughput, Traced Syscalls, Security Anomalies, CPU Overhead).
+  - Tabbed interface switching between real-time socket connection flows table and security incident feed with mitigation guidance.
+  - Threat Rules & Probe Configuration Modal (`#ebpf-modal`) enabling one-click rule toggling, probe status inspection, and simulated test anomaly triggers.
+- Command-Line Flags & Environment Variables (`main.go`):
+  - Added `--ebpf`, `--ebpf-mode`, and `--ebpf-interval` with matching environment variable bindings (`DOCK_RADAR_EBPF_ENABLED`, `DOCK_RADAR_EBPF_MODE`, `DOCK_RADAR_EBPF_INTERVAL`).
+
 ## [1.9.0] - 2026-10-16
 
 ### Added

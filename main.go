@@ -16,6 +16,7 @@ import (
 
 	"github.com/kLauncher1/dock-radar/internal/api"
 	"github.com/kLauncher1/dock-radar/internal/docker"
+	"github.com/kLauncher1/dock-radar/internal/ebpf"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/security"
 	"github.com/kLauncher1/dock-radar/internal/storage"
@@ -24,7 +25,7 @@ import (
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "1.9.0"
+const AppVersion = "2.0.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -46,6 +47,9 @@ func main() {
 	s3SecretKeyFlag := flag.String("s3-secret-key", "", "S3 secret access key (env: DOCK_RADAR_S3_SECRET_KEY)")
 	s3PrefixFlag := flag.String("s3-prefix", "dock-radar/logs", "S3 object key prefix (env: DOCK_RADAR_S3_PREFIX, default: dock-radar/logs)")
 	logStorageDirFlag := flag.String("log-storage-dir", filepath.Join("data", "logs"), "Local ephemeral log chunk storage directory (env: DOCK_RADAR_LOG_STORAGE_DIR)")
+	ebpfEnabledFlag := flag.Bool("ebpf", true, "Enable kernel eBPF & socket telemetry engine (env: DOCK_RADAR_EBPF_ENABLED)")
+	ebpfModeFlag := flag.String("ebpf-mode", "", "Probe mode override (ebpf_native, procfs_socket, synthetic_trace; env: DOCK_RADAR_EBPF_MODE)")
+	ebpfIntervalFlag := flag.Duration("ebpf-interval", 2*time.Second, "eBPF socket sampling interval (env: DOCK_RADAR_EBPF_INTERVAL)")
 	versionFlag := flag.Bool("version", false, "Print dock-radar version and exit")
 	flag.Parse()
 
@@ -196,6 +200,40 @@ func main() {
 		go handlerCfg.AnomalyDetector.Start(anomalyCtx, 5*time.Second)
 	}
 
+	// Launch adaptive kernel eBPF & socket telemetry loop
+	if handlerCfg != nil && handlerCfg.EBPFEngine != nil {
+		ebpfEnabled := *ebpfEnabledFlag
+		if envEnabled := os.Getenv("DOCK_RADAR_EBPF_ENABLED"); envEnabled != "" {
+			ebpfEnabled = strings.EqualFold(envEnabled, "true") || envEnabled == "1"
+		}
+		ebpfMode := *ebpfModeFlag
+		if envMode := os.Getenv("DOCK_RADAR_EBPF_MODE"); envMode != "" {
+			ebpfMode = envMode
+		}
+		ebpfInterval := *ebpfIntervalFlag
+		if envInterval := os.Getenv("DOCK_RADAR_EBPF_INTERVAL"); envInterval != "" {
+			if d, err := time.ParseDuration(envInterval); err == nil && d > 0 {
+				ebpfInterval = d
+			}
+		}
+
+		curCfg := handlerCfg.EBPFEngine.GetConfig()
+		curCfg.Enabled = ebpfEnabled
+		if ebpfMode != "" {
+			curCfg.Mode = ebpf.ProbeMode(ebpfMode)
+		}
+		if ebpfInterval.Seconds() >= 1 {
+			curCfg.SamplingIntervalSec = int(ebpfInterval.Seconds())
+		}
+		_ = handlerCfg.EBPFEngine.UpdateConfig(curCfg)
+
+		if ebpfEnabled {
+			ebpfCtx, ebpfCancel := context.WithCancel(context.Background())
+			defer ebpfCancel()
+			go handlerCfg.EBPFEngine.Start(ebpfCtx)
+		}
+	}
+
 	scheme := "http"
 	tlsStatus := "Inactive (Plain HTTP)"
 
@@ -326,6 +364,14 @@ func main() {
 		storageStatusDesc = fmt.Sprintf("Active (%s/%s) · Local: %s", s3Endpoint, s3Bucket, logStorageDir)
 	}
 
+	ebpfStatusDesc := "Disabled"
+	if handlerCfg != nil && handlerCfg.EBPFEngine != nil {
+		st := handlerCfg.EBPFEngine.Status()
+		if st.Enabled {
+			ebpfStatusDesc = fmt.Sprintf("Active (%s · %s)", st.Mode, st.KernelVersion)
+		}
+	}
+
 	fmt.Println("=========================================================")
 	fmt.Printf(" 🚀 Dock-Radar v%s · Single-Binary Container & System Monitor\n", AppVersion)
 	fmt.Printf(" 📡 Web Dashboard Live at %s://localhost:%s\n", scheme, port)
@@ -339,6 +385,7 @@ func main() {
 	fmt.Printf(" 🔮 Anomaly Radar      : Predictive OOM Regression & Early Warning Active\n")
 	fmt.Printf(" 🔄 Rolling Restarts   : Zero-Downtime Traffic Draining & Readiness Engine Active\n")
 	fmt.Printf(" 💾 Log Storage        : %s\n", storageStatusDesc)
+	fmt.Printf(" ⚡ Kernel eBPF        : %s\n", ebpfStatusDesc)
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")
 	fmt.Println("=========================================================")
 

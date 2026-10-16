@@ -9,6 +9,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/anomaly"
 	"github.com/kLauncher1/dock-radar/internal/audit"
 	"github.com/kLauncher1/dock-radar/internal/docker"
+	"github.com/kLauncher1/dock-radar/internal/ebpf"
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
@@ -434,7 +435,7 @@ func TestFormatMetrics_RollingRestarts(t *testing.T) {
 		TotalRollbacks:           1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, rollingStats, nil, "1.8.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, rollingStats, nil, nil, "1.8.0")
 
 	expectedMetrics := []string{
 		"dock_radar_rolling_operations_total 5",
@@ -464,7 +465,7 @@ func TestFormatMetrics_Storage(t *testing.T) {
 		S3Enabled:       true,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, storageStatus, "1.9.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, storageStatus, nil, "1.9.0")
 
 	expectedMetrics := []string{
 		"dock_radar_log_storage_chunks_total 20",
@@ -473,6 +474,42 @@ func TestFormatMetrics_Storage(t *testing.T) {
 		"dock_radar_log_storage_offload_failed_total 1",
 		"dock_radar_log_storage_queue_depth 1",
 		"dock_radar_log_storage_s3_enabled 1",
+	}
+
+	for _, m := range expectedMetrics {
+		if !strings.Contains(output, m) {
+			t.Errorf("expected output to contain %q, but was missing:\n%s", m, output)
+		}
+	}
+}
+
+func TestFormatMetrics_EBPF(t *testing.T) {
+	sys := system.Metrics{OS: "linux", Arch: "amd64", Hostname: "node-ebpf"}
+	dock := docker.DaemonStatus{Available: true}
+
+	ebpfStatus := &ebpf.EBPFStatus{
+		Enabled:             true,
+		Mode:                ebpf.ProbeModeNative,
+		ActiveFlows:         15,
+		TotalFlowsTracked:   64,
+		BytesIngressTotal:   204800,
+		BytesEgressTotal:    102400,
+		TotalSecurityAlerts: 2,
+		TotalSyscallsTraced: 512,
+		CPUOverheadPercent:  0.04,
+	}
+
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, ebpfStatus, "2.0.0")
+
+	expectedMetrics := []string{
+		"dock_radar_ebpf_flows_active 15",
+		"dock_radar_ebpf_flows_total 64",
+		"dock_radar_ebpf_bytes_ingress_total 204800",
+		"dock_radar_ebpf_bytes_egress_total 102400",
+		"dock_radar_ebpf_security_alerts_total 2",
+		"dock_radar_ebpf_syscalls_traced_total 512",
+		"dock_radar_ebpf_cpu_overhead_percent 0.0400",
+		`dock_radar_ebpf_probe_active{mode="ebpf_native"} 1`,
 	}
 
 	for _, m := range expectedMetrics {
