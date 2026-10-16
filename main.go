@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -17,12 +18,13 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/security"
+	"github.com/kLauncher1/dock-radar/internal/storage"
 )
 
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "1.8.0"
+const AppVersion = "1.9.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -37,6 +39,13 @@ func main() {
 	meshDiscoveryFlag := flag.Bool("mesh-discovery", true, "Enable LAN UDP peer auto-discovery (env: DOCK_RADAR_MESH_DISCOVERY)")
 	meshPortFlag := flag.Int("mesh-port", 9085, "UDP port for LAN peer auto-discovery (env: DOCK_RADAR_MESH_PORT)")
 	gossipIntervalFlag := flag.Duration("gossip-interval", 2*time.Second, "SWIM gossip failure detection interval (env: DOCK_RADAR_GOSSIP_INTERVAL)")
+	s3EndpointFlag := flag.String("s3-endpoint", "", "S3-compatible endpoint URL (env: DOCK_RADAR_S3_ENDPOINT)")
+	s3BucketFlag := flag.String("s3-bucket", "", "S3 target bucket name for log archiving (env: DOCK_RADAR_S3_BUCKET)")
+	s3RegionFlag := flag.String("s3-region", "us-east-1", "S3 region (env: DOCK_RADAR_S3_REGION, default: us-east-1)")
+	s3AccessKeyFlag := flag.String("s3-access-key", "", "S3 access key ID (env: DOCK_RADAR_S3_ACCESS_KEY)")
+	s3SecretKeyFlag := flag.String("s3-secret-key", "", "S3 secret access key (env: DOCK_RADAR_S3_SECRET_KEY)")
+	s3PrefixFlag := flag.String("s3-prefix", "dock-radar/logs", "S3 object key prefix (env: DOCK_RADAR_S3_PREFIX, default: dock-radar/logs)")
+	logStorageDirFlag := flag.String("log-storage-dir", filepath.Join("data", "logs"), "Local ephemeral log chunk storage directory (env: DOCK_RADAR_LOG_STORAGE_DIR)")
 	versionFlag := flag.Bool("version", false, "Print dock-radar version and exit")
 	flag.Parse()
 
@@ -104,10 +113,66 @@ func main() {
 
 	tokenAuth := security.NewTokenAuth(adminToken, viewerToken, allowRemote)
 
+	s3Endpoint := *s3EndpointFlag
+	if s3Endpoint == "" {
+		s3Endpoint = os.Getenv("DOCK_RADAR_S3_ENDPOINT")
+	}
+	s3Bucket := *s3BucketFlag
+	if s3Bucket == "" {
+		s3Bucket = os.Getenv("DOCK_RADAR_S3_BUCKET")
+	}
+	s3Region := *s3RegionFlag
+	if envRegion := os.Getenv("DOCK_RADAR_S3_REGION"); envRegion != "" {
+		s3Region = envRegion
+	}
+	s3AccessKey := *s3AccessKeyFlag
+	if s3AccessKey == "" {
+		s3AccessKey = os.Getenv("DOCK_RADAR_S3_ACCESS_KEY")
+	}
+	s3SecretKey := *s3SecretKeyFlag
+	if s3SecretKey == "" {
+		s3SecretKey = os.Getenv("DOCK_RADAR_S3_SECRET_KEY")
+	}
+	s3Prefix := *s3PrefixFlag
+	if envPrefix := os.Getenv("DOCK_RADAR_S3_PREFIX"); envPrefix != "" {
+		s3Prefix = envPrefix
+	}
+	logStorageDir := *logStorageDirFlag
+	if envStorageDir := os.Getenv("DOCK_RADAR_LOG_STORAGE_DIR"); envStorageDir != "" {
+		logStorageDir = envStorageDir
+	}
+
+	s3Cfg := storage.S3Config{
+		Endpoint:       s3Endpoint,
+		Region:         s3Region,
+		Bucket:         s3Bucket,
+		Prefix:         s3Prefix,
+		AccessKey:      s3AccessKey,
+		SecretKey:      s3SecretKey,
+		StorageClass:   "STANDARD",
+		ForcePathStyle: true,
+	}
+	retCfg := storage.DefaultRetentionConfig()
+
+	storageMgr, err := storage.NewManager(logStorageDir, s3Cfg, retCfg)
+	if err != nil {
+		log.Printf("Warning: failed to initialize log storage manager: %v", err)
+	}
+
 	mux := http.NewServeMux()
 	handlerCfg := api.RegisterRoutesWithSecurity(mux, dockerClient, subFS, tokenAuth, allowRemote)
 	if handlerCfg != nil {
 		handlerCfg.AppVersion = AppVersion
+		if storageMgr != nil {
+			handlerCfg.StorageManager = storageMgr
+		}
+	}
+
+	// Launch background log storage and retention loop
+	if storageMgr != nil {
+		storageCtx, storageCancel := context.WithCancel(context.Background())
+		defer storageCancel()
+		storageMgr.Start(storageCtx)
 	}
 
 	// Launch background alert monitoring loop (10s interval)
@@ -256,6 +321,11 @@ func main() {
 		authStatus = fmt.Sprintf("Bearer Token RBAC Active (%s)", strings.Join(parts, ", "))
 	}
 
+	storageStatusDesc := fmt.Sprintf("Ephemeral Local (%s) · S3 Standby", logStorageDir)
+	if s3Cfg.IsEnabled() {
+		storageStatusDesc = fmt.Sprintf("Active (%s/%s) · Local: %s", s3Endpoint, s3Bucket, logStorageDir)
+	}
+
 	fmt.Println("=========================================================")
 	fmt.Printf(" 🚀 Dock-Radar v%s · Single-Binary Container & System Monitor\n", AppVersion)
 	fmt.Printf(" 📡 Web Dashboard Live at %s://localhost:%s\n", scheme, port)
@@ -268,6 +338,7 @@ func main() {
 	fmt.Printf(" 🛡️ Self-Healing       : Autonomous Policy & Remediation Engine Active\n")
 	fmt.Printf(" 🔮 Anomaly Radar      : Predictive OOM Regression & Early Warning Active\n")
 	fmt.Printf(" 🔄 Rolling Restarts   : Zero-Downtime Traffic Draining & Readiness Engine Active\n")
+	fmt.Printf(" 💾 Log Storage        : %s\n", storageStatusDesc)
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")
 	fmt.Println("=========================================================")
 

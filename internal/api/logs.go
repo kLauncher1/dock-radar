@@ -67,6 +67,9 @@ func (h *HandlerConfig) handleContainerLogs(w http.ResponseWriter, r *http.Reque
 				}
 				entries = append(entries, entry)
 				h.LogBuffer.Append(entry)
+				if h.StorageManager != nil {
+					h.StorageManager.Ingest(entry)
+				}
 			}
 		}
 	}
@@ -134,6 +137,9 @@ func (h *HandlerConfig) streamLogsWebSocket(w http.ResponseWriter, r *http.Reque
 					Message:   msg.Message,
 				}
 				h.LogBuffer.Append(entry)
+				if h.StorageManager != nil {
+					h.StorageManager.Ingest(entry)
+				}
 				if streamFilter == "" || streamFilter == "all" || strings.EqualFold(entry.Stream, streamFilter) {
 					data, _ := json.Marshal(entry)
 					if err := ws.WriteTextMessage(data); err != nil {
@@ -159,6 +165,9 @@ func (h *HandlerConfig) streamLogsWebSocket(w http.ResponseWriter, r *http.Reque
 					Message:   fmt.Sprintf("Dock-Radar telemetry heartbeat (Goroutines: %d)", runtime.NumGoroutine()),
 				}
 				h.LogBuffer.Append(entry)
+				if h.StorageManager != nil {
+					h.StorageManager.Ingest(entry)
+				}
 				if streamFilter == "" || streamFilter == "all" || streamFilter == "system" {
 					data, _ := json.Marshal(entry)
 					if err := ws.WriteTextMessage(data); err != nil {

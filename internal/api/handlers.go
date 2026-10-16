@@ -19,6 +19,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/rolling"
 	"github.com/kLauncher1/dock-radar/internal/security"
+	"github.com/kLauncher1/dock-radar/internal/storage"
 	"github.com/kLauncher1/dock-radar/internal/system"
 )
 
@@ -53,6 +54,7 @@ type HandlerConfig struct {
 	HealingEngine    *healing.RemediationEngine
 	AnomalyDetector  *anomaly.Detector
 	RollingEngine    *rolling.Engine
+	StorageManager   *storage.Manager
 	AppVersion       string
 	TokenAuth        *security.TokenAuth
 	AllowRemote      bool
@@ -174,6 +176,14 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	mux.HandleFunc("/api/rolling/status", cfg.handleRollingStatus)
 	mux.HandleFunc("/api/rolling/operations", cfg.handleRollingOperations)
 	mux.HandleFunc("/api/rolling/abort", cfg.handleRollingAbort)
+
+	// Distributed Ephemeral Log Storage & S3 Offloader
+	mux.HandleFunc("/api/logs/storage/status", cfg.handleStorageStatus)
+	mux.HandleFunc("/api/logs/storage/chunks", cfg.handleStorageChunks)
+	mux.HandleFunc("/api/logs/storage/chunk", cfg.handleStorageChunk)
+	mux.HandleFunc("/api/logs/storage/flush", cfg.handleStorageFlush)
+	mux.HandleFunc("/api/logs/storage/config", cfg.handleStorageConfig)
+	mux.HandleFunc("/api/logs/storage/test", cfg.handleStorageTest)
 
 	// Embedded Static UI
 	if staticFS != nil {

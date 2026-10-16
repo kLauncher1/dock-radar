@@ -13,6 +13,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/rolling"
+	"github.com/kLauncher1/dock-radar/internal/storage"
 	"github.com/kLauncher1/dock-radar/internal/system"
 )
 
@@ -433,7 +434,7 @@ func TestFormatMetrics_RollingRestarts(t *testing.T) {
 		TotalRollbacks:           1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, rollingStats, "1.8.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, rollingStats, nil, "1.8.0")
 
 	expectedMetrics := []string{
 		"dock_radar_rolling_operations_total 5",
@@ -441,6 +442,37 @@ func TestFormatMetrics_RollingRestarts(t *testing.T) {
 		"dock_radar_rolling_containers_restarted_total 14",
 		"dock_radar_rolling_containers_failed_total 1",
 		"dock_radar_rolling_rollbacks_total 1",
+	}
+
+	for _, m := range expectedMetrics {
+		if !strings.Contains(output, m) {
+			t.Errorf("expected output to contain %q, but was missing:\n%s", m, output)
+		}
+	}
+}
+
+func TestFormatMetrics_Storage(t *testing.T) {
+	sys := system.Metrics{OS: "linux", Arch: "amd64", Hostname: "node-storage"}
+	dock := docker.DaemonStatus{Available: true}
+
+	storageStatus := &storage.StorageStatus{
+		TotalChunks:     20,
+		LocalDiskBytes:  512000,
+		OffloadedChunks: 18,
+		FailedChunks:    1,
+		QueueDepth:      1,
+		S3Enabled:       true,
+	}
+
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, storageStatus, "1.9.0")
+
+	expectedMetrics := []string{
+		"dock_radar_log_storage_chunks_total 20",
+		"dock_radar_log_storage_disk_bytes 512000",
+		"dock_radar_log_storage_offloaded_total 18",
+		"dock_radar_log_storage_offload_failed_total 1",
+		"dock_radar_log_storage_queue_depth 1",
+		"dock_radar_log_storage_s3_enabled 1",
 	}
 
 	for _, m := range expectedMetrics {

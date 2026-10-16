@@ -5,6 +5,35 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-10-16
+
+### Added
+- Distributed Ephemeral Log Storage & S3 Offloader Engine (`internal/storage/`):
+  - Pure standard-library Gzip log chunker with cryptographic SHA-256 integrity verification and atomic temporary file disk writes (`internal/storage/chunker.go`, `internal/storage/chunker_test.go`).
+  - Zero-dependency AWS Signature Version 4 (SigV4) request signer implementing HMAC-SHA256 canonical request, string-to-sign, and derived credential signing (`internal/storage/sigv4.go`, `internal/storage/sigv4_test.go`).
+  - Native S3Client supporting AWS S3, MinIO, and Cloudflare R2 with automatic path-style vs virtual-host addressing, HeadBucket probing, and PutObject/DeleteObject operations (`internal/storage/s3_client.go`, `internal/storage/s3_client_test.go`).
+  - Ephemeral local disk retention engine enforcing age expiration, max chunk counts, max disk byte quotas, and offload-priority pruning (`internal/storage/retention.go`, `internal/storage/retention_test.go`).
+  - Asynchronous S3 offload worker queue with exponential backoff retries, status tracking, and graceful fallback when cloud storage is unconfigured (`internal/storage/offloader.go`, `internal/storage/offloader_test.go`).
+  - Central StorageManager orchestrating in-memory ring buffer ingestion, scheduled chunk flushing, query indexing, and runtime config updates (`internal/storage/manager.go`, `internal/storage/manager_test.go`).
+- Log Storage REST APIs (`internal/api/storage.go`, `internal/api/storage_test.go`):
+  - `GET /api/logs/storage/status`: Returns chunk inventory, disk usage, queue depth, and S3 status (requires `RoleViewer`).
+  - `GET /api/logs/storage/chunks`: Returns paginated and filtered chunk records (`?container=`, `?stream=`, `?s3_status=`, `?limit=`, `?offset=`).
+  - `GET /api/logs/storage/chunk`: Retrieves individual chunk metadata, unpacked log entries (`?entries=true`), or downloads raw `.gz` archives (`?download=true`).
+  - `POST /api/logs/storage/flush`: Immediately flushes active memory buffers to disk chunks and enqueues to S3 (requires `RoleAdmin`).
+  - `GET /api/logs/storage/config`: Returns active retention rules and masked S3 credentials (requires `RoleViewer`).
+  - `POST /api/logs/storage/config`: Updates S3 credentials and retention limits dynamically with validation (requires `RoleAdmin`).
+  - `POST /api/logs/storage/test`: Probes S3 connectivity and bucket access on demand (requires `RoleAdmin`).
+- Prometheus Metrics Exporter Extension (`internal/metrics/storage.go`, `internal/metrics/prometheus.go`):
+  - Exposes `dock_radar_log_storage_chunks_total`, `dock_radar_log_storage_disk_bytes`, `dock_radar_log_storage_offloaded_total`, `dock_radar_log_storage_offload_failed_total`, `dock_radar_log_storage_queue_depth`, and `dock_radar_log_storage_s3_enabled` gauges for Grafana telemetry.
+- Embedded Dark-Mode Dashboard Glassmorphism UI (`web/dist/index.html`):
+  - Header Log Storage status pill (`💾 Log Storage: X Chunks (Y MB)`) with one-click settings launcher.
+  - Storage & S3 Offloader card featuring summary KPI counters, S3 target state, and manual buffer flush action.
+  - Interactive Chunk Explorer table with container/stream/status filtering, compression ratios, time spans, and direct `.gz` downloads.
+  - Storage & S3 Configuration Modal (`#storage-modal`) with live S3 connection testing and credential management.
+  - Chunk Metadata & Log Record Inspector Modal (`#chunk-details-modal`) displaying SHA-256 checksums, cloud keys, and unpacked log lines.
+- Command-Line Flags & Environment Variables (`main.go`):
+  - `--s3-endpoint`, `--s3-bucket`, `--s3-region`, `--s3-access-key`, `--s3-secret-key`, `--s3-prefix`, and `--log-storage-dir`.
+
 ## [1.8.0] - 2026-10-15
 
 ### Added
