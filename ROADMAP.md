@@ -100,9 +100,9 @@ This document outlines the architectural milestones and engineering priorities f
 ---
 
 ## Milestone 16: v2.1.0 (Multi-Region Edge Peer Federation & WAN Sync)
-- [ ] Edge mesh federation with encrypted overlay tunnels for cross-region node synchronization.
-- [ ] Low-bandwidth delta sync protocol optimized for high-latency WAN connections.
-- [ ] Geo-distributed container inventory routing with failover policy triggers.
+- [x] Edge mesh federation with encrypted overlay tunnels for cross-region node synchronization.
+- [x] Low-bandwidth delta sync protocol optimized for high-latency WAN connections.
+- [x] Geo-distributed container inventory routing with failover policy triggers.
 
 ---
 
@@ -215,5 +215,20 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Automated BGP peering and health-check route withdrawals for edge containers.
 - [ ] Dynamic latency-based traffic steerage across distributed dock-radar edge nodes.
 - [ ] Geo-replicated service health consensus with instant failover routing.
+
+---
+
+## Milestone 33: v3.8.0 (Distributed WebAssembly Plugin Runtime & Envoy Filter Extension)
+- [ ] Dynamic Wasm filter execution sandbox for custom telemetry transformations and header mutations.
+- [ ] In-memory V8/Wasmtime-compatible plugin loader with zero host CPU impact.
+- [ ] Hot-reloadable telemetry interceptor scripts distributed across federation edge nodes.
+
+---
+
+## Milestone 34: v3.9.0 (Autonomous Zero-Trust Identity Federation & mTLS SPIFFE/SPIRE Attestation)
+- [ ] Pure standard-library X.509 SVID issuing and dynamic certificate renewal daemon.
+- [ ] Container workload attestation based on cgroups, mount namespaces, and binary hash signatures.
+- [ ] Automated mTLS mutual authentication handshake across cross-region edge peer tunnels.
+
 
 

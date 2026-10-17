@@ -10,6 +10,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/audit"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/ebpf"
+	"github.com/kLauncher1/dock-radar/internal/federation"
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
@@ -435,7 +436,7 @@ func TestFormatMetrics_RollingRestarts(t *testing.T) {
 		TotalRollbacks:           1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, rollingStats, nil, nil, "1.8.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, rollingStats, nil, nil, nil, "1.8.0")
 
 	expectedMetrics := []string{
 		"dock_radar_rolling_operations_total 5",
@@ -465,7 +466,7 @@ func TestFormatMetrics_Storage(t *testing.T) {
 		S3Enabled:       true,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, storageStatus, nil, "1.9.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, storageStatus, nil, nil, "1.9.0")
 
 	expectedMetrics := []string{
 		"dock_radar_log_storage_chunks_total 20",
@@ -499,7 +500,7 @@ func TestFormatMetrics_EBPF(t *testing.T) {
 		CPUOverheadPercent:  0.04,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, ebpfStatus, "2.0.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, ebpfStatus, nil, "2.0.0")
 
 	expectedMetrics := []string{
 		"dock_radar_ebpf_flows_active 15",
@@ -510,6 +511,40 @@ func TestFormatMetrics_EBPF(t *testing.T) {
 		"dock_radar_ebpf_syscalls_traced_total 512",
 		"dock_radar_ebpf_cpu_overhead_percent 0.0400",
 		`dock_radar_ebpf_probe_active{mode="ebpf_native"} 1`,
+	}
+
+	for _, m := range expectedMetrics {
+		if !strings.Contains(output, m) {
+			t.Errorf("expected output to contain %q, but was missing:\n%s", m, output)
+		}
+	}
+}
+
+func TestFormatMetrics_Federation(t *testing.T) {
+	sys := system.Metrics{OS: "linux", Arch: "amd64", Hostname: "node-fed"}
+	dock := docker.DaemonStatus{Available: true}
+
+	fedStatus := &federation.FederationStatus{
+		Enabled:         true,
+		LocalRegionID:   "ap-northeast-2",
+		TotalRegions:    3,
+		HealthyRegions:  2,
+		ActiveTunnels:   2,
+		TotalSyncBytes:  8192,
+		TotalSavedBytes: 24576,
+		FailoverCount:   1,
+	}
+
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fedStatus, "2.1.0")
+
+	expectedMetrics := []string{
+		"dock_radar_federation_regions_total 3",
+		"dock_radar_federation_regions_healthy 2",
+		"dock_radar_federation_tunnels_active 2",
+		"dock_radar_federation_wan_sync_bytes_total 8192",
+		"dock_radar_federation_wan_sync_saved_bytes_total 24576",
+		"dock_radar_federation_failover_events_total 1",
+		`dock_radar_federation_enabled{local_region="ap-northeast-2"} 1`,
 	}
 
 	for _, m := range expectedMetrics {

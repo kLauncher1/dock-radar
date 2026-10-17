@@ -17,6 +17,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/api"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/ebpf"
+	"github.com/kLauncher1/dock-radar/internal/federation"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/security"
 	"github.com/kLauncher1/dock-radar/internal/storage"
@@ -25,7 +26,7 @@ import (
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "2.0.0"
+const AppVersion = "2.1.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -50,6 +51,11 @@ func main() {
 	ebpfEnabledFlag := flag.Bool("ebpf", true, "Enable kernel eBPF & socket telemetry engine (env: DOCK_RADAR_EBPF_ENABLED)")
 	ebpfModeFlag := flag.String("ebpf-mode", "", "Probe mode override (ebpf_native, procfs_socket, synthetic_trace; env: DOCK_RADAR_EBPF_MODE)")
 	ebpfIntervalFlag := flag.Duration("ebpf-interval", 2*time.Second, "eBPF socket sampling interval (env: DOCK_RADAR_EBPF_INTERVAL)")
+	federationFlag := flag.Bool("federation", true, "Enable multi-region edge peer federation (env: DOCK_RADAR_FEDERATION_ENABLED)")
+	federationRegionFlag := flag.String("federation-region", "us-east-1", "Local edge region identifier (env: DOCK_RADAR_FEDERATION_REGION)")
+	federationNameFlag := flag.String("federation-name", "US East (N. Virginia)", "Local edge region friendly name (env: DOCK_RADAR_FEDERATION_NAME)")
+	federationKeyFlag := flag.String("federation-key", "dock-radar-federation-default-key-32b", "Shared key for encrypted overlay tunnels (env: DOCK_RADAR_FEDERATION_KEY)")
+	wanSyncIntervalFlag := flag.Duration("wan-sync-interval", 30*time.Second, "WAN delta sync interval (env: DOCK_RADAR_WAN_SYNC_INTERVAL)")
 	versionFlag := flag.Bool("version", false, "Print dock-radar version and exit")
 	flag.Parse()
 
@@ -234,6 +240,51 @@ func main() {
 		}
 	}
 
+	// Launch multi-region edge peer federation and WAN delta sync engine
+	enableFederation := *federationFlag
+	if envFed := os.Getenv("DOCK_RADAR_FEDERATION_ENABLED"); envFed != "" {
+		enableFederation = strings.EqualFold(envFed, "true") || envFed == "1"
+	}
+	fedRegion := *federationRegionFlag
+	if envRegion := os.Getenv("DOCK_RADAR_FEDERATION_REGION"); envRegion != "" {
+		fedRegion = envRegion
+	}
+	fedName := *federationNameFlag
+	if envName := os.Getenv("DOCK_RADAR_FEDERATION_NAME"); envName != "" {
+		fedName = envName
+	}
+	fedKey := *federationKeyFlag
+	if envKey := os.Getenv("DOCK_RADAR_FEDERATION_KEY"); envKey != "" {
+		fedKey = envKey
+	}
+	wanInterval := *wanSyncIntervalFlag
+	if envInterval := os.Getenv("DOCK_RADAR_WAN_SYNC_INTERVAL"); envInterval != "" {
+		if d, err := time.ParseDuration(envInterval); err == nil && d > 0 {
+			wanInterval = d
+		}
+	}
+
+	fedCfg := federation.DefaultFederationConfig()
+	fedCfg.Enabled = enableFederation
+	fedCfg.LocalRegionID = fedRegion
+	fedCfg.LocalRegionName = fedName
+	fedCfg.TunnelKey = fedKey
+	if wanInterval.Seconds() >= 5 {
+		fedCfg.SyncIntervalSec = int(wanInterval.Seconds())
+	}
+
+	fedEngine, err := federation.NewEngine(fedCfg, dockerClient, handlerCfg.AuditLogger, handlerCfg.AlertDispatcher)
+	if err != nil {
+		log.Printf("Warning: failed to initialize federation engine: %v", err)
+	} else {
+		handlerCfg.FederationEngine = fedEngine
+		if enableFederation {
+			fedCtx, fedCancel := context.WithCancel(context.Background())
+			defer fedCancel()
+			go fedEngine.Start(fedCtx)
+		}
+	}
+
 	scheme := "http"
 	tlsStatus := "Inactive (Plain HTTP)"
 
@@ -372,6 +423,14 @@ func main() {
 		}
 	}
 
+	federationStatusDesc := "Disabled"
+	if handlerCfg != nil && handlerCfg.FederationEngine != nil {
+		st := handlerCfg.FederationEngine.GetStatus()
+		if st.Enabled {
+			federationStatusDesc = fmt.Sprintf("Active (%s · %s · %d regions)", st.LocalRegionID, st.LocalRegionName, st.TotalRegions)
+		}
+	}
+
 	fmt.Println("=========================================================")
 	fmt.Printf(" 🚀 Dock-Radar v%s · Single-Binary Container & System Monitor\n", AppVersion)
 	fmt.Printf(" 📡 Web Dashboard Live at %s://localhost:%s\n", scheme, port)
@@ -386,6 +445,7 @@ func main() {
 	fmt.Printf(" 🔄 Rolling Restarts   : Zero-Downtime Traffic Draining & Readiness Engine Active\n")
 	fmt.Printf(" 💾 Log Storage        : %s\n", storageStatusDesc)
 	fmt.Printf(" ⚡ Kernel eBPF        : %s\n", ebpfStatusDesc)
+	fmt.Printf(" 🌍 Edge Federation   : %s\n", federationStatusDesc)
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")
 	fmt.Println("=========================================================")
 

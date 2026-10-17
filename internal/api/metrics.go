@@ -6,6 +6,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/anomaly"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/ebpf"
+	"github.com/kLauncher1/dock-radar/internal/federation"
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/metrics"
@@ -93,6 +94,12 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		ebpfStatus = &st
 	}
 
+	var fedStatus *federation.FederationStatus
+	if h.FederationEngine != nil {
+		st := h.FederationEngine.GetStatus()
+		fedStatus = &st
+	}
+
 	text := metrics.FormatMetricsAll(
 		sysMetrics,
 		dockerStatus,
@@ -110,6 +117,7 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		rollingStats,
 		storageStatus,
 		ebpfStatus,
+		fedStatus,
 		version,
 	)
 

@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-10-17
+
+### Added
+- Multi-Region Edge Peer Federation & WAN Sync Engine (`internal/federation/`):
+  - Authenticated encrypted overlay tunnels using AES-256-GCM cipher with HMAC-SHA256 signature verification and a 60-second replay-prevention window for zero-trust cross-region communication (`internal/federation/tunnel.go`, `internal/federation/tunnel_test.go`).
+  - Low-bandwidth delta synchronization protocol computing deterministic SHA-256 container inventory digests, transmitting gzip-compressed JSON payloads across high-latency WAN links, and tracking bandwidth savings telemetry (`internal/federation/sync.go`, `internal/federation/sync_test.go`).
+  - Geo-distributed container inventory routing with spherical Haversine distance calculations, weighted latency metrics, consecutive probe failure threshold triggers, probation recovery timers, and manual failover drills (`internal/federation/router.go`, `internal/federation/router_test.go`).
+  - Master Federation Engine orchestrating background WAN probes, scheduled delta sync loops, container inventory reconciliation, and alert event dispatches (`internal/federation/engine.go`, `internal/federation/engine_test.go`).
+- Federation & WAN Sync REST APIs (`internal/api/federation.go`, `internal/api/federation_test.go`):
+  - `GET /api/federation/status`: Returns local region info, peer counts, and WAN synchronization status (requires `RoleViewer`).
+  - `GET /api/federation/regions`: Lists all registered edge peer regions with latency and health metrics (requires `RoleViewer`).
+  - `POST /api/federation/regions`: Registers or updates an edge peer region endpoint (requires `RoleAdmin`).
+  - `DELETE /api/federation/regions`: Deregisters an edge peer region by ID (requires `RoleAdmin`).
+  - `POST /api/federation/sync`: Ingests and processes WAN delta sync payloads between regions (requires `RoleAdmin` or valid tunnel signature).
+  - `GET /api/federation/routes`: Resolves optimal geo-routing paths for container workloads across regions (requires `RoleViewer`).
+  - `POST /api/federation/failover`: Triggers manual or simulated failover drills across edge regions (requires `RoleAdmin`).
+  - `GET /api/federation/config`: Retrieves federation settings with masked tunnel keys (requires `RoleViewer`).
+  - `POST /api/federation/config`: Updates federation settings dynamically with parameter validation (requires `RoleAdmin`).
+- Prometheus Metrics Exporter Extension (`internal/metrics/federation.go`, `internal/metrics/prometheus.go`):
+  - Exposes `dock_radar_federation_regions_total`, `dock_radar_federation_regions_healthy`, `dock_radar_federation_sync_success_total`, `dock_radar_federation_sync_fail_total`, `dock_radar_federation_wan_latency_ms`, and `dock_radar_federation_routes_total` gauges and counters for Grafana monitoring.
+- Embedded Dark-Mode Dashboard Glassmorphism UI (`web/dist/index.html`):
+  - Header federation status badge (`🌐 Federation: X Regions`) with direct link to region management modal.
+  - Dedicated Multi-Region Edge Peer Federation card with 5 live KPI counters (Active Regions, Healthy Peers, Avg WAN Latency, In-Flight Syncs, Routed Containers).
+  - Tabbed interface switching between Edge Regions table and Geo-Distributed Container Routes table with failover trigger actions.
+  - Federation Management Modal (`#federation-modal`) enabling peer region registration, test sync execution, failover drills, and configuration updates.
+- Command-Line Flags & Environment Variables (`main.go`):
+  - Added `--federation`, `--federation-region`, `--federation-name`, `--federation-key`, and `--wan-sync-interval` with matching environment variable bindings (`DOCK_RADAR_FEDERATION`, `DOCK_RADAR_FEDERATION_REGION`, `DOCK_RADAR_FEDERATION_NAME`, `DOCK_RADAR_FEDERATION_KEY`, `DOCK_RADAR_WAN_SYNC_INTERVAL`).
+
 ## [2.0.0] - 2026-10-16
 
 ### Added

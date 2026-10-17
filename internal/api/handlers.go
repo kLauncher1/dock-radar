@@ -15,6 +15,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/audit"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/ebpf"
+	"github.com/kLauncher1/dock-radar/internal/federation"
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
@@ -57,6 +58,7 @@ type HandlerConfig struct {
 	RollingEngine    *rolling.Engine
 	StorageManager   *storage.Manager
 	EBPFEngine       *ebpf.Engine
+	FederationEngine *federation.Engine
 	AppVersion       string
 	TokenAuth        *security.TokenAuth
 	AllowRemote      bool
@@ -196,6 +198,14 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	mux.HandleFunc("/api/ebpf/security/rules", cfg.handleEBPFSecurityRules)
 	mux.HandleFunc("/api/ebpf/reset", cfg.handleEBPFReset)
 	mux.HandleFunc("/api/ebpf/trigger-test", cfg.handleEBPFTriggerTest)
+
+	// Multi-Region Edge Peer Federation & WAN Sync
+	mux.HandleFunc("/api/federation/status", cfg.handleFederationStatus)
+	mux.HandleFunc("/api/federation/regions", cfg.handleFederationRegions)
+	mux.HandleFunc("/api/federation/sync", cfg.handleFederationSync)
+	mux.HandleFunc("/api/federation/routes", cfg.handleFederationRoutes)
+	mux.HandleFunc("/api/federation/failover", cfg.handleFederationFailover)
+	mux.HandleFunc("/api/federation/config", cfg.handleFederationConfig)
 
 	// Embedded Static UI
 	if staticFS != nil {

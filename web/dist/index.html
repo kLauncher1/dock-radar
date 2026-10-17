@@ -648,6 +648,7 @@
       <a href="/metrics" target="_blank" id="metrics-badge" class="status-pill" style="font-size: 11px; text-decoration: none; color: #38bdf8; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.35); display: inline-flex; align-items: center; gap: 4px;" title="Prometheus Metrics Exporter">📊 /metrics</a>
       <button id="storage-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: inline-flex; align-items: center; gap: 4px;" onclick="openStorageModal()" title="Ephemeral Log Storage & S3 Offloader">💾 Log Storage: <span id="storage-badge-text">0 Chunks (0 MB)</span></button>
       <button id="ebpf-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(234, 179, 8, 0.4); background: rgba(234, 179, 8, 0.15); color: #eab308; display: inline-flex; align-items: center; gap: 4px;" onclick="openEBPFModal()" title="Adaptive Kernel eBPF Telemetry & Anomaly Radar">⚡ eBPF: <span id="ebpf-badge-text">0 Flows</span></button>
+      <button id="federation-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(14, 165, 233, 0.4); background: rgba(14, 165, 233, 0.15); color: #0ea5e9; display: inline-flex; align-items: center; gap: 4px;" onclick="openFederationModal()" title="Multi-Region Edge Peer Federation & WAN Sync">🌍 Federation: <span id="federation-badge-text">1 Region</span></button>
       <button id="btn-export-audit" class="status-pill" style="font-size: 11px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;" onclick="exportAuditTrail()" title="Export Audit Trail in NDJSON format">📋 Export Audit</button>
       <span>•</span>
       <span id="host-badge">Loading...</span>
@@ -1483,6 +1484,111 @@
         </div>
       </div>
     </div>
+
+    <!-- Multi-Region Edge Peer Federation & WAN Sync Section -->
+    <div class="card" id="federation-section" style="margin-bottom: 24px; padding: 20px; border-color: rgba(14, 165, 233, 0.25);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <span style="font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: #38bdf8;">
+            <span>🌍</span> Multi-Region Edge Peer Federation &amp; WAN Sync
+          </span>
+          <span class="status-pill status-running" id="federation-status-pill" style="font-size: 11px; color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.15);">Mesh: Active</span>
+          <span id="federation-failover-pill" class="status-pill" style="font-size: 11px; display: none; background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">0 Failovers</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <button class="btn-action btn-logs" onclick="triggerFederationSync()" style="font-size: 11px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.1);" title="Trigger instantaneous cross-region WAN delta synchronization">🔄 Sync WAN Now</button>
+          <button class="btn-action" onclick="openFederationModal()" style="font-size: 11px; color: var(--text-main); border-color: var(--border-subtle); background: var(--bg-surface-elevated);" title="Configure federated edge regions, overlay tunnels, and failover triggers">⚙️ Federation &amp; Regions</button>
+        </div>
+      </div>
+
+      <!-- Federation KPI Grid -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px;">
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Edge Regions</div>
+          <div id="stat-fed-total-regions" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #38bdf8;">1</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Healthy Regions</div>
+          <div id="stat-fed-healthy-regions" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--accent-green);">1</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Active Overlay Tunnels</div>
+          <div id="stat-fed-active-tunnels" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #c084fc;">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Delta Efficiency (Saved)</div>
+          <div id="stat-fed-delta-efficiency" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--accent-green);">0.0%</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">WAN Transfer (Tx / Saved)</div>
+          <div id="stat-fed-sync-bytes" style="font-size: 13px; font-weight: 700; font-family: monospace; color: var(--text-main); margin-top: 4px;">0 KB / 0 KB</div>
+        </div>
+      </div>
+
+      <!-- Tab Switcher: Edge Regions vs Container Routing -->
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; flex-wrap: wrap; gap: 10px;">
+        <div class="tab-group" id="fed-view-tabs">
+          <button class="tab-btn active" id="btn-tab-fed-regions" onclick="switchFedTab('regions')">Edge Regions (WAN)</button>
+          <button class="tab-btn" id="btn-tab-fed-routes" onclick="switchFedTab('routes')">Geo Container Routes &amp; Failovers</button>
+        </div>
+        <span id="fed-status-info" style="font-size: 11px; color: var(--text-muted);">Local: us-east-1</span>
+      </div>
+
+      <!-- Tab 1: Edge Regions Table -->
+      <div id="fed-regions-container">
+        <div class="alert-events-scroll" style="max-height: 280px;">
+          <table class="alert-events-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th>Region ID</th>
+                <th>Region Name</th>
+                <th>Endpoint (WAN)</th>
+                <th>Coordinates (Lat, Lon)</th>
+                <th>Status</th>
+                <th>RTT (Latency)</th>
+                <th>Containers</th>
+                <th>Last Sync</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="fed-regions-body">
+              <tr>
+                <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                  Loading federated edge regions...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 2: Geo Container Routing Table -->
+      <div id="fed-routes-container" style="display: none;">
+        <div class="alert-events-scroll" style="max-height: 280px;">
+          <table class="alert-events-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th>Target ID</th>
+                <th>Service Name</th>
+                <th>Routing Policy</th>
+                <th>Primary Region</th>
+                <th>Fallback Regions</th>
+                <th>Active Destination</th>
+                <th>Failover Status</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="fed-routes-body">
+              <tr>
+                <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                  No specific container failover routes configured. Defaulting to local primary.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- Lifecycle Action Confirmation Modal -->
@@ -2042,6 +2148,99 @@
       <div class="modal-actions" style="display: flex; justify-content: space-between; width: 100%;">
         <button class="btn btn-action" onclick="triggerEBPFTest()" style="color: #fbbf24; border-color: rgba(234, 179, 8, 0.4); background: rgba(234, 179, 8, 0.1);">⚡ Trigger Simulated Anomaly</button>
         <button class="btn btn-secondary" onclick="closeEBPFModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Multi-Region Edge Peer Federation Modal -->
+  <div class="modal-backdrop" id="federation-modal">
+    <div class="modal-card" style="max-width: 860px; width: 95%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div class="modal-title" style="color: #38bdf8; margin-bottom: 0;">Multi-Region Edge Peer Federation &amp; WAN Settings</div>
+        <button class="btn-action" onclick="closeFederationModal()" style="padding: 4px 10px;">✕</button>
+      </div>
+      <div class="modal-body" style="margin-bottom: 16px;">
+        <!-- Register New Edge Region Form -->
+        <div class="alert-card-sub" style="margin-bottom: 18px; padding: 14px; border: 1px solid rgba(14, 165, 233, 0.25);">
+          <div style="font-size: 12px; font-weight: 700; color: #38bdf8; margin-bottom: 10px; text-transform: uppercase;">Register Remote Edge Region</div>
+          <div class="form-row" style="margin-bottom: 10px;">
+            <div class="form-col">
+              <label class="form-label" for="fed-new-id">Region ID</label>
+              <input type="text" class="form-input" id="fed-new-id" placeholder="eu-central-1">
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fed-new-name">Region Name</label>
+              <input type="text" class="form-input" id="fed-new-name" placeholder="Europe (Frankfurt)">
+            </div>
+            <div class="form-col" style="flex: 2;">
+              <label class="form-label" for="fed-new-endpoint">WAN Endpoint URL</label>
+              <input type="url" class="form-input" id="fed-new-endpoint" placeholder="https://fra.dockradar.net:9080">
+            </div>
+          </div>
+          <div class="form-row" style="margin-bottom: 10px;">
+            <div class="form-col">
+              <label class="form-label" for="fed-new-lat">Latitude</label>
+              <input type="number" step="0.0001" class="form-input" id="fed-new-lat" placeholder="50.1109" value="50.1109">
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fed-new-lon">Longitude</label>
+              <input type="number" step="0.0001" class="form-input" id="fed-new-lon" placeholder="8.6821" value="8.6821">
+            </div>
+            <div class="form-col" style="display: flex; align-items: flex-end;">
+              <button class="btn btn-primary-restart" onclick="registerFederationRegion()" style="padding: 8px 16px; font-size: 12px; font-weight: 600; width: 100%;">+ Register Edge Region</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Manual Failover Trigger Drill -->
+        <div class="alert-card-sub" style="margin-bottom: 18px; padding: 14px; border: 1px solid rgba(245, 158, 11, 0.25);">
+          <div style="font-size: 12px; font-weight: 700; color: #f59e0b; margin-bottom: 10px; text-transform: uppercase;">Manual Traffic Failover Drill</div>
+          <div class="form-row">
+            <div class="form-col">
+              <label class="form-label" for="fo-target-id">Container / Service ID</label>
+              <input type="text" class="form-input" id="fo-target-id" placeholder="web-api-gateway">
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fo-target-region">Steer To Region</label>
+              <input type="text" class="form-input" id="fo-target-region" placeholder="eu-central-1">
+            </div>
+            <div class="form-col" style="flex: 2;">
+              <label class="form-label" for="fo-reason">Audit Reason</label>
+              <input type="text" class="form-input" id="fo-reason" placeholder="Simulated WAN partition drill">
+            </div>
+            <div class="form-col" style="display: flex; align-items: flex-end;">
+              <button class="btn btn-action btn-stop" onclick="submitManualFailover()" style="padding: 8px 16px; font-size: 12px; font-weight: 600; width: 100%;">⚡ Trigger Failover</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Configured Edge Regions Table in Modal -->
+        <div style="font-size: 12px; font-weight: 700; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase;">Federation Mesh Directory</div>
+        <div style="max-height: 220px; overflow-y: auto; border: 1px solid var(--border-subtle); border-radius: 8px; background: #070b14;">
+          <table class="alert-events-table" style="width: 100%; font-size: 12px;">
+            <thead>
+              <tr>
+                <th>Region ID / Name</th>
+                <th>Endpoint</th>
+                <th>Status</th>
+                <th>RTT</th>
+                <th>Containers</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="modal-fed-regions-body">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 14px;">
+                  Loading mesh directory...
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-actions" style="display: flex; justify-content: space-between; width: 100%;">
+        <button class="btn btn-action btn-logs" onclick="triggerFederationSync()" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">🔄 Trigger WAN Delta Sync</button>
+        <button class="btn btn-secondary" onclick="closeFederationModal()">Close</button>
       </div>
     </div>
   </div>
@@ -5325,6 +5524,315 @@
       }
     }
 
+    // ==========================================
+    // Multi-Region Edge Peer Federation & WAN Sync
+    // ==========================================
+    let activeFedTab = 'regions';
+
+    function switchFedTab(tab) {
+      activeFedTab = tab;
+      const btnRegions = document.getElementById('btn-tab-fed-regions');
+      const btnRoutes = document.getElementById('btn-tab-fed-routes');
+      const containerRegions = document.getElementById('fed-regions-container');
+      const containerRoutes = document.getElementById('fed-routes-container');
+
+      if (tab === 'regions') {
+        if (btnRegions) btnRegions.classList.add('active');
+        if (btnRoutes) btnRoutes.classList.remove('active');
+        if (containerRegions) containerRegions.style.display = 'block';
+        if (containerRoutes) containerRoutes.style.display = 'none';
+        loadFederationRegions();
+      } else {
+        if (btnRegions) btnRegions.classList.remove('active');
+        if (btnRoutes) btnRoutes.classList.add('active');
+        if (containerRegions) containerRegions.style.display = 'none';
+        if (containerRoutes) containerRoutes.style.display = 'block';
+        loadFederationRoutes();
+      }
+    }
+
+    function openFederationModal() {
+      const modal = document.getElementById('federation-modal');
+      if (modal) {
+        modal.classList.add('active');
+        loadFederationRegions();
+      }
+    }
+
+    function closeFederationModal() {
+      const modal = document.getElementById('federation-modal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    async function pollFederationStatus() {
+      try {
+        const resp = await authFetch('/api/federation/status');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const status = data.status || {};
+
+        const badgeText = document.getElementById('federation-badge-text');
+        const badgeBtn = document.getElementById('federation-badge');
+        if (badgeText) {
+          badgeText.textContent = `${status.total_regions || 1} Region${(status.total_regions || 1) > 1 ? 's' : ''}`;
+        }
+        if (badgeBtn) {
+          badgeBtn.className = `status-pill ${status.status === 'online' ? 'status-running' : 'status-stopped'}`;
+        }
+
+        const pill = document.getElementById('federation-status-pill');
+        if (pill) {
+          pill.textContent = `Mesh: ${(status.status || 'online').toUpperCase()}`;
+        }
+
+        const foPill = document.getElementById('federation-failover-pill');
+        if (foPill) {
+          if (status.failover_count > 0) {
+            foPill.style.display = 'inline-block';
+            foPill.textContent = `${status.failover_count} Failovers`;
+          } else {
+            foPill.style.display = 'none';
+          }
+        }
+
+        const statTotal = document.getElementById('stat-fed-total-regions');
+        if (statTotal) statTotal.textContent = status.total_regions || 1;
+
+        const statHealthy = document.getElementById('stat-fed-healthy-regions');
+        if (statHealthy) statHealthy.textContent = status.healthy_regions || 1;
+
+        const statTunnels = document.getElementById('stat-fed-active-tunnels');
+        if (statTunnels) statTunnels.textContent = status.active_tunnels || 0;
+
+        const statEff = document.getElementById('stat-fed-delta-efficiency');
+        if (statEff) statEff.textContent = `${(status.delta_efficiency_percent || 0).toFixed(1)}%`;
+
+        const statBytes = document.getElementById('stat-fed-sync-bytes');
+        if (statBytes) {
+          statBytes.textContent = `${formatBytes(status.total_sync_bytes || 0)} / ${formatBytes(status.total_saved_bytes || 0)}`;
+        }
+
+        const info = document.getElementById('fed-status-info');
+        if (info) {
+          info.textContent = `Local Region: ${status.local_region_id || 'us-east-1'} (${status.local_region_name || 'US East'})`;
+        }
+
+        if (activeFedTab === 'regions') {
+          renderFederationRegions(status.regions || []);
+        }
+      } catch (err) {}
+    }
+
+    async function loadFederationRegions() {
+      try {
+        const resp = await authFetch('/api/federation/regions');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        renderFederationRegions(data.regions || []);
+      } catch (err) {}
+    }
+
+    function renderFederationRegions(regions) {
+      const bodyEl = document.getElementById('fed-regions-body');
+      const modalBodyEl = document.getElementById('modal-fed-regions-body');
+
+      if (!bodyEl && !modalBodyEl) return;
+
+      if (!regions || regions.length === 0) {
+        const emptyHtml = `
+          <tr>
+            <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 18px;">
+              No federated edge regions detected.
+            </td>
+          </tr>
+        `;
+        if (bodyEl) bodyEl.innerHTML = emptyHtml;
+        if (modalBodyEl) modalBodyEl.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 14px;">No remote edge regions.</td></tr>`;
+        return;
+      }
+
+      const rowsHtml = regions.map(r => {
+        let statusColor = '#34d399';
+        if (r.status === 'degraded') statusColor = '#f59e0b';
+        else if (r.status === 'offline' || r.status === 'unreachable') statusColor = '#ef4444';
+
+        const lastSync = r.last_sync_time ? new Date(r.last_sync_time).toLocaleTimeString() : 'Never';
+        const rttText = r.ping_rtt_ms > 0 ? `${r.ping_rtt_ms} ms` : 'Local';
+
+        return `
+          <tr>
+            <td style="font-family: monospace; font-weight: 700; color: #38bdf8;">${escapeHTML(r.id)}</td>
+            <td style="font-weight: 600;">${escapeHTML(r.name || '--')}</td>
+            <td style="font-family: monospace; font-size: 11px; color: var(--text-muted);">${escapeHTML(r.endpoint)}</td>
+            <td style="font-family: monospace; font-size: 11px;">${r.latitude ? `${r.latitude.toFixed(2)}, ${r.longitude.toFixed(2)}` : '--'}</td>
+            <td><span class="status-pill" style="font-size: 10px; color: ${statusColor}; border: 1px solid ${statusColor};">${escapeHTML((r.status || 'online').toUpperCase())}</span></td>
+            <td style="font-family: monospace; font-size: 11px; color: #34d399;">${rttText}</td>
+            <td style="font-family: monospace; font-weight: 600;">${r.container_count || 0}</td>
+            <td style="font-size: 11px; color: var(--text-muted);">${lastSync}</td>
+            <td style="text-align: right;">
+              <button class="btn-action btn-stop" onclick="deleteFederationRegion('${escapeHTML(r.id)}')" style="font-size: 10px; padding: 2px 6px;">Remove</button>
+            </td>
+          </tr>
+        `;
+      }).join('');
+
+      if (bodyEl) bodyEl.innerHTML = rowsHtml;
+
+      if (modalBodyEl) {
+        modalBodyEl.innerHTML = regions.map(r => {
+          let statusColor = '#34d399';
+          if (r.status === 'degraded') statusColor = '#f59e0b';
+          else if (r.status === 'offline') statusColor = '#ef4444';
+
+          const rttText = r.ping_rtt_ms > 0 ? `${r.ping_rtt_ms} ms` : 'Local';
+
+          return `
+            <tr>
+              <td>
+                <div style="font-weight: 600; color: #38bdf8;">${escapeHTML(r.id)}</div>
+                <div style="font-size: 11px; color: var(--text-muted);">${escapeHTML(r.name)}</div>
+              </td>
+              <td style="font-family: monospace; font-size: 11px;">${escapeHTML(r.endpoint)}</td>
+              <td><span class="status-pill" style="font-size: 10px; color: ${statusColor}; border: 1px solid ${statusColor};">${escapeHTML((r.status || 'online').toUpperCase())}</span></td>
+              <td style="font-family: monospace; font-size: 11px; color: #34d399;">${rttText}</td>
+              <td style="font-family: monospace;">${r.container_count || 0}</td>
+              <td style="text-align: right;">
+                <button class="btn-action btn-stop" onclick="deleteFederationRegion('${escapeHTML(r.id)}')" style="font-size: 10px; padding: 2px 6px;">Delete</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      }
+    }
+
+    async function loadFederationRoutes() {
+      try {
+        const resp = await authFetch('/api/federation/routes');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const routes = data.routes || [];
+        const bodyEl = document.getElementById('fed-routes-body');
+        if (!bodyEl) return;
+
+        if (routes.length === 0) {
+          bodyEl.innerHTML = `
+            <tr>
+              <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                No custom container failover routes configured. Default routing active.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        bodyEl.innerHTML = routes.map(r => {
+          const fallbacks = (r.fallback_regions || []).join(', ') || '--';
+          let foBadge = `<span class="status-pill status-running" style="font-size: 10px;">Normal Primary</span>`;
+          if (r.failover_active) {
+            foBadge = `<span class="status-pill status-stopped" style="font-size: 10px;" title="${escapeHTML(r.failover_reason || '')}">⚡ Active Failover</span>`;
+          }
+
+          return `
+            <tr>
+              <td style="font-family: monospace; font-weight: 700; color: #38bdf8;">${escapeHTML(r.target_id)}</td>
+              <td style="font-weight: 600;">${escapeHTML(r.service_name || '--')}</td>
+              <td><span class="log-badge" style="background: rgba(168, 85, 247, 0.15); color: #c084fc;">${escapeHTML(r.policy)}</span></td>
+              <td style="font-family: monospace;">${escapeHTML(r.primary_region)}</td>
+              <td style="font-family: monospace; font-size: 11px; color: var(--text-muted);">${escapeHTML(fallbacks)}</td>
+              <td style="font-family: monospace; font-weight: 700; color: #34d399;">${escapeHTML(r.active_region)}</td>
+              <td>${foBadge}</td>
+              <td style="text-align: right;">
+                <button class="btn-action btn-logs" onclick="triggerManualFailover('${escapeHTML(r.target_id)}', '${escapeHTML(r.active_region === r.primary_region && (r.fallback_regions || []).length > 0 ? r.fallback_regions[0] : r.primary_region)}')" style="font-size: 10px; padding: 2px 6px;">Steer</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {}
+    }
+
+    async function registerFederationRegion() {
+      const id = (document.getElementById('fed-new-id').value || '').trim();
+      const name = (document.getElementById('fed-new-name').value || '').trim();
+      const endpoint = (document.getElementById('fed-new-endpoint').value || '').trim();
+      const lat = parseFloat(document.getElementById('fed-new-lat').value) || 0.0;
+      const lon = parseFloat(document.getElementById('fed-new-lon').value) || 0.0;
+
+      if (!id || !endpoint) {
+        showToast('Please enter both Region ID and Endpoint');
+        return;
+      }
+
+      try {
+        const resp = await authFetch('/api/federation/regions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id, name, endpoint, latitude: lat, longitude: lon })
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast(`✓ Edge region ${id} registered`);
+        document.getElementById('fed-new-id').value = '';
+        document.getElementById('fed-new-name').value = '';
+        document.getElementById('fed-new-endpoint').value = '';
+        pollFederationStatus();
+      } catch (err) {
+        showToast(`Failed to register region: ${err.message}`);
+      }
+    }
+
+    async function deleteFederationRegion(id) {
+      if (!confirm(`Are you sure you want to unregister edge region "${id}"?`)) return;
+      try {
+        const resp = await authFetch(`/api/federation/regions?id=${encodeURIComponent(id)}`, {
+          method: 'DELETE'
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast(`✓ Region ${id} removed`);
+        pollFederationStatus();
+      } catch (err) {
+        showToast(`Failed to delete region: ${err.message}`);
+      }
+    }
+
+    async function triggerFederationSync() {
+      try {
+        const resp = await authFetch('/api/federation/status');
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast('🔄 WAN delta synchronization cycle initiated');
+        pollFederationStatus();
+      } catch (err) {
+        showToast(`Sync trigger failed: ${err.message}`);
+      }
+    }
+
+    async function submitManualFailover() {
+      const targetId = (document.getElementById('fo-target-id').value || '').trim();
+      const targetRegion = (document.getElementById('fo-target-region').value || '').trim();
+      const reason = (document.getElementById('fo-reason').value || 'Manual drill').trim();
+
+      if (!targetId || !targetRegion) {
+        showToast('Please provide container ID and destination region');
+        return;
+      }
+
+      await triggerManualFailover(targetId, targetRegion, reason);
+    }
+
+    async function triggerManualFailover(targetId, targetRegion, reason = 'Administrative failover') {
+      try {
+        const resp = await authFetch('/api/federation/failover', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ target_id: targetId, target_region: targetRegion, reason })
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast(`⚡ Traffic for ${targetId} steered to ${targetRegion}`);
+        loadFederationRoutes();
+        pollFederationStatus();
+      } catch (err) {
+        showToast(`Failover failed: ${err.message}`);
+      }
+    }
+
     checkAuthStatus();
     setInterval(checkAuthStatus, 5000);
     pollTelemetry();
@@ -5353,6 +5861,8 @@
     loadStorageChunks();
     pollEBPFStatus();
     setInterval(pollEBPFStatus, 2500);
+    pollFederationStatus();
+    setInterval(pollFederationStatus, 3000);
   </script>
 </body>
 </html>

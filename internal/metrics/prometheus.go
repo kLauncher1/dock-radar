@@ -9,6 +9,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/audit"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/ebpf"
+	"github.com/kLauncher1/dock-radar/internal/federation"
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
@@ -95,7 +96,7 @@ func FormatMetricsFull(
 	return FormatMetricsAll(
 		sys, dock, ringBuffer, alertDispatcher, auditLogger,
 		meshSummary, meshNodes, healingStats, anomalySummary, anomalyPreds,
-		discStatus, gossipSummary, gossipMembers, nil, nil, nil, appVersion,
+		discStatus, gossipSummary, gossipMembers, nil, nil, nil, nil, appVersion,
 	)
 }
 
@@ -117,6 +118,7 @@ func FormatMetricsAll(
 	rollingStats *rolling.RollingStats,
 	storageStatus *storage.StorageStatus,
 	ebpfStatus *ebpf.EBPFStatus,
+	fedStatus *federation.FederationStatus,
 	appVersion string,
 ) string {
 	var b strings.Builder
@@ -450,6 +452,9 @@ func FormatMetricsAll(
 	if ebpfStatus != nil {
 		AppendEBPFMetrics(&b, *ebpfStatus)
 	}
+
+	// 16. Multi-Region Edge Peer Federation & WAN Sync Telemetry
+	AppendFederationMetrics(&b, fedStatus)
 
 	return b.String()
 }
