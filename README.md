@@ -10,7 +10,7 @@
 
 **Ultra-lightweight single-binary container & system metrics monitor with embedded real-time dark-mode web dashboard.**
 
-[![Release](https://img.shields.io/badge/Release-v2.0.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
+[![Release](https://img.shields.io/badge/Release-v2.1.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg?style=flat&logo=go)](https://golang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6%2B-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
@@ -27,6 +27,7 @@
 
 - **Single Executable Deployment**: The web dashboard is baked directly into the Go binary via `//go:embed`. No Node.js runtime, external assets, or separate frontend servers needed.
 - **Ultra-Low Memory Footprint**: Runs persistently under **15 MB of RAM** with bounded circular ring buffers, making it ideal for low-spec VPS, Raspberry Pi, and homelab environments.
+- **Multi-Region Edge Peer Federation & WAN Sync**: Secure cross-region edge mesh federation over AES-256-GCM encrypted overlay tunnels authenticated via HMAC-SHA256 signatures with 60-second replay attack defense. Features low-bandwidth delta sync protocol utilizing SHA-256 inventory digests and gzip compression, Haversine spherical distance geo-routing, automated failover triggers on consecutive probe failures with probation recovery windows, and dedicated edge federation views in the embedded dark-mode web dashboard.
 - **Adaptive Kernel eBPF Telemetry & Behavioral Security Engine**: Pure standard-library socket flow tracker and Linux `/proc/net/tcp` inspector measuring real-time TCP/UDP socket connections, byte throughput, and round-trip latency. Built-in behavioral security engine monitors container system calls with automated detection rules for unexpected shell execution (`execve`), privilege escalation (`setuid`), memory inspection (`ptrace`), sensitive host credential access (`/etc/shadow`), Docker socket abuse, and outbound mining connections, paired with a live visual flow monitor and incident mitigation feed.
 - **Distributed Ephemeral Log Storage & S3 Offloader**: Compresses in-memory container logs into gzip (`.gz`) chunks with cryptographic SHA-256 integrity checksums and atomic disk writing. Background asynchronous offloader streams chunk archives to S3-compatible cloud object storage (AWS S3, MinIO, Cloudflare R2) using a zero-dependency pure standard-library AWS SigV4 signer. Includes local disk capacity caps, age-based rotation, offload-priority retention pruning, and dedicated chunk explorer table with direct gzip download.
 - **Zero-Downtime Rolling Restarts & Traffic Draining**: Orchestrates staggered sequential container restarts across replicas, Compose stacks, or label groups. Incorporates graceful in-flight traffic draining with configurable timeouts and reverse proxy webhook notification, multi-stage container readiness probing (Docker state, container healthcheck, HTTP `/healthz` endpoints, readiness grace windows), and automated rollback abort triggers preventing downtime during cascading failures.
@@ -103,6 +104,11 @@ go build -ldflags="-s -w" -o dock-radar .
 | `--mesh-discovery` | `DOCK_RADAR_MESH_DISCOVERY` | `false` | Enable zero-config UDP broadcast LAN peer auto-discovery |
 | `--mesh-port` | `DOCK_RADAR_MESH_PORT` | `9085` | UDP port for LAN peer auto-discovery beacons |
 | `--gossip-interval` | `DOCK_RADAR_GOSSIP_INTERVAL` | `5s` | Ping interval for SWIM decentralized cluster gossip |
+| `--federation` | `DOCK_RADAR_FEDERATION` | `false` | Enable multi-region edge peer federation and WAN sync |
+| `--federation-region` | `DOCK_RADAR_FEDERATION_REGION` | `default` | Local region identifier (e.g., us-east, eu-west, ap-northeast) |
+| `--federation-name` | `DOCK_RADAR_FEDERATION_NAME` | `Region` | Human-readable display name for the local edge region |
+| `--federation-key` | `DOCK_RADAR_FEDERATION_KEY` | `""` | Shared secret key for HMAC-SHA256 authenticated AES-256-GCM overlay tunnels |
+| `--wan-sync-interval` | `DOCK_RADAR_WAN_SYNC_INTERVAL` | `30s` | WAN delta sync interval for edge container inventory exchange |
 | `--version` | — | — | Print dock-radar version and exit |
 
 ---
@@ -119,11 +125,15 @@ go build -ldflags="-s -w" -o dock-radar .
 │   • Lifecycle & Batch Ops│      • CPU & OS Metrics     │
 │   • Multiplex Log Demux  │                             │
 ├──────────────────────────┼─────────────────────────────┤
-│   internal/mesh          │      internal/logs          │
-│   • Node Discovery/Probe │      • Circular Ring Buffer │
-│   • Aggregate Telemetry  │      • Strict <15MB Ceiling │
-│   • SWIM Gossip Protocol │                             │
-│   • UDP Broadcast Beacon │                             │
+│   internal/federation    │      internal/storage       │
+│   • AES-256-GCM Tunnels  │      • Compressed Gzip Chunks
+│   • WAN Delta Sync SHA256│      • AWS SigV4 Signer     │
+│   • Geo Haversine Router │      • S3 / MinIO Offload   │
+├──────────────────────────┼─────────────────────────────┤
+│   internal/ebpf          │      internal/mesh          │
+│   • Socket Flow Tracker  │      • Node Discovery/Probe │
+│   • Syscall Threat Rules │      • SWIM Gossip Protocol │
+│   • /proc/net/tcp Probe  │      • UDP Broadcast Beacon │
 ├──────────────────────────┼─────────────────────────────┤
 │   internal/alert         │      internal/audit         │
 │   • Discord & Slack Web  │      • Circular Event Log   │
@@ -133,15 +143,15 @@ go build -ldflags="-s -w" -o dock-radar .
 │   internal/healing       │      net/http Router        │
 │   • Auto OOM / Crash Loop│      • /metrics (Prometheus)│
 │   • Jitter & Backoff     │      • /api/docker/*        │
-│   • Circuit Breaker      │      • /api/healing/*       │
-├──────────────────────────┤      • /api/nodes/*         │
-│   internal/metrics       │      • /api/cluster/*       │
-│   • Standard Prometheus  │      • /api/mesh/*          │
-│   • Exposition Formatter │      • /api/audit/*         │
-│   • Multi-Node Mesh Stats│      • Pure RFC 6455 WS     │
-├──────────────────────────┤                             │
-│   internal/security      │                             │
-│   • In-Memory ECDSA TLS  │                             │
+│   • Circuit Breaker      │      • /api/federation/*    │
+├──────────────────────────┤      • /api/storage/*       │
+│   internal/metrics       │      • /api/ebpf/*          │
+│   • Standard Prometheus  │      • /api/healing/*       │
+│   • Exposition Formatter │      • /api/nodes/*         │
+│   • Multi-Region Gauges  │      • /api/cluster/*       │
+├──────────────────────────┤      • /api/mesh/*          │
+│   internal/security      │      • /api/audit/*         │
+│   • In-Memory ECDSA TLS  │      • Pure RFC 6455 WS     │
 │   • Constant-Time Bearer │                             │
 │   • RBAC (Admin/Viewer)  │                             │
 ├──────────────────────────┴─────────────────────────────┤
@@ -184,6 +194,12 @@ go build -ldflags="-s -w" -o dock-radar .
 | `/api/cluster/containers` | `GET` | `viewer` | Unified container inventory across all cluster nodes (`?node_id=&state=`) |
 | `/api/mesh/discovery` | `GET` / `POST` | `viewer` / `admin` | LAN UDP auto-discovery peer status and manual beacon trigger (`POST {"action":"broadcast"}`) |
 | `/api/mesh/gossip` | `GET` / `POST` | `viewer` / `none` | Cluster SWIM gossip membership state and P2P gossip message ingestion |
+| `/api/federation/status` | `GET` | `viewer` | Local region info, active peer regions, and WAN synchronization status |
+| `/api/federation/regions` | `GET` / `POST` / `DELETE` | `viewer` / `admin` | Edge peer region inventory, dynamic endpoint registration, and deletion |
+| `/api/federation/sync` | `POST` | `admin` | Ingests and processes WAN delta sync payloads between regions |
+| `/api/federation/routes` | `GET` | `viewer` | Resolves optimal geo-routing paths and failover states for containers |
+| `/api/federation/failover` | `POST` | `admin` | Triggers manual or simulated failover drills across edge regions |
+| `/api/federation/config` | `GET` / `POST` | `viewer` / `admin` | Fetches or updates federation settings and masked tunnel secret key |
 | `/api/audit/export` | `GET` | `viewer` | Exports audit log trail in NDJSON or JSON format (`?format=ndjson&limit=2000&action=`) |
 | `/api/alerts/config` | `GET` / `POST` | `viewer` / `admin` | Fetches or updates active alert rules, webhook destinations, and threshold limits |
 | `/api/alerts/events` | `GET` | `viewer` | Fetches recent incident and fired alert history buffer (`?limit=50`) |
