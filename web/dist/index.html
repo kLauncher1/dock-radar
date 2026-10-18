@@ -649,6 +649,7 @@
       <button id="storage-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: inline-flex; align-items: center; gap: 4px;" onclick="openStorageModal()" title="Ephemeral Log Storage & S3 Offloader">💾 Log Storage: <span id="storage-badge-text">0 Chunks (0 MB)</span></button>
       <button id="ebpf-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(234, 179, 8, 0.4); background: rgba(234, 179, 8, 0.15); color: #eab308; display: inline-flex; align-items: center; gap: 4px;" onclick="openEBPFModal()" title="Adaptive Kernel eBPF Telemetry & Anomaly Radar">⚡ eBPF: <span id="ebpf-badge-text">0 Flows</span></button>
       <button id="federation-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(14, 165, 233, 0.4); background: rgba(14, 165, 233, 0.15); color: #0ea5e9; display: inline-flex; align-items: center; gap: 4px;" onclick="openFederationModal()" title="Multi-Region Edge Peer Federation & WAN Sync">🌍 Federation: <span id="federation-badge-text">1 Region</span></button>
+      <button id="scanner-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(244, 63, 94, 0.4); background: rgba(244, 63, 94, 0.15); color: #f43f5e; display: inline-flex; align-items: center; gap: 4px;" onclick="openScannerModal()" title="Container Image Vulnerability Scanner & SBOM Audit">🛡️ SBOM/CVE: <span id="scanner-badge-text">0 Images</span></button>
       <button id="btn-export-audit" class="status-pill" style="font-size: 11px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;" onclick="exportAuditTrail()" title="Export Audit Trail in NDJSON format">📋 Export Audit</button>
       <span>•</span>
       <span id="host-badge">Loading...</span>
@@ -1589,6 +1590,85 @@
         </div>
       </div>
     </div>
+
+    <!-- Container Image Vulnerability Scanner & SBOM Audit Section -->
+    <div class="card" id="scanner-section" style="margin-bottom: 24px; padding: 20px; border-color: rgba(244, 63, 94, 0.25);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <h2 style="font-size: 16px; font-weight: 700; margin: 0; color: #f43f5e; display: flex; align-items: center; gap: 8px;">
+            <span>🛡️</span> Container Vulnerability Scanner &amp; SBOM Audit
+          </h2>
+          <span class="status-pill status-running" id="scanner-status-pill" style="font-size: 11px; color: #f43f5e; border: 1px solid rgba(244, 63, 94, 0.4); background: rgba(244, 63, 94, 0.15);">Scanner: Active</span>
+          <span id="scanner-gating-pill" class="status-pill" style="font-size: 11px; background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4);">Gate: PASS</span>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn-action btn-logs" onclick="triggerScanAll()" style="font-size: 11px; color: #f43f5e; border-color: rgba(244, 63, 94, 0.4); background: rgba(244, 63, 94, 0.1);" title="Trigger full vulnerability scan across all active container images">🔍 Scan All Active Images</button>
+          <button class="btn-action" onclick="openScannerModal()" style="font-size: 11px; color: var(--text-main); border-color: var(--border-subtle); background: var(--bg-surface-elevated);" title="Configure deployment gating thresholds, whitelist CVEs, and view SBOM specifications">⚙️ Gating &amp; SBOM Export</button>
+        </div>
+      </div>
+
+      <!-- Scanner KPI Grid -->
+      <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); margin-bottom: 20px;">
+        <div class="metric-card" style="border-left: 3px solid #f43f5e;">
+          <div class="metric-label">Scanned Images</div>
+          <div class="metric-value" id="stat-scanner-scanned-images" style="color: #f43f5e;">0</div>
+          <div class="metric-sub" id="stat-scanner-total-vulns">0 Vulnerabilities Found</div>
+        </div>
+        <div class="metric-card" style="border-left: 3px solid #ef4444;">
+          <div class="metric-label">Critical CVEs</div>
+          <div class="metric-value" id="stat-scanner-critical-count" style="color: #ef4444;">0</div>
+          <div class="metric-sub">Immediate Deployment Blockers</div>
+        </div>
+        <div class="metric-card" style="border-left: 3px solid #f97316;">
+          <div class="metric-label">High Severity CVEs</div>
+          <div class="metric-value" id="stat-scanner-high-count" style="color: #f97316;">0</div>
+          <div class="metric-sub">Security Gate Review Required</div>
+        </div>
+        <div class="metric-card" style="border-left: 3px solid #a855f7;">
+          <div class="metric-label">Avg Risk Score / Grade</div>
+          <div class="metric-value" id="stat-scanner-risk-score" style="color: #c084fc;">0.0 (A+)</div>
+          <div class="metric-sub">Workload CVSS-Weighted Risk</div>
+        </div>
+        <div class="metric-card" style="border-left: 3px solid #10b981;">
+          <div class="metric-label">Deployment Gating Pass</div>
+          <div class="metric-value" id="stat-scanner-gating-pass" style="color: #10b981;">0 / 0</div>
+          <div class="metric-sub" id="stat-scanner-gating-blocked">0 Blocked Deployments</div>
+        </div>
+      </div>
+
+      <!-- Scanned Images & Vulnerability Audit Table -->
+      <div>
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <span style="font-size: 13px; font-weight: 600; color: var(--text-main);">Container Image Vulnerability Audit &amp; SBOM Artifacts</span>
+          <span id="scanner-last-scan-time" style="font-size: 11px; color: var(--text-muted);">Last Sweep: Pending</span>
+        </div>
+        <div style="overflow-x: auto;">
+          <table class="table" style="width: 100%; border-collapse: collapse; font-size: 12px;">
+            <thead>
+              <tr>
+                <th>Image / Container</th>
+                <th>Base OS</th>
+                <th>Security Grade</th>
+                <th>Critical</th>
+                <th>High</th>
+                <th>Med / Low</th>
+                <th>Risk Score</th>
+                <th>Gate Status</th>
+                <th>SBOM Export</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="scanner-reports-body">
+              <tr>
+                <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                  No vulnerability scans recorded yet. Click "Scan All Active Images" to run security analysis.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- Lifecycle Action Confirmation Modal -->
@@ -2241,6 +2321,102 @@
       <div class="modal-actions" style="display: flex; justify-content: space-between; width: 100%;">
         <button class="btn btn-action btn-logs" onclick="triggerFederationSync()" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">🔄 Trigger WAN Delta Sync</button>
         <button class="btn btn-secondary" onclick="closeFederationModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Container Image Vulnerability Scanner & SBOM Modal -->
+  <div class="modal-backdrop" id="scanner-modal">
+    <div class="modal-card" style="max-width: 900px; width: 95%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div class="modal-title" style="color: #f43f5e; margin-bottom: 0;">Container Image Security Gating &amp; SBOM Manager</div>
+        <button class="btn-action" onclick="closeScannerModal()" style="padding: 4px 10px;">✕</button>
+      </div>
+
+      <!-- Modal Tabs -->
+      <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
+        <button class="btn-action" id="tab-btn-scanner-scan" onclick="switchScannerTab('scan')" style="background: rgba(244, 63, 94, 0.2); color: #f43f5e; border-color: rgba(244, 63, 94, 0.4);">🔍 On-Demand Scan</button>
+        <button class="btn-action" id="tab-btn-scanner-gating" onclick="switchScannerTab('gating')">⚖️ Deployment Gating Policy</button>
+        <button class="btn-action" id="tab-btn-scanner-sbom" onclick="switchScannerTab('sbom')">📦 SBOM Artifact Viewer</button>
+      </div>
+
+      <div class="modal-body" style="margin-bottom: 16px;">
+        <!-- Tab 1: On-Demand Scan -->
+        <div id="scanner-tab-scan">
+          <div class="alert-card-sub" style="margin-bottom: 16px; padding: 14px; border: 1px solid rgba(244, 63, 94, 0.25);">
+            <div style="font-size: 12px; font-weight: 700; color: #f43f5e; margin-bottom: 10px; text-transform: uppercase;">Run Immediate In-Line Vulnerability Scan</div>
+            <div class="form-row">
+              <div class="form-col" style="flex: 2;">
+                <label class="form-label" for="scan-target-image">Image Tag, Name or Digest</label>
+                <input type="text" class="form-input" id="scan-target-image" placeholder="e.g. alpine:3.18, redis:alpine, ubuntu:22.04" />
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="scan-target-container">Container ID (Optional)</label>
+                <input type="text" class="form-input" id="scan-target-container" placeholder="12-char ID" />
+              </div>
+              <div class="form-col" style="display: flex; align-items: flex-end;">
+                <button class="btn btn-primary-restart" onclick="submitOnDemandScan()" style="padding: 8px 16px; font-size: 12px; font-weight: 600; width: 100%;">⚡ Run Scan</button>
+              </div>
+            </div>
+          </div>
+          <div id="scan-result-card" style="display: none; background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div style="font-weight: 700; color: #38bdf8; margin-bottom: 8px;" id="scan-result-title">Scan Results</div>
+            <div id="scan-result-content" style="font-size: 12px; font-family: 'JetBrains Mono', monospace; max-height: 250px; overflow-y: auto;"></div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Deployment Gating Policy -->
+        <div id="scanner-tab-gating" style="display: none;">
+          <div class="alert-card-sub" style="margin-bottom: 16px; padding: 14px; border: 1px solid rgba(16, 185, 129, 0.25);">
+            <div style="font-size: 12px; font-weight: 700; color: #10b981; margin-bottom: 10px; text-transform: uppercase;">Security Thresholds &amp; Automated Gating Triggers</div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <div class="form-col">
+                <label class="form-label" for="gating-fail-sev">Fail Deployment On Severity</label>
+                <select class="form-input" id="gating-fail-sev">
+                  <option value="CRITICAL">CRITICAL (CVSS &gt;= 9.0)</option>
+                  <option value="HIGH">HIGH (CVSS &gt;= 7.0)</option>
+                  <option value="MEDIUM">MEDIUM (CVSS &gt;= 4.0)</option>
+                </select>
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="gating-max-crit">Max Allowed Critical CVEs</label>
+                <input type="number" min="0" max="100" class="form-input" id="gating-max-crit" value="0" />
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="gating-max-high">Max Allowed High CVEs</label>
+                <input type="number" min="0" max="100" class="form-input" id="gating-max-high" value="3" />
+              </div>
+            </div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <div class="form-col">
+                <label class="form-label" for="gating-whitelist">Whitelisted CVEs (Comma-separated)</label>
+                <input type="text" class="form-input" id="gating-whitelist" placeholder="CVE-2023-38545, CVE-2022-3602" />
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="gating-allowed-licenses">Allowed Licenses (Optional)</label>
+                <input type="text" class="form-input" id="gating-allowed-licenses" placeholder="MIT, Apache-2.0, BSD-3-Clause" />
+              </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end;">
+              <button class="btn btn-primary-restart" onclick="submitGatingPolicy()" style="padding: 8px 18px; font-size: 12px; font-weight: 600;">💾 Save Gating Policy</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: SBOM Artifact Viewer -->
+        <div id="scanner-tab-sbom" style="display: none;">
+          <div style="margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center;">
+            <div style="font-size: 13px; color: var(--text-muted);">Inspect or export Software Bill of Materials (SBOM) for active workloads:</div>
+            <div style="display: flex; gap: 8px;">
+              <button class="btn-action" onclick="fetchAndDisplaySBOM('spdx')" style="font-size: 11px;">View SPDX 2.3</button>
+              <button class="btn-action" onclick="fetchAndDisplaySBOM('cyclonedx')" style="font-size: 11px;">View CycloneDX 1.5</button>
+            </div>
+          </div>
+          <pre id="sbom-preview-code" style="background: #090d16; border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px; font-family: 'JetBrains Mono', monospace; font-size: 11px; max-height: 300px; overflow: auto; color: #94a3b8;">Select an image or click "View SPDX 2.3" / "View CycloneDX 1.5" to preview specification artifact.</pre>
+        </div>
+      </div>
+      <div class="modal-actions" style="display: flex; justify-content: flex-end;">
+        <button class="btn btn-secondary" onclick="closeScannerModal()">Close</button>
       </div>
     </div>
   </div>
@@ -5833,6 +6009,345 @@
       }
     }
 
+    let activeScannerTab = 'scan';
+    let currentScannedImage = '';
+
+    function openScannerModal() {
+      const el = document.getElementById('scanner-modal');
+      if (el) {
+        el.classList.add('active');
+        loadGatingPolicy();
+      }
+    }
+
+    function closeScannerModal() {
+      const el = document.getElementById('scanner-modal');
+      if (el) el.classList.remove('active');
+    }
+
+    function switchScannerTab(tab) {
+      activeScannerTab = tab;
+      ['scan', 'gating', 'sbom'].forEach(t => {
+        const btn = document.getElementById(`tab-btn-scanner-${t}`);
+        const pane = document.getElementById(`scanner-tab-${t}`);
+        if (t === tab) {
+          if (btn) {
+            btn.style.background = 'rgba(244, 63, 94, 0.2)';
+            btn.style.color = '#f43f5e';
+            btn.style.borderColor = 'rgba(244, 63, 94, 0.4)';
+          }
+          if (pane) pane.style.display = 'block';
+        } else {
+          if (btn) {
+            btn.style.background = 'var(--bg-surface-elevated)';
+            btn.style.color = 'var(--text-main)';
+            btn.style.borderColor = 'var(--border-subtle)';
+          }
+          if (pane) pane.style.display = 'none';
+        }
+      });
+      if (tab === 'sbom' && currentScannedImage) {
+        fetchAndDisplaySBOM('spdx');
+      }
+    }
+
+    async function pollScannerStatus() {
+      try {
+        const resp = await authFetch('/api/scanner/status');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const st = data.status || {};
+        const policy = data.gating_policy || {};
+
+        const badgeText = document.getElementById('scanner-badge-text');
+        const badgeBtn = document.getElementById('scanner-badge');
+        if (badgeText) {
+          badgeText.textContent = `${st.total_scanned_images || 0} Image${(st.total_scanned_images || 0) === 1 ? '' : 's'}`;
+        }
+        if (badgeBtn) {
+          badgeBtn.className = `status-pill ${st.critical_count > 0 ? 'status-stopped' : 'status-running'}`;
+        }
+
+        const pill = document.getElementById('scanner-status-pill');
+        if (pill) {
+          pill.textContent = `Scanner: ${st.enabled ? 'Active' : 'Standby'}`;
+        }
+
+        const gatePill = document.getElementById('scanner-gating-pill');
+        if (gatePill) {
+          if (st.gating_blocked_count > 0 || st.critical_count > (policy.max_critical || 0)) {
+            gatePill.textContent = 'Gate: BLOCKED';
+            gatePill.style.background = 'rgba(239, 68, 68, 0.2)';
+            gatePill.style.color = '#ef4444';
+            gatePill.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+          } else {
+            gatePill.textContent = 'Gate: PASS';
+            gatePill.style.background = 'rgba(16, 185, 129, 0.2)';
+            gatePill.style.color = '#10b981';
+            gatePill.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+          }
+        }
+
+        const statImages = document.getElementById('stat-scanner-scanned-images');
+        if (statImages) statImages.textContent = st.total_scanned_images || 0;
+
+        const statVulns = document.getElementById('stat-scanner-total-vulns');
+        if (statVulns) statVulns.textContent = `${st.total_vulnerabilities || 0} Vulnerabilities Found`;
+
+        const statCrit = document.getElementById('stat-scanner-critical-count');
+        if (statCrit) statCrit.textContent = st.critical_count || 0;
+
+        const statHigh = document.getElementById('stat-scanner-high-count');
+        if (statHigh) statHigh.textContent = st.high_count || 0;
+
+        const statScore = document.getElementById('stat-scanner-risk-score');
+        if (statScore) {
+          let grade = 'A+';
+          if (st.critical_count > 0 || st.average_risk_score >= 50) grade = 'F';
+          else if (st.high_count > 3 || st.average_risk_score >= 35) grade = 'D';
+          else if (st.high_count > 0 || st.average_risk_score >= 20) grade = 'C';
+          else if (st.medium_count > 2 || st.average_risk_score >= 10) grade = 'B';
+          else if (st.average_risk_score > 0) grade = 'A';
+          statScore.textContent = `${(st.average_risk_score || 0).toFixed(1)} (${grade})`;
+        }
+
+        const statGatingPass = document.getElementById('stat-scanner-gating-pass');
+        if (statGatingPass) {
+          const totalGated = (st.gating_passed_count || 0) + (st.gating_blocked_count || 0);
+          statGatingPass.textContent = `${st.gating_passed_count || 0} / ${totalGated}`;
+        }
+
+        const statGatingBlocked = document.getElementById('stat-scanner-gating-blocked');
+        if (statGatingBlocked) {
+          statGatingBlocked.textContent = `${st.gating_blocked_count || 0} Blocked Deployments`;
+        }
+
+        const lastScanEl = document.getElementById('scanner-last-scan-time');
+        if (lastScanEl && st.last_scan_at) {
+          const d = new Date(st.last_scan_at);
+          lastScanEl.textContent = `Last Sweep: ${d.toLocaleTimeString()}`;
+        }
+      } catch (err) {}
+    }
+
+    async function pollScannerReports() {
+      try {
+        const resp = await authFetch('/api/scanner/reports?limit=50');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const reports = data.reports || [];
+        const bodyEl = document.getElementById('scanner-reports-body');
+        if (!bodyEl) return;
+
+        if (reports.length === 0) {
+          bodyEl.innerHTML = `
+            <tr>
+              <td colspan="10" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                No vulnerability scans recorded yet. Click "Scan All Active Images" to run security analysis.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        if (!currentScannedImage && reports.length > 0) {
+          currentScannedImage = reports[0].image_name || reports[0].id;
+        }
+
+        bodyEl.innerHTML = reports.map(r => {
+          let gateBadge = `<span class="status-pill status-running" style="font-size: 10px;">PASS</span>`;
+          if (r.gating_result && r.gating_result.status === 'BLOCKED') {
+            gateBadge = `<span class="status-pill status-stopped" style="font-size: 10px;" title="${escapeHTML(r.gating_result.reason || '')}">BLOCKED</span>`;
+          } else if (r.gating_result && r.gating_result.status === 'WARNING') {
+            gateBadge = `<span class="status-pill" style="font-size: 10px; background: rgba(245, 158, 11, 0.2); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.4);">WARNING</span>`;
+          }
+
+          let gradeColor = '#10b981';
+          if (r.security_grade === 'F') gradeColor = '#ef4444';
+          else if (r.security_grade === 'D') gradeColor = '#f97316';
+          else if (r.security_grade === 'C') gradeColor = '#f59e0b';
+          else if (r.security_grade === 'B') gradeColor = '#38bdf8';
+
+          return `
+            <tr>
+              <td>
+                <div style="font-weight: 700; color: #f43f5e; font-family: monospace;">${escapeHTML(r.image_name)}</div>
+                <div style="font-size: 10px; color: var(--text-muted); font-family: monospace;">${escapeHTML(r.container_id ? r.container_id.substring(0, 12) : r.digest.substring(0, 19))}</div>
+              </td>
+              <td><span style="font-size: 11px;">${escapeHTML(r.os_name || 'Generic')} ${escapeHTML(r.os_version || '')}</span></td>
+              <td><span style="font-weight: 800; color: ${gradeColor}; font-size: 13px;">${escapeHTML(r.security_grade)}</span></td>
+              <td><span style="font-weight: 700; color: ${r.critical_count > 0 ? '#ef4444' : 'var(--text-muted)'};">${r.critical_count}</span></td>
+              <td><span style="font-weight: 700; color: ${r.high_count > 0 ? '#f97316' : 'var(--text-muted)'};">${r.high_count}</span></td>
+              <td style="color: var(--text-muted); font-size: 11px;">${r.medium_count} / ${r.low_count}</td>
+              <td style="font-family: monospace; font-weight: 600;">${(r.risk_score || 0).toFixed(1)}</td>
+              <td>${gateBadge}</td>
+              <td>
+                <div style="display: flex; gap: 4px;">
+                  <button class="btn-action" onclick="downloadSBOM('${escapeHTML(r.image_name)}', 'spdx')" style="font-size: 10px; padding: 2px 5px;" title="Export SPDX 2.3 JSON">SPDX</button>
+                  <button class="btn-action" onclick="downloadSBOM('${escapeHTML(r.image_name)}', 'cyclonedx')" style="font-size: 10px; padding: 2px 5px;" title="Export CycloneDX 1.5 JSON">CDX</button>
+                </div>
+              </td>
+              <td style="text-align: right;">
+                <button class="btn-action btn-logs" onclick="triggerSingleScan('${escapeHTML(r.image_name)}')" style="font-size: 10px; padding: 2px 6px;">Rescan</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {}
+    }
+
+    async function triggerScanAll() {
+      try {
+        showToast('🔍 Scanning active container workloads...');
+        const resp = await authFetch('/api/scanner/scan', { method: 'POST' });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast('✓ Active container image scan sweep complete');
+        pollScannerStatus();
+        pollScannerReports();
+      } catch (err) {
+        showToast(`Scan sweep failed: ${err.message}`);
+      }
+    }
+
+    async function triggerSingleScan(target) {
+      try {
+        showToast(`🔍 Scanning image ${target}...`);
+        const resp = await authFetch('/api/scanner/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: target })
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast(`✓ Scan completed for ${target}`);
+        pollScannerStatus();
+        pollScannerReports();
+      } catch (err) {
+        showToast(`Scan failed: ${err.message}`);
+      }
+    }
+
+    async function submitOnDemandScan() {
+      const img = (document.getElementById('scan-target-image').value || '').trim();
+      const cid = (document.getElementById('scan-target-container').value || '').trim();
+
+      if (!img && !cid) {
+        showToast('Please specify an image name or container ID');
+        return;
+      }
+
+      try {
+        showToast('⚡ Running on-demand vulnerability scan...');
+        const resp = await authFetch('/api/scanner/scan', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: img, container_id: cid })
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        const report = await resp.json();
+        currentScannedImage = report.image_name || report.id;
+
+        const card = document.getElementById('scan-result-card');
+        const content = document.getElementById('scan-result-content');
+        if (card && content) {
+          card.style.display = 'block';
+          content.innerHTML = `
+            <div><strong>Image:</strong> ${escapeHTML(report.image_name)} (${escapeHTML(report.os_name)})</div>
+            <div><strong>Security Grade:</strong> <span style="font-weight: 800; color: #f43f5e;">${escapeHTML(report.security_grade)}</span> (Risk Score: ${report.risk_score})</div>
+            <div><strong>Vulnerabilities:</strong> Critical: ${report.critical_count}, High: ${report.high_count}, Med: ${report.medium_count}, Low: ${report.low_count}</div>
+            <div><strong>Deployment Gate:</strong> <strong>${escapeHTML(report.gating_result.status)}</strong> - ${escapeHTML(report.gating_result.reason)}</div>
+            ${report.vulnerabilities.length > 0 ? '<div style="margin-top: 6px; color: #ef4444;"><strong>Identified CVEs:</strong><br/>' + report.vulnerabilities.map(v => `• ${escapeHTML(v.id)} [${escapeHTML(v.severity)}]: ${escapeHTML(v.title)} (Fixed: ${escapeHTML(v.fixed_version)})`).join('<br/>') + '</div>' : '<div style="color: #10b981; margin-top: 4px;">✓ Zero known CVEs identified in standard advisory DB.</div>'}
+          `;
+        }
+
+        showToast('✓ Scan analysis complete');
+        pollScannerStatus();
+        pollScannerReports();
+      } catch (err) {
+        showToast(`Scan failed: ${err.message}`);
+      }
+    }
+
+    async function loadGatingPolicy() {
+      try {
+        const resp = await authFetch('/api/scanner/gating');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const p = data.policy || {};
+
+        const failSev = document.getElementById('gating-fail-sev');
+        if (failSev && p.fail_on_severity) failSev.value = p.fail_on_severity;
+
+        const maxCrit = document.getElementById('gating-max-crit');
+        if (maxCrit && p.max_critical !== undefined) maxCrit.value = p.max_critical;
+
+        const maxHigh = document.getElementById('gating-max-high');
+        if (maxHigh && p.max_high !== undefined) maxHigh.value = p.max_high;
+
+        const wl = document.getElementById('gating-whitelist');
+        if (wl && p.whitelist_cves) wl.value = p.whitelist_cves.join(', ');
+
+        const lic = document.getElementById('gating-allowed-licenses');
+        if (lic && p.allowed_licenses) lic.value = p.allowed_licenses.join(', ');
+      } catch (err) {}
+    }
+
+    async function submitGatingPolicy() {
+      const failSev = document.getElementById('gating-fail-sev').value;
+      const maxCrit = parseInt(document.getElementById('gating-max-crit').value) || 0;
+      const maxHigh = parseInt(document.getElementById('gating-max-high').value) || 0;
+      const wlRaw = (document.getElementById('gating-whitelist').value || '').trim();
+      const licRaw = (document.getElementById('gating-allowed-licenses').value || '').trim();
+
+      const wl = wlRaw ? wlRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+      const lic = licRaw ? licRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+      try {
+        const resp = await authFetch('/api/scanner/gating', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            fail_on_severity: failSev,
+            max_critical: maxCrit,
+            max_high: maxHigh,
+            whitelist_cves: wl,
+            allowed_licenses: lic
+          })
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast('✓ Deployment security gating policy updated');
+        pollScannerStatus();
+      } catch (err) {
+        showToast(`Policy update failed: ${err.message}`);
+      }
+    }
+
+    async function fetchAndDisplaySBOM(format) {
+      if (!currentScannedImage) {
+        showToast('Please trigger a scan first to inspect SBOM');
+        return;
+      }
+      try {
+        const pre = document.getElementById('sbom-preview-code');
+        if (pre) pre.textContent = `Loading ${format.toUpperCase()} specification for ${currentScannedImage}...`;
+
+        const resp = await authFetch(`/api/scanner/sbom?image=${encodeURIComponent(currentScannedImage)}&format=${format}`);
+        if (!resp.ok) throw new Error(await resp.text());
+        const data = await resp.json();
+        if (pre) pre.textContent = JSON.stringify(data, null, 2);
+      } catch (err) {
+        showToast(`Failed to load SBOM: ${err.message}`);
+      }
+    }
+
+    function downloadSBOM(target, format) {
+      const token = localStorage.getItem('dock_radar_auth_token') || '';
+      let url = `/api/scanner/sbom?image=${encodeURIComponent(target)}&format=${format}`;
+      if (token) {
+        url += `&api_key=${encodeURIComponent(token)}`;
+      }
+      window.open(url, '_blank');
+    }
+
     checkAuthStatus();
     setInterval(checkAuthStatus, 5000);
     pollTelemetry();
@@ -5863,6 +6378,10 @@
     setInterval(pollEBPFStatus, 2500);
     pollFederationStatus();
     setInterval(pollFederationStatus, 3000);
+    pollScannerStatus();
+    setInterval(pollScannerStatus, 3000);
+    pollScannerReports();
+    setInterval(pollScannerReports, 5000);
   </script>
 </body>
 </html>

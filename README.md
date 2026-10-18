@@ -10,7 +10,7 @@
 
 **Ultra-lightweight single-binary container & system metrics monitor with embedded real-time dark-mode web dashboard.**
 
-[![Release](https://img.shields.io/badge/Release-v2.1.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
+[![Release](https://img.shields.io/badge/Release-v2.2.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg?style=flat&logo=go)](https://golang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6%2B-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
@@ -27,6 +27,7 @@
 
 - **Single Executable Deployment**: The web dashboard is baked directly into the Go binary via `//go:embed`. No Node.js runtime, external assets, or separate frontend servers needed.
 - **Ultra-Low Memory Footprint**: Runs persistently under **15 MB of RAM** with bounded circular ring buffers, making it ideal for low-spec VPS, Raspberry Pi, and homelab environments.
+- **Container Image Vulnerability Scanner & SBOM Audit**: In-line container image layer analysis and curated multi-ecosystem vulnerability database lookup covering Alpine (`apk`), Debian (`deb`), Go, NPM, and PyPI packages. Features automated Software Bill of Materials (SBOM) generation supporting both SPDX 2.3 and CycloneDX 1.5 JSON standards with pURL formatting, automated deployment security gating policy evaluator with configurable critical/high thresholds and license compliance policies, interactive live dashboard audit table, and one-click SBOM export.
 - **Multi-Region Edge Peer Federation & WAN Sync**: Secure cross-region edge mesh federation over AES-256-GCM encrypted overlay tunnels authenticated via HMAC-SHA256 signatures with 60-second replay attack defense. Features low-bandwidth delta sync protocol utilizing SHA-256 inventory digests and gzip compression, Haversine spherical distance geo-routing, automated failover triggers on consecutive probe failures with probation recovery windows, and dedicated edge federation views in the embedded dark-mode web dashboard.
 - **Adaptive Kernel eBPF Telemetry & Behavioral Security Engine**: Pure standard-library socket flow tracker and Linux `/proc/net/tcp` inspector measuring real-time TCP/UDP socket connections, byte throughput, and round-trip latency. Built-in behavioral security engine monitors container system calls with automated detection rules for unexpected shell execution (`execve`), privilege escalation (`setuid`), memory inspection (`ptrace`), sensitive host credential access (`/etc/shadow`), Docker socket abuse, and outbound mining connections, paired with a live visual flow monitor and incident mitigation feed.
 - **Distributed Ephemeral Log Storage & S3 Offloader**: Compresses in-memory container logs into gzip (`.gz`) chunks with cryptographic SHA-256 integrity checksums and atomic disk writing. Background asynchronous offloader streams chunk archives to S3-compatible cloud object storage (AWS S3, MinIO, Cloudflare R2) using a zero-dependency pure standard-library AWS SigV4 signer. Includes local disk capacity caps, age-based rotation, offload-priority retention pruning, and dedicated chunk explorer table with direct gzip download.
@@ -109,6 +110,10 @@ go build -ldflags="-s -w" -o dock-radar .
 | `--federation-name` | `DOCK_RADAR_FEDERATION_NAME` | `Region` | Human-readable display name for the local edge region |
 | `--federation-key` | `DOCK_RADAR_FEDERATION_KEY` | `""` | Shared secret key for HMAC-SHA256 authenticated AES-256-GCM overlay tunnels |
 | `--wan-sync-interval` | `DOCK_RADAR_WAN_SYNC_INTERVAL` | `30s` | WAN delta sync interval for edge container inventory exchange |
+| `--scanner` | `DOCK_RADAR_SCANNER` | `false` | Enable container image vulnerability scanner and SBOM audit engine |
+| `--scanner-auto-scan` | `DOCK_RADAR_SCANNER_AUTO_SCAN` | `true` | Automatically scan active containers during background scan loops |
+| `--scanner-interval` | `DOCK_RADAR_SCANNER_INTERVAL` | `1h` | Periodic background vulnerability scan sweep interval |
+| `--scanner-gating-severity` | `DOCK_RADAR_SCANNER_GATING_SEVERITY` | `CRITICAL` | Maximum vulnerability severity threshold triggering deployment gating failures |
 | `--version` | — | — | Print dock-radar version and exit |
 
 ---
@@ -125,34 +130,34 @@ go build -ldflags="-s -w" -o dock-radar .
 │   • Lifecycle & Batch Ops│      • CPU & OS Metrics     │
 │   • Multiplex Log Demux  │                             │
 ├──────────────────────────┼─────────────────────────────┤
-│   internal/federation    │      internal/storage       │
-│   • AES-256-GCM Tunnels  │      • Compressed Gzip Chunks
-│   • WAN Delta Sync SHA256│      • AWS SigV4 Signer     │
-│   • Geo Haversine Router │      • S3 / MinIO Offload   │
+│   internal/scanner       │      internal/federation    │
+│   • Layer CVE Scanner    │      • AES-256-GCM Tunnels  │
+│   • SPDX 2.3 & CycloneDX │      • WAN Delta Sync SHA256│
+│   • Deployment Gating    │      • Geo Haversine Router │
 ├──────────────────────────┼─────────────────────────────┤
-│   internal/ebpf          │      internal/mesh          │
-│   • Socket Flow Tracker  │      • Node Discovery/Probe │
-│   • Syscall Threat Rules │      • SWIM Gossip Protocol │
-│   • /proc/net/tcp Probe  │      • UDP Broadcast Beacon │
+│   internal/ebpf          │      internal/storage       │
+│   • Socket Flow Tracker  │      • Compressed Gzip Chunks
+│   • Syscall Threat Rules │      • AWS SigV4 Signer     │
+│   • /proc/net/tcp Probe  │      • S3 / MinIO Offload   │
 ├──────────────────────────┼─────────────────────────────┤
-│   internal/alert         │      internal/audit         │
-│   • Discord & Slack Web  │      • Circular Event Log   │
-│   • State Poller/Flap    │      • NDJSON / JSON Export │
-│   • Cooldown Deduplication                             │
+│   internal/alert         │      internal/mesh          │
+│   • Discord & Slack Web  │      • Node Discovery/Probe │
+│   • State Poller/Flap    │      • SWIM Gossip Protocol │
+│   • Cooldown Deduplication      • UDP Broadcast Beacon │
 ├──────────────────────────┼─────────────────────────────┤
 │   internal/healing       │      net/http Router        │
 │   • Auto OOM / Crash Loop│      • /metrics (Prometheus)│
 │   • Jitter & Backoff     │      • /api/docker/*        │
-│   • Circuit Breaker      │      • /api/federation/*    │
-├──────────────────────────┤      • /api/storage/*       │
-│   internal/metrics       │      • /api/ebpf/*          │
-│   • Standard Prometheus  │      • /api/healing/*       │
-│   • Exposition Formatter │      • /api/nodes/*         │
-│   • Multi-Region Gauges  │      • /api/cluster/*       │
-├──────────────────────────┤      • /api/mesh/*          │
-│   internal/security      │      • /api/audit/*         │
-│   • In-Memory ECDSA TLS  │      • Pure RFC 6455 WS     │
-│   • Constant-Time Bearer │                             │
+│   • Circuit Breaker      │      • /api/scanner/*       │
+├──────────────────────────┤      • /api/federation/*    │
+│   internal/metrics       │      • /api/storage/*       │
+│   • Standard Prometheus  │      • /api/ebpf/*          │
+│   • Exposition Formatter │      • /api/healing/*       │
+│   • Multi-Region Gauges  │      • /api/nodes/*         │
+├──────────────────────────┤      • /api/cluster/*       │
+│   internal/security      │      • /api/mesh/*          │
+│   • In-Memory ECDSA TLS  │      • /api/audit/*         │
+│   • Constant-Time Bearer │      • Pure RFC 6455 WS     │
 │   • RBAC (Admin/Viewer)  │                             │
 ├──────────────────────────┴─────────────────────────────┤
 │                 Embedded Web Dashboard                 │
@@ -184,6 +189,12 @@ go build -ldflags="-s -w" -o dock-radar .
 | `/api/docker/logs` | `WS` / `GET` | `viewer` | Real-time WebSocket log feed or JSON snapshot (`?id=<id>&stream=<stdout\|stderr\|system>&tail=100`) |
 | `/api/docker/restart` | `POST` | `admin` | Safely restarts a container by ID or name (`{"id":"<name_or_id>","timeout":10}`) |
 | `/api/docker/stop` | `POST` | `admin` | Safely stops a running container (`{"id":"<name_or_id>","timeout":10}`) |
+| `/api/scanner/status` | `GET` | `viewer` | Overall vulnerability scanner engine status, scan counts, and gating metrics |
+| `/api/scanner/reports` | `GET` | `viewer` | Recent container image vulnerability scan reports (`?container=&image=&limit=50`) |
+| `/api/scanner/report` | `GET` | `viewer` | Detailed vulnerability report for a specific container or image (`?id=&image=`) |
+| `/api/scanner/scan` | `POST` | `admin` | Triggers on-demand vulnerability scan for an image or full sweep (`{"image":"alpine:latest"}`) |
+| `/api/scanner/sbom` | `GET` | `viewer` | Exports downloadable SPDX 2.3 or CycloneDX 1.5 JSON SBOM (`?id=&format=spdx`) |
+| `/api/scanner/gating` | `GET` / `POST` | `viewer` / `admin` | Fetches or updates automated deployment gating policies and thresholds |
 | `/api/healing/config` | `GET` / `POST` | `viewer` / `admin` | Fetches or updates auto-remediation policy, jitter limits, and exclusion rules |
 | `/api/healing/status` | `GET` | `viewer` | Active healing metrics, quarantined containers, and backoff states |
 | `/api/healing/history`| `GET` | `viewer` | Recent remediation event history log (`?limit=50&container=`) |

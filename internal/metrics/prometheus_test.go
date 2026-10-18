@@ -15,6 +15,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/rolling"
+	"github.com/kLauncher1/dock-radar/internal/scanner"
 	"github.com/kLauncher1/dock-radar/internal/storage"
 	"github.com/kLauncher1/dock-radar/internal/system"
 )
@@ -436,7 +437,7 @@ func TestFormatMetrics_RollingRestarts(t *testing.T) {
 		TotalRollbacks:           1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, rollingStats, nil, nil, nil, "1.8.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, rollingStats, nil, nil, nil, nil, "1.8.0")
 
 	expectedMetrics := []string{
 		"dock_radar_rolling_operations_total 5",
@@ -466,7 +467,7 @@ func TestFormatMetrics_Storage(t *testing.T) {
 		S3Enabled:       true,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, storageStatus, nil, nil, "1.9.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, storageStatus, nil, nil, nil, "1.9.0")
 
 	expectedMetrics := []string{
 		"dock_radar_log_storage_chunks_total 20",
@@ -500,7 +501,7 @@ func TestFormatMetrics_EBPF(t *testing.T) {
 		CPUOverheadPercent:  0.04,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, ebpfStatus, nil, "2.0.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, ebpfStatus, nil, nil, "2.0.0")
 
 	expectedMetrics := []string{
 		"dock_radar_ebpf_flows_active 15",
@@ -535,7 +536,7 @@ func TestFormatMetrics_Federation(t *testing.T) {
 		FailoverCount:   1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fedStatus, "2.1.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fedStatus, nil, "2.1.0")
 
 	expectedMetrics := []string{
 		"dock_radar_federation_regions_total 3",
@@ -545,6 +546,43 @@ func TestFormatMetrics_Federation(t *testing.T) {
 		"dock_radar_federation_wan_sync_saved_bytes_total 24576",
 		"dock_radar_federation_failover_events_total 1",
 		`dock_radar_federation_enabled{local_region="ap-northeast-2"} 1`,
+	}
+
+	for _, m := range expectedMetrics {
+		if !strings.Contains(output, m) {
+			t.Errorf("expected output to contain %q, but was missing:\n%s", m, output)
+		}
+	}
+}
+
+func TestFormatMetrics_Scanner(t *testing.T) {
+	sys := system.Metrics{OS: "linux", Arch: "amd64", Hostname: "node-scanner"}
+	dock := docker.DaemonStatus{Available: true}
+
+	scannerStatus := &scanner.ScannerStatus{
+		Enabled:              true,
+		AutoScan:             true,
+		TotalScannedImages:   4,
+		TotalVulnerabilities: 8,
+		CriticalCount:        1,
+		HighCount:            3,
+		MediumCount:          3,
+		LowCount:             1,
+		AverageRiskScore:     32.5,
+		GatingPassedCount:    3,
+		GatingBlockedCount:   1,
+	}
+
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, scannerStatus, "2.2.0")
+
+	expectedMetrics := []string{
+		"dock_radar_scanner_enabled 1",
+		"dock_radar_scanner_images_scanned_total 4",
+		`dock_radar_scanner_vulnerabilities_total{severity="critical"} 1`,
+		`dock_radar_scanner_vulnerabilities_total{severity="high"} 3`,
+		"dock_radar_scanner_risk_score 32.5",
+		"dock_radar_scanner_gating_passed_total 3",
+		"dock_radar_scanner_gating_blocked_total 1",
 	}
 
 	for _, m := range expectedMetrics {
