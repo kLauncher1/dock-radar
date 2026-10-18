@@ -10,7 +10,7 @@
 
 **Ultra-lightweight single-binary container & system metrics monitor with embedded real-time dark-mode web dashboard.**
 
-[![Release](https://img.shields.io/badge/Release-v2.2.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
+[![Release](https://img.shields.io/badge/Release-v2.3.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg?style=flat&logo=go)](https://golang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6%2B-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
@@ -27,6 +27,7 @@
 
 - **Single Executable Deployment**: The web dashboard is baked directly into the Go binary via `//go:embed`. No Node.js runtime, external assets, or separate frontend servers needed.
 - **Ultra-Low Memory Footprint**: Runs persistently under **15 MB of RAM** with bounded circular ring buffers, making it ideal for low-spec VPS, Raspberry Pi, and homelab environments.
+- **Distributed Rate-Limiting & Global Quota Orchestrator**: Thread-safe token bucket and sliding-window rate limiters with fractional refill intervals, burst capacities, and bandwidth throttling controls. Features automated abuse mitigation and IP ban propagation (`IPBanTracker`) with configurable violation thresholds and local loopback immunity, cross-node HMAC-SHA256 authenticated peer sync protocol with 60-second replay attack defense, Prometheus rate-limiting exporter gauges, and interactive dark-mode dashboard management tables.
 - **Container Image Vulnerability Scanner & SBOM Audit**: In-line container image layer analysis and curated multi-ecosystem vulnerability database lookup covering Alpine (`apk`), Debian (`deb`), Go, NPM, and PyPI packages. Features automated Software Bill of Materials (SBOM) generation supporting both SPDX 2.3 and CycloneDX 1.5 JSON standards with pURL formatting, automated deployment security gating policy evaluator with configurable critical/high thresholds and license compliance policies, interactive live dashboard audit table, and one-click SBOM export.
 - **Multi-Region Edge Peer Federation & WAN Sync**: Secure cross-region edge mesh federation over AES-256-GCM encrypted overlay tunnels authenticated via HMAC-SHA256 signatures with 60-second replay attack defense. Features low-bandwidth delta sync protocol utilizing SHA-256 inventory digests and gzip compression, Haversine spherical distance geo-routing, automated failover triggers on consecutive probe failures with probation recovery windows, and dedicated edge federation views in the embedded dark-mode web dashboard.
 - **Adaptive Kernel eBPF Telemetry & Behavioral Security Engine**: Pure standard-library socket flow tracker and Linux `/proc/net/tcp` inspector measuring real-time TCP/UDP socket connections, byte throughput, and round-trip latency. Built-in behavioral security engine monitors container system calls with automated detection rules for unexpected shell execution (`execve`), privilege escalation (`setuid`), memory inspection (`ptrace`), sensitive host credential access (`/etc/shadow`), Docker socket abuse, and outbound mining connections, paired with a live visual flow monitor and incident mitigation feed.
@@ -114,6 +115,11 @@ go build -ldflags="-s -w" -o dock-radar .
 | `--scanner-auto-scan` | `DOCK_RADAR_SCANNER_AUTO_SCAN` | `true` | Automatically scan active containers during background scan loops |
 | `--scanner-interval` | `DOCK_RADAR_SCANNER_INTERVAL` | `1h` | Periodic background vulnerability scan sweep interval |
 | `--scanner-gating-severity` | `DOCK_RADAR_SCANNER_GATING_SEVERITY` | `CRITICAL` | Maximum vulnerability severity threshold triggering deployment gating failures |
+| `--ratelimit` | `DOCK_RADAR_RATELIMIT` | `false` | Enable distributed rate-limiting and global quota orchestrator |
+| `--ratelimit-default-rps` | `DOCK_RADAR_RATELIMIT_DEFAULT_RPS` | `100.0` | Default requests-per-second refill rate for tenant token buckets |
+| `--ratelimit-burst` | `DOCK_RADAR_RATELIMIT_BURST` | `200` | Default burst capacity tokens for tenant rate limiters |
+| `--ratelimit-autoban` | `DOCK_RADAR_RATELIMIT_AUTOBAN` | `true` | Automatically ban IP addresses exceeding abusive violation thresholds |
+| `--ratelimit-sync-secret` | `DOCK_RADAR_RATELIMIT_SYNC_SECRET` | `""` | Shared secret key for HMAC-SHA256 authenticated peer rate-limit sync |
 | `--version` | — | — | Print dock-radar version and exit |
 
 ---
@@ -130,35 +136,35 @@ go build -ldflags="-s -w" -o dock-radar .
 │   • Lifecycle & Batch Ops│      • CPU & OS Metrics     │
 │   • Multiplex Log Demux  │                             │
 ├──────────────────────────┼─────────────────────────────┤
-│   internal/scanner       │      internal/federation    │
-│   • Layer CVE Scanner    │      • AES-256-GCM Tunnels  │
-│   • SPDX 2.3 & CycloneDX │      • WAN Delta Sync SHA256│
-│   • Deployment Gating    │      • Geo Haversine Router │
+│   internal/ratelimit     │      internal/scanner       │
+│   • Token Bucket / Slide │      • Layer CVE Scanner    │
+│   • IP Ban Engine / Sync │      • SPDX 2.3 & CycloneDX │
+│   • HMAC Peer Protection │      • Deployment Gating    │
 ├──────────────────────────┼─────────────────────────────┤
-│   internal/ebpf          │      internal/storage       │
-│   • Socket Flow Tracker  │      • Compressed Gzip Chunks
-│   • Syscall Threat Rules │      • AWS SigV4 Signer     │
-│   • /proc/net/tcp Probe  │      • S3 / MinIO Offload   │
+│   internal/ebpf          │      internal/federation    │
+│   • Socket Flow Tracker  │      • AES-256-GCM Tunnels  │
+│   • Syscall Threat Rules │      • WAN Delta Sync SHA256│
+│   • /proc/net/tcp Probe  │      • Geo Haversine Router │
 ├──────────────────────────┼─────────────────────────────┤
-│   internal/alert         │      internal/mesh          │
-│   • Discord & Slack Web  │      • Node Discovery/Probe │
-│   • State Poller/Flap    │      • SWIM Gossip Protocol │
-│   • Cooldown Deduplication      • UDP Broadcast Beacon │
+│   internal/alert         │      internal/storage       │
+│   • Discord & Slack Web  │      • Compressed Gzip Chunks
+│   • State Poller/Flap    │      • AWS SigV4 Signer     │
+│   • Cooldown Deduplication      • S3 / MinIO Offload   │
 ├──────────────────────────┼─────────────────────────────┤
-│   internal/healing       │      net/http Router        │
-│   • Auto OOM / Crash Loop│      • /metrics (Prometheus)│
-│   • Jitter & Backoff     │      • /api/docker/*        │
-│   • Circuit Breaker      │      • /api/scanner/*       │
-├──────────────────────────┤      • /api/federation/*    │
-│   internal/metrics       │      • /api/storage/*       │
-│   • Standard Prometheus  │      • /api/ebpf/*          │
-│   • Exposition Formatter │      • /api/healing/*       │
-│   • Multi-Region Gauges  │      • /api/nodes/*         │
-├──────────────────────────┤      • /api/cluster/*       │
-│   internal/security      │      • /api/mesh/*          │
-│   • In-Memory ECDSA TLS  │      • /api/audit/*         │
-│   • Constant-Time Bearer │      • Pure RFC 6455 WS     │
-│   • RBAC (Admin/Viewer)  │                             │
+│   internal/healing       │      internal/mesh          │
+│   • Auto OOM / Crash Loop│      • Node Discovery/Probe │
+│   • Jitter & Backoff     │      • SWIM Gossip Protocol │
+│   • Circuit Breaker      │      • UDP Broadcast Beacon │
+├──────────────────────────┼─────────────────────────────┤
+│   internal/metrics       │      net/http Router        │
+│   • Standard Prometheus  │      • /metrics (Prometheus)│
+│   • Exposition Formatter │      • /api/docker/*        │
+│   • Multi-Region Gauges  │      • /api/ratelimit/*     │
+├──────────────────────────┤      • /api/scanner/*       │
+│   internal/security      │      • /api/federation/*    │
+│   • In-Memory ECDSA TLS  │      • /api/storage/*       │
+│   • Constant-Time Bearer │      • /api/ebpf/*          │
+│   • RBAC (Admin/Viewer)  │      • /api/healing/*       │
 ├──────────────────────────┴─────────────────────────────┤
 │                 Embedded Web Dashboard                 │
 │         (React 19 + TypeScript / Vite Bundled)         │
@@ -189,6 +195,11 @@ go build -ldflags="-s -w" -o dock-radar .
 | `/api/docker/logs` | `WS` / `GET` | `viewer` | Real-time WebSocket log feed or JSON snapshot (`?id=<id>&stream=<stdout\|stderr\|system>&tail=100`) |
 | `/api/docker/restart` | `POST` | `admin` | Safely restarts a container by ID or name (`{"id":"<name_or_id>","timeout":10}`) |
 | `/api/docker/stop` | `POST` | `admin` | Safely stops a running container (`{"id":"<name_or_id>","timeout":10}`) |
+| `/api/ratelimit/status` | `GET` | `viewer` | Overall rate limiter engine status, tenant counts, active bans, and sync metrics |
+| `/api/ratelimit/tenants` | `GET` / `POST` / `DELETE` | `viewer` / `admin` | Lists, configures, or removes per-tenant RPS, burst limits, and bandwidth throttles |
+| `/api/ratelimit/bans` | `GET` / `POST` / `DELETE` | `viewer` / `admin` | Lists active IP ban records, manually bans an IP, or unbans an IP address |
+| `/api/ratelimit/sync` | `POST` | `admin` | Ingests and processes HMAC-SHA256 authenticated peer rate-limit and ban sync packets |
+| `/api/ratelimit/config` | `GET` / `POST` | `viewer` / `admin` | Fetches or updates rate limiter configuration with masked sync secret |
 | `/api/scanner/status` | `GET` | `viewer` | Overall vulnerability scanner engine status, scan counts, and gating metrics |
 | `/api/scanner/reports` | `GET` | `viewer` | Recent container image vulnerability scan reports (`?container=&image=&limit=50`) |
 | `/api/scanner/report` | `GET` | `viewer` | Detailed vulnerability report for a specific container or image (`?id=&image=`) |

@@ -10,6 +10,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/metrics"
+	"github.com/kLauncher1/dock-radar/internal/ratelimit"
 	"github.com/kLauncher1/dock-radar/internal/rolling"
 	"github.com/kLauncher1/dock-radar/internal/scanner"
 	"github.com/kLauncher1/dock-radar/internal/security"
@@ -107,6 +108,12 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		scannerStatus = &st
 	}
 
+	var rateLimitStatus *ratelimit.LimiterStatus
+	if h.RateLimitEngine != nil {
+		st := h.RateLimitEngine.Status()
+		rateLimitStatus = &st
+	}
+
 	text := metrics.FormatMetricsAll(
 		sysMetrics,
 		dockerStatus,
@@ -126,6 +133,7 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		ebpfStatus,
 		fedStatus,
 		scannerStatus,
+		rateLimitStatus,
 		version,
 	)
 

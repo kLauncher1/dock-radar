@@ -14,6 +14,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
+	"github.com/kLauncher1/dock-radar/internal/ratelimit"
 	"github.com/kLauncher1/dock-radar/internal/rolling"
 	"github.com/kLauncher1/dock-radar/internal/scanner"
 	"github.com/kLauncher1/dock-radar/internal/storage"
@@ -437,7 +438,7 @@ func TestFormatMetrics_RollingRestarts(t *testing.T) {
 		TotalRollbacks:           1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, rollingStats, nil, nil, nil, nil, "1.8.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, rollingStats, nil, nil, nil, nil, nil, "1.8.0")
 
 	expectedMetrics := []string{
 		"dock_radar_rolling_operations_total 5",
@@ -467,7 +468,7 @@ func TestFormatMetrics_Storage(t *testing.T) {
 		S3Enabled:       true,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, storageStatus, nil, nil, nil, "1.9.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, storageStatus, nil, nil, nil, nil, "1.9.0")
 
 	expectedMetrics := []string{
 		"dock_radar_log_storage_chunks_total 20",
@@ -501,7 +502,7 @@ func TestFormatMetrics_EBPF(t *testing.T) {
 		CPUOverheadPercent:  0.04,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, ebpfStatus, nil, nil, "2.0.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, ebpfStatus, nil, nil, nil, "2.0.0")
 
 	expectedMetrics := []string{
 		"dock_radar_ebpf_flows_active 15",
@@ -536,7 +537,7 @@ func TestFormatMetrics_Federation(t *testing.T) {
 		FailoverCount:   1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fedStatus, nil, "2.1.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fedStatus, nil, nil, "2.1.0")
 
 	expectedMetrics := []string{
 		"dock_radar_federation_regions_total 3",
@@ -573,7 +574,7 @@ func TestFormatMetrics_Scanner(t *testing.T) {
 		GatingBlockedCount:   1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, scannerStatus, "2.2.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, scannerStatus, nil, "2.2.0")
 
 	expectedMetrics := []string{
 		"dock_radar_scanner_enabled 1",
@@ -583,6 +584,41 @@ func TestFormatMetrics_Scanner(t *testing.T) {
 		"dock_radar_scanner_risk_score 32.5",
 		"dock_radar_scanner_gating_passed_total 3",
 		"dock_radar_scanner_gating_blocked_total 1",
+	}
+
+	for _, m := range expectedMetrics {
+		if !strings.Contains(output, m) {
+			t.Errorf("expected output to contain %q, but was missing:\n%s", m, output)
+		}
+	}
+}
+
+func TestFormatMetrics_RateLimit(t *testing.T) {
+	sys := system.Metrics{OS: "linux", Arch: "amd64", Hostname: "node-ratelimit"}
+	dock := docker.DaemonStatus{Available: true}
+
+	limiterStatus := &ratelimit.LimiterStatus{
+		Enabled:                 true,
+		TotalTenants:            8,
+		ActiveBannedIPs:         3,
+		TotalEvaluations:        5000,
+		TotalThrottledRequests:  120,
+		TotalBannedRejections:   45,
+		TotalBandwidthThrottled: 12,
+		SyncedPeersCount:        4,
+	}
+
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, limiterStatus, "2.3.0")
+
+	expectedMetrics := []string{
+		"dock_radar_ratelimit_enabled 1",
+		"dock_radar_ratelimit_tenants_total 8",
+		"dock_radar_ratelimit_banned_ips_active 3",
+		"dock_radar_ratelimit_evaluations_total 5000",
+		"dock_radar_ratelimit_throttled_total 120",
+		"dock_radar_ratelimit_banned_rejections_total 45",
+		"dock_radar_ratelimit_bandwidth_throttled_total 12",
+		"dock_radar_ratelimit_synced_peers_count 4",
 	}
 
 	for _, m := range expectedMetrics {

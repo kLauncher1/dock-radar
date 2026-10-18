@@ -114,9 +114,9 @@ This document outlines the architectural milestones and engineering priorities f
 ---
 
 ## Milestone 18: v2.3.0 (Distributed Rate-Limiting & Global Quota Orchestrator)
-- [ ] Token bucket and sliding-window rate limiters synchronized across mesh peer nodes.
-- [ ] Configurable per-tenant API quotas and bandwidth throttling controls.
-- [ ] Distributed abuse mitigation with automatic IP ban propagation.
+- [x] Token bucket and sliding-window rate limiters synchronized across mesh peer nodes.
+- [x] Configurable per-tenant API quotas and bandwidth throttling controls.
+- [x] Distributed abuse mitigation with automatic IP ban propagation.
 
 ---
 
@@ -236,6 +236,14 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Userspace IMA (Integrity Measurement Architecture) prober validating SHA-256 binary and library hashes of running container processes.
 - [ ] Real-time memory layout drift and unauthorized executable page mapping (`mprotect` / `PROT_EXEC`) detection.
 - [ ] Cryptographic runtime attestation reports with tamper-proof ephemeral verification tokens and automated quarantine isolation.
+
+---
+
+## Milestone 36: v4.1.0 (Distributed Consensus Lease Coordinator & Leader-Elected Cron Scheduler)
+- [ ] Ephemeral distributed leader election leases with automated heartbeat keep-alives and fencing tokens.
+- [ ] Cluster-wide scheduled container jobs, automated maintenance tasks, and backup cron triggers.
+- [ ] Split-brain resilient lease renewal and automatic failover coordinator with audit trail.
+
 
 
 
