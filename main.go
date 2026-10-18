@@ -19,6 +19,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/ebpf"
 	"github.com/kLauncher1/dock-radar/internal/federation"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
+	"github.com/kLauncher1/dock-radar/internal/scanner"
 	"github.com/kLauncher1/dock-radar/internal/security"
 	"github.com/kLauncher1/dock-radar/internal/storage"
 )
@@ -26,7 +27,7 @@ import (
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "2.1.0"
+const AppVersion = "2.2.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -56,6 +57,10 @@ func main() {
 	federationNameFlag := flag.String("federation-name", "US East (N. Virginia)", "Local edge region friendly name (env: DOCK_RADAR_FEDERATION_NAME)")
 	federationKeyFlag := flag.String("federation-key", "dock-radar-federation-default-key-32b", "Shared key for encrypted overlay tunnels (env: DOCK_RADAR_FEDERATION_KEY)")
 	wanSyncIntervalFlag := flag.Duration("wan-sync-interval", 30*time.Second, "WAN delta sync interval (env: DOCK_RADAR_WAN_SYNC_INTERVAL)")
+	scannerFlag := flag.Bool("scanner", true, "Enable container image vulnerability scanner & SBOM engine (env: DOCK_RADAR_SCANNER_ENABLED)")
+	scannerAutoScanFlag := flag.Bool("scanner-auto-scan", true, "Automatically scan images of active containers (env: DOCK_RADAR_SCANNER_AUTO_SCAN)")
+	scannerIntervalFlag := flag.Duration("scanner-interval", 60*time.Second, "Vulnerability scan interval (env: DOCK_RADAR_SCANNER_INTERVAL)")
+	scannerGatingFlag := flag.String("scanner-gating-severity", "CRITICAL", "Failure severity threshold for deployment gating (env: DOCK_RADAR_SCANNER_GATING_SEVERITY)")
 	versionFlag := flag.Bool("version", false, "Print dock-radar version and exit")
 	flag.Parse()
 
@@ -285,6 +290,45 @@ func main() {
 		}
 	}
 
+	// Launch container vulnerability scanner & SBOM engine
+	if handlerCfg != nil && handlerCfg.ScannerEngine != nil {
+		scannerEnabled := *scannerFlag
+		if envScan := os.Getenv("DOCK_RADAR_SCANNER_ENABLED"); envScan != "" {
+			scannerEnabled = strings.EqualFold(envScan, "true") || envScan == "1"
+		}
+		autoScan := *scannerAutoScanFlag
+		if envAuto := os.Getenv("DOCK_RADAR_SCANNER_AUTO_SCAN"); envAuto != "" {
+			autoScan = strings.EqualFold(envAuto, "true") || envAuto == "1"
+		}
+		scanInterval := *scannerIntervalFlag
+		if envInterval := os.Getenv("DOCK_RADAR_SCANNER_INTERVAL"); envInterval != "" {
+			if d, err := time.ParseDuration(envInterval); err == nil && d > 0 {
+				scanInterval = d
+			}
+		}
+		gatingSev := *scannerGatingFlag
+		if envGating := os.Getenv("DOCK_RADAR_SCANNER_GATING_SEVERITY"); envGating != "" {
+			gatingSev = envGating
+		}
+
+		sCfg := handlerCfg.ScannerEngine.GetConfig()
+		sCfg.Enabled = scannerEnabled
+		sCfg.AutoScan = autoScan
+		if scanInterval.Seconds() >= 5 {
+			sCfg.ScanIntervalSec = int(scanInterval.Seconds())
+		}
+		if gatingSev != "" {
+			sCfg.GatingPolicy.FailOnSeverity = scanner.ParseSeverity(gatingSev)
+		}
+		_ = handlerCfg.ScannerEngine.UpdateConfig(sCfg)
+
+		if scannerEnabled {
+			scannerCtx, scannerCancel := context.WithCancel(context.Background())
+			defer scannerCancel()
+			go handlerCfg.ScannerEngine.Start(scannerCtx)
+		}
+	}
+
 	scheme := "http"
 	tlsStatus := "Inactive (Plain HTTP)"
 
@@ -431,6 +475,14 @@ func main() {
 		}
 	}
 
+	scannerStatusDesc := "Disabled"
+	if handlerCfg != nil && handlerCfg.ScannerEngine != nil {
+		st := handlerCfg.ScannerEngine.GetStatus()
+		if st.Enabled {
+			scannerStatusDesc = fmt.Sprintf("Active (%d images · %d CVEs)", st.TotalScannedImages, st.TotalVulnerabilities)
+		}
+	}
+
 	fmt.Println("=========================================================")
 	fmt.Printf(" 🚀 Dock-Radar v%s · Single-Binary Container & System Monitor\n", AppVersion)
 	fmt.Printf(" 📡 Web Dashboard Live at %s://localhost:%s\n", scheme, port)
@@ -446,6 +498,7 @@ func main() {
 	fmt.Printf(" 💾 Log Storage        : %s\n", storageStatusDesc)
 	fmt.Printf(" ⚡ Kernel eBPF        : %s\n", ebpfStatusDesc)
 	fmt.Printf(" 🌍 Edge Federation   : %s\n", federationStatusDesc)
+	fmt.Printf(" 🔍 Vulnerability/SBOM : %s\n", scannerStatusDesc)
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")
 	fmt.Println("=========================================================")
 

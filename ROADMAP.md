@@ -107,9 +107,9 @@ This document outlines the architectural milestones and engineering priorities f
 ---
 
 ## Milestone 17: v2.2.0 (Container Image Vulnerability Scanner & SBOM Audit)
-- [ ] In-line container image layer scanning and Common Vulnerabilities and Exposures (CVE) database lookup.
-- [ ] Software Bill of Materials (SBOM) generation in SPDX and CycloneDX formats.
-- [ ] Automated security severity grading and deployment gating triggers.
+- [x] In-line container image layer scanning and Common Vulnerabilities and Exposures (CVE) database lookup.
+- [x] Software Bill of Materials (SBOM) generation in SPDX and CycloneDX formats.
+- [x] Automated security severity grading and deployment gating triggers.
 
 ---
 
@@ -229,6 +229,14 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Pure standard-library X.509 SVID issuing and dynamic certificate renewal daemon.
 - [ ] Container workload attestation based on cgroups, mount namespaces, and binary hash signatures.
 - [ ] Automated mTLS mutual authentication handshake across cross-region edge peer tunnels.
+
+---
+
+## Milestone 35: v4.0.0 (Continuous Zero-Trust Runtime Attestation & Cryptographic Integrity Prober)
+- [ ] Userspace IMA (Integrity Measurement Architecture) prober validating SHA-256 binary and library hashes of running container processes.
+- [ ] Real-time memory layout drift and unauthorized executable page mapping (`mprotect` / `PROT_EXEC`) detection.
+- [ ] Cryptographic runtime attestation reports with tamper-proof ephemeral verification tokens and automated quarantine isolation.
+
 
 
 

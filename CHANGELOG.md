@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-10-18
+
+### Added
+- Container Image Vulnerability Scanner & SBOM Audit Engine (`internal/scanner/`):
+  - In-line container image layer analysis and curated multi-ecosystem vulnerability database (`CVEDatabase`) covering Alpine (`apk`), Debian (`deb`), Go, NPM, and PyPI packages with semantic component-wise version comparison (`internal/scanner/cve_db.go`, `internal/scanner/cve_db_test.go`).
+  - Spec-compliant Software Bill of Materials (SBOM) generator supporting both SPDX 2.3 and CycloneDX 1.5 JSON standards with package URL (pURL) formatting, license identification, and dependency relationship graphs (`internal/scanner/sbom.go`, `internal/scanner/sbom_test.go`).
+  - Automated deployment security gating policy evaluator (`EvaluateGating`) with configurable maximum critical/high severity thresholds, `FailOnSeverity` triggers, CVE allowlists, and software license compliance policies (`internal/scanner/gating.go`, `internal/scanner/gating_test.go`).
+  - Master Scanner Engine orchestrating periodic background sweeps, on-demand target scanning, in-memory TTL caching, ring-buffered scan reports, webhook alert dispatching, and audit logging (`internal/scanner/engine.go`, `internal/scanner/engine_test.go`).
+- Container Vulnerability Scanner & SBOM REST APIs (`internal/api/scanner.go`, `internal/api/scanner_test.go`):
+  - `GET /api/scanner/status`: Returns overall vulnerability scanner engine status, scan counts, and gating failure metrics (requires `RoleViewer`).
+  - `GET /api/scanner/reports`: Lists recent container image vulnerability scan reports with container ID, image, and limit filters (requires `RoleViewer`).
+  - `GET /api/scanner/report`: Retrieves detailed vulnerability report for a specific container ID or image name (requires `RoleViewer`).
+  - `POST /api/scanner/scan`: Initiates on-demand vulnerability scan for a container image or triggers a full cluster container sweep (requires `RoleAdmin`).
+  - `GET /api/scanner/sbom`: Generates and exports downloadable SPDX 2.3 or CycloneDX 1.5 JSON SBOM documents with attachment headers (requires `RoleViewer`).
+  - `GET /api/scanner/gating`: Retrieves current automated deployment gating policies and thresholds (requires `RoleViewer`).
+  - `POST /api/scanner/gating`: Updates deployment gating policies and threshold rules dynamically (requires `RoleAdmin`).
+- Prometheus Metrics Exporter Extension (`internal/metrics/scanner.go`, `internal/metrics/prometheus.go`):
+  - Exposes `dock_radar_scanner_scans_total`, `dock_radar_scanner_vulnerabilities_total`, `dock_radar_scanner_critical_total`, `dock_radar_scanner_high_total`, `dock_radar_scanner_gating_passed_total`, `dock_radar_scanner_gating_failed_total`, and `dock_radar_scanner_active` gauges and counters for Grafana monitoring.
+- Embedded Dark-Mode Dashboard Glassmorphism UI (`web/dist/index.html`):
+  - Header scanner status badge (`🛡️ Scanner: X Audited`) with direct link to scanner management modal.
+  - Dedicated Container Image Vulnerability Scanner & SBOM Audit section with 5 live KPI counters (Scanned Images, Critical CVEs, High Severity, Gating Passed, Gating Blocked).
+  - Live vulnerability scan report table displaying container names, images, risk scores, package counts, CVE breakdown pills, gating status badges, and action triggers (View SBOM, Re-scan).
+  - Scanner Management Modal (`#scanner-modal`) featuring 3 interactive tabs: On-Demand Scan Runner, Deployment Gating Policy Manager, and Live SPDX 2.3 / CycloneDX 1.5 SBOM JSON Viewer with download functionality.
+- Command-Line Flags & Environment Variables (`main.go`):
+  - Added `--scanner`, `--scanner-auto-scan`, `--scanner-interval`, and `--scanner-gating-severity` with matching environment variable bindings (`DOCK_RADAR_SCANNER`, `DOCK_RADAR_SCANNER_AUTO_SCAN`, `DOCK_RADAR_SCANNER_INTERVAL`, `DOCK_RADAR_SCANNER_GATING_SEVERITY`).
+
 ## [2.1.0] - 2026-10-17
 
 ### Added

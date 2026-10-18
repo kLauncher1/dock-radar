@@ -20,6 +20,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/rolling"
+	"github.com/kLauncher1/dock-radar/internal/scanner"
 	"github.com/kLauncher1/dock-radar/internal/security"
 	"github.com/kLauncher1/dock-radar/internal/storage"
 	"github.com/kLauncher1/dock-radar/internal/system"
@@ -59,6 +60,7 @@ type HandlerConfig struct {
 	StorageManager   *storage.Manager
 	EBPFEngine       *ebpf.Engine
 	FederationEngine *federation.Engine
+	ScannerEngine    *scanner.ScannerEngine
 	AppVersion       string
 	TokenAuth        *security.TokenAuth
 	AllowRemote      bool
@@ -98,6 +100,7 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	anomalyDetector := anomaly.NewDetector(dockerClient, alertDispatcher)
 	rollingEngine := rolling.NewEngine(dockerClient, auditLogger, alertDispatcher)
 	ebpfEngine := ebpf.NewEngine(ebpf.DefaultEBPFConfig(), dockerClient, alertDispatcher, auditLogger)
+	scannerEngine := scanner.NewEngine(scanner.DefaultScannerConfig(), dockerClient, alertDispatcher, auditLogger)
 
 	cfg := &HandlerConfig{
 		DockerClient:     dockerClient,
@@ -111,7 +114,8 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 		AnomalyDetector:  anomalyDetector,
 		RollingEngine:    rollingEngine,
 		EBPFEngine:       ebpfEngine,
-		AppVersion:       "2.0.0",
+		ScannerEngine:    scannerEngine,
+		AppVersion:       "2.2.0",
 		TokenAuth:        tokenAuth,
 		AllowRemote:      allowRemote,
 	}
@@ -206,6 +210,14 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	mux.HandleFunc("/api/federation/routes", cfg.handleFederationRoutes)
 	mux.HandleFunc("/api/federation/failover", cfg.handleFederationFailover)
 	mux.HandleFunc("/api/federation/config", cfg.handleFederationConfig)
+
+	// Container Image Vulnerability Scanner & SBOM Audit
+	mux.HandleFunc("/api/scanner/status", cfg.handleScannerStatus)
+	mux.HandleFunc("/api/scanner/reports", cfg.handleScannerReports)
+	mux.HandleFunc("/api/scanner/report", cfg.handleScannerReport)
+	mux.HandleFunc("/api/scanner/scan", cfg.handleScannerScan)
+	mux.HandleFunc("/api/scanner/sbom", cfg.handleScannerSBOM)
+	mux.HandleFunc("/api/scanner/gating", cfg.handleScannerGating)
 
 	// Embedded Static UI
 	if staticFS != nil {

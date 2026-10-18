@@ -11,6 +11,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/metrics"
 	"github.com/kLauncher1/dock-radar/internal/rolling"
+	"github.com/kLauncher1/dock-radar/internal/scanner"
 	"github.com/kLauncher1/dock-radar/internal/security"
 	"github.com/kLauncher1/dock-radar/internal/storage"
 	"github.com/kLauncher1/dock-radar/internal/system"
@@ -100,6 +101,12 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		fedStatus = &st
 	}
 
+	var scannerStatus *scanner.ScannerStatus
+	if h.ScannerEngine != nil {
+		st := h.ScannerEngine.GetStatus()
+		scannerStatus = &st
+	}
+
 	text := metrics.FormatMetricsAll(
 		sysMetrics,
 		dockerStatus,
@@ -118,6 +125,7 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		storageStatus,
 		ebpfStatus,
 		fedStatus,
+		scannerStatus,
 		version,
 	)
 
