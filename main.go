@@ -27,7 +27,7 @@ import (
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "2.2.0"
+const AppVersion = "2.3.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -61,6 +61,11 @@ func main() {
 	scannerAutoScanFlag := flag.Bool("scanner-auto-scan", true, "Automatically scan images of active containers (env: DOCK_RADAR_SCANNER_AUTO_SCAN)")
 	scannerIntervalFlag := flag.Duration("scanner-interval", 60*time.Second, "Vulnerability scan interval (env: DOCK_RADAR_SCANNER_INTERVAL)")
 	scannerGatingFlag := flag.String("scanner-gating-severity", "CRITICAL", "Failure severity threshold for deployment gating (env: DOCK_RADAR_SCANNER_GATING_SEVERITY)")
+	ratelimitFlag := flag.Bool("ratelimit", true, "Enable distributed rate-limiting & quota orchestrator (env: DOCK_RADAR_RATELIMIT_ENABLED)")
+	ratelimitRPSFlag := flag.Float64("ratelimit-default-rps", 50.0, "Default requests per second limit (env: DOCK_RADAR_RATELIMIT_DEFAULT_RPS)")
+	ratelimitBurstFlag := flag.Int("ratelimit-burst", 100, "Default token bucket burst capacity (env: DOCK_RADAR_RATELIMIT_BURST)")
+	ratelimitAutoBanFlag := flag.Bool("ratelimit-autoban", true, "Automatically ban IPs exceeding abuse thresholds (env: DOCK_RADAR_RATELIMIT_AUTOBAN)")
+	ratelimitSecretFlag := flag.String("ratelimit-sync-secret", "", "Shared HMAC secret for cluster rate limit mesh sync (env: DOCK_RADAR_RATELIMIT_SYNC_SECRET)")
 	versionFlag := flag.Bool("version", false, "Print dock-radar version and exit")
 	flag.Parse()
 
@@ -329,6 +334,50 @@ func main() {
 		}
 	}
 
+	// Launch distributed rate-limiting & global quota orchestrator
+	var defaultRLRPS float64 = 50.0
+	if handlerCfg != nil && handlerCfg.RateLimitEngine != nil {
+		rlEnabled := *ratelimitFlag
+		if envRL := os.Getenv("DOCK_RADAR_RATELIMIT_ENABLED"); envRL != "" {
+			rlEnabled = strings.EqualFold(envRL, "true") || envRL == "1"
+		}
+		rlRPS := *ratelimitRPSFlag
+		if envRPS := os.Getenv("DOCK_RADAR_RATELIMIT_DEFAULT_RPS"); envRPS != "" {
+			if f, err := strconv.ParseFloat(envRPS, 64); err == nil && f > 0 {
+				rlRPS = f
+			}
+		}
+		defaultRLRPS = rlRPS
+		rlBurst := *ratelimitBurstFlag
+		if envBurst := os.Getenv("DOCK_RADAR_RATELIMIT_BURST"); envBurst != "" {
+			if b, err := strconv.Atoi(envBurst); err == nil && b > 0 {
+				rlBurst = b
+			}
+		}
+		rlAutoBan := *ratelimitAutoBanFlag
+		if envBan := os.Getenv("DOCK_RADAR_RATELIMIT_AUTOBAN"); envBan != "" {
+			rlAutoBan = strings.EqualFold(envBan, "true") || envBan == "1"
+		}
+		rlSecret := *ratelimitSecretFlag
+		if envSecret := os.Getenv("DOCK_RADAR_RATELIMIT_SYNC_SECRET"); envSecret != "" {
+			rlSecret = envSecret
+		}
+
+		rlCfg := handlerCfg.RateLimitEngine.Config()
+		rlCfg.Enabled = rlEnabled
+		rlCfg.DefaultRPS = rlRPS
+		rlCfg.DefaultBurst = rlBurst
+		rlCfg.AutoBanEnabled = rlAutoBan
+		rlCfg.SyncSecret = rlSecret
+		_ = handlerCfg.RateLimitEngine.UpdateConfig(rlCfg)
+
+		if rlEnabled {
+			rlCtx, rlCancel := context.WithCancel(context.Background())
+			defer rlCancel()
+			handlerCfg.RateLimitEngine.Start(rlCtx)
+		}
+	}
+
 	scheme := "http"
 	tlsStatus := "Inactive (Plain HTTP)"
 
@@ -483,6 +532,14 @@ func main() {
 		}
 	}
 
+	rateLimitStatusDesc := "Disabled"
+	if handlerCfg != nil && handlerCfg.RateLimitEngine != nil {
+		st := handlerCfg.RateLimitEngine.Status()
+		if st.Enabled {
+			rateLimitStatusDesc = fmt.Sprintf("Active (%.1f default RPS · %d active bans)", defaultRLRPS, st.ActiveBannedIPs)
+		}
+	}
+
 	fmt.Println("=========================================================")
 	fmt.Printf(" 🚀 Dock-Radar v%s · Single-Binary Container & System Monitor\n", AppVersion)
 	fmt.Printf(" 📡 Web Dashboard Live at %s://localhost:%s\n", scheme, port)
@@ -499,6 +556,7 @@ func main() {
 	fmt.Printf(" ⚡ Kernel eBPF        : %s\n", ebpfStatusDesc)
 	fmt.Printf(" 🌍 Edge Federation   : %s\n", federationStatusDesc)
 	fmt.Printf(" 🔍 Vulnerability/SBOM : %s\n", scannerStatusDesc)
+	fmt.Printf(" 🚦 Rate Limiting      : %s\n", rateLimitStatusDesc)
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")
 	fmt.Println("=========================================================")
 

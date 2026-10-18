@@ -19,6 +19,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
+	"github.com/kLauncher1/dock-radar/internal/ratelimit"
 	"github.com/kLauncher1/dock-radar/internal/rolling"
 	"github.com/kLauncher1/dock-radar/internal/scanner"
 	"github.com/kLauncher1/dock-radar/internal/security"
@@ -61,6 +62,7 @@ type HandlerConfig struct {
 	EBPFEngine       *ebpf.Engine
 	FederationEngine *federation.Engine
 	ScannerEngine    *scanner.ScannerEngine
+	RateLimitEngine  *ratelimit.LimiterEngine
 	AppVersion       string
 	TokenAuth        *security.TokenAuth
 	AllowRemote      bool
@@ -101,6 +103,7 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	rollingEngine := rolling.NewEngine(dockerClient, auditLogger, alertDispatcher)
 	ebpfEngine := ebpf.NewEngine(ebpf.DefaultEBPFConfig(), dockerClient, alertDispatcher, auditLogger)
 	scannerEngine := scanner.NewEngine(scanner.DefaultScannerConfig(), dockerClient, alertDispatcher, auditLogger)
+	rateLimitEngine := ratelimit.NewLimiterEngine(ratelimit.DefaultLimiterConfig(), "local-node", alertDispatcher, auditLogger)
 
 	cfg := &HandlerConfig{
 		DockerClient:     dockerClient,
@@ -115,7 +118,8 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 		RollingEngine:    rollingEngine,
 		EBPFEngine:       ebpfEngine,
 		ScannerEngine:    scannerEngine,
-		AppVersion:       "2.2.0",
+		RateLimitEngine:  rateLimitEngine,
+		AppVersion:       "2.3.0",
 		TokenAuth:        tokenAuth,
 		AllowRemote:      allowRemote,
 	}
@@ -218,6 +222,13 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	mux.HandleFunc("/api/scanner/scan", cfg.handleScannerScan)
 	mux.HandleFunc("/api/scanner/sbom", cfg.handleScannerSBOM)
 	mux.HandleFunc("/api/scanner/gating", cfg.handleScannerGating)
+
+	// Distributed Rate-Limiting & Global Quota Orchestrator
+	mux.HandleFunc("/api/ratelimit/status", cfg.handleRateLimitStatus)
+	mux.HandleFunc("/api/ratelimit/tenants", cfg.handleRateLimitTenants)
+	mux.HandleFunc("/api/ratelimit/bans", cfg.handleRateLimitBans)
+	mux.HandleFunc("/api/ratelimit/sync", cfg.handleRateLimitSync)
+	mux.HandleFunc("/api/ratelimit/config", cfg.handleRateLimitConfig)
 
 	// Embedded Static UI
 	if staticFS != nil {

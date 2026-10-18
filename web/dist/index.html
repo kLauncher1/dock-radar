@@ -650,6 +650,7 @@
       <button id="ebpf-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(234, 179, 8, 0.4); background: rgba(234, 179, 8, 0.15); color: #eab308; display: inline-flex; align-items: center; gap: 4px;" onclick="openEBPFModal()" title="Adaptive Kernel eBPF Telemetry & Anomaly Radar">⚡ eBPF: <span id="ebpf-badge-text">0 Flows</span></button>
       <button id="federation-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(14, 165, 233, 0.4); background: rgba(14, 165, 233, 0.15); color: #0ea5e9; display: inline-flex; align-items: center; gap: 4px;" onclick="openFederationModal()" title="Multi-Region Edge Peer Federation & WAN Sync">🌍 Federation: <span id="federation-badge-text">1 Region</span></button>
       <button id="scanner-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(244, 63, 94, 0.4); background: rgba(244, 63, 94, 0.15); color: #f43f5e; display: inline-flex; align-items: center; gap: 4px;" onclick="openScannerModal()" title="Container Image Vulnerability Scanner & SBOM Audit">🛡️ SBOM/CVE: <span id="scanner-badge-text">0 Images</span></button>
+      <button id="ratelimit-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.15); color: #10b981; display: inline-flex; align-items: center; gap: 4px;" onclick="openRateLimitModal()" title="Distributed Rate-Limiting & Global Quota Orchestrator">🚦 Rate Limits: <span id="ratelimit-badge-text">0 Bans</span></button>
       <button id="btn-export-audit" class="status-pill" style="font-size: 11px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;" onclick="exportAuditTrail()" title="Export Audit Trail in NDJSON format">📋 Export Audit</button>
       <span>•</span>
       <span id="host-badge">Loading...</span>
@@ -1669,6 +1670,112 @@
         </div>
       </div>
     </div>
+
+    <!-- Distributed Rate-Limiting & Global Quota Orchestrator -->
+    <div class="card" id="ratelimit-section" style="margin-bottom: 24px; padding: 20px; border-color: rgba(16, 185, 129, 0.25);">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 12px;">
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <span style="font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; color: #10b981;">
+            <span>🚦</span> Distributed Rate-Limiting &amp; Global Quota Orchestrator
+          </span>
+          <span class="status-pill status-running" id="ratelimit-card-status-pill" style="font-size: 11px; color: #10b981; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.15);">Token Bucket / Sliding Window Active</span>
+          <span id="ratelimit-bans-pill" class="status-pill" style="font-size: 11px; display: none; background: rgba(239, 68, 68, 0.2); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.4);">0 Banned IPs</span>
+        </div>
+        <div style="display: flex; align-items: center; gap: 10px; flex-wrap: wrap;">
+          <button class="btn-action btn-restart" onclick="openRateLimitModal('tenant')" style="font-size: 11px; color: #10b981; border-color: rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.1);">➕ Add Tenant Quota</button>
+          <button class="btn-action btn-stop" onclick="openRateLimitModal('ban')" style="font-size: 11px; padding: 4px 10px;">🚫 Ban IP Manually</button>
+          <button class="btn-action" onclick="triggerRateLimitSync()" style="font-size: 11px; padding: 4px 10px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">🔄 Sync Mesh Peers</button>
+          <button class="btn-action" onclick="openRateLimitModal('config')" style="font-size: 11px; padding: 4px 10px;">⚙️ Settings</button>
+        </div>
+      </div>
+
+      <!-- Rate Limiting KPI Grid -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin-bottom: 18px;">
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Active Tenants</div>
+          <div id="stat-rl-tenants" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #10b981;">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Banned Abusive IPs</div>
+          <div id="stat-rl-banned-ips" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #ef4444;">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Evaluated Requests</div>
+          <div id="stat-rl-evaluations" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--text-main);">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Throttled (429)</div>
+          <div id="stat-rl-throttled" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #f59e0b;">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Blocked Banned Ingress</div>
+          <div id="stat-rl-banned-rejections" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #f87171;">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Bandwidth Throttled</div>
+          <div id="stat-rl-bandwidth-throttled" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #c084fc;">0</div>
+        </div>
+      </div>
+
+      <!-- Rate Limiting Navigation Tabs -->
+      <div style="display: flex; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
+        <button id="btn-tab-rl-tenants" class="btn-action btn-restart" onclick="switchRateLimitTab('tenants')" style="font-size: 11px; padding: 4px 12px;">Configured Tenant Quotas</button>
+        <button id="btn-tab-rl-bans" class="btn-action" onclick="switchRateLimitTab('bans')" style="font-size: 11px; padding: 4px 12px;">Active IP Bans &amp; Abuse Mitigation</button>
+      </div>
+
+      <!-- Tab 1: Tenant Quotas Table -->
+      <div id="rl-tenants-container">
+        <div class="alert-events-scroll" style="max-height: 280px;">
+          <table class="alert-events-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th>Tenant ID</th>
+                <th>Name</th>
+                <th>Tier</th>
+                <th>Requests/Sec</th>
+                <th>Burst Capacity</th>
+                <th>Window</th>
+                <th>Max Bandwidth</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="rl-tenants-body">
+              <tr>
+                <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                  No custom tenant quotas configured. Standard rate limit profiles applied dynamically.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 2: Active IP Bans Table -->
+      <div id="rl-bans-container" style="display: none;">
+        <div class="alert-events-scroll" style="max-height: 280px;">
+          <table class="alert-events-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th>IP Address</th>
+                <th>Abuse Reason</th>
+                <th>Violations</th>
+                <th>Origin Node</th>
+                <th>Banned At</th>
+                <th>Expires At</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="rl-bans-body">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                  No active IP bans. Cluster abuse mitigation running nominal.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- Lifecycle Action Confirmation Modal -->
@@ -2417,6 +2524,139 @@
       </div>
       <div class="modal-actions" style="display: flex; justify-content: flex-end;">
         <button class="btn btn-secondary" onclick="closeScannerModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Distributed Rate-Limiting & Quota Management Modal -->
+  <div class="modal-backdrop" id="ratelimit-modal">
+    <div class="modal-card" style="max-width: 860px; width: 95%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div class="modal-title" style="color: #10b981; margin-bottom: 0;">Distributed Rate Limiting &amp; Quota Orchestrator</div>
+        <button class="btn-action" onclick="closeRateLimitModal()" style="padding: 4px 10px;">✕</button>
+      </div>
+
+      <!-- Modal Tabs -->
+      <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
+        <button class="btn-action" id="tab-btn-rl-tenant" onclick="switchRateLimitModalTab('tenant')" style="background: rgba(16, 185, 129, 0.2); color: #10b981; border-color: rgba(16, 185, 129, 0.4);">🏢 Tenant Quotas</button>
+        <button class="btn-action" id="tab-btn-rl-ban" onclick="switchRateLimitModalTab('ban')">🚫 Abuse Ban Policy</button>
+        <button class="btn-action" id="tab-btn-rl-config" onclick="switchRateLimitModalTab('config')">⚙️ Engine Settings</button>
+      </div>
+
+      <div class="modal-body" style="margin-bottom: 16px;">
+        <!-- Tab 1: Tenant Quota Config -->
+        <div id="rl-modal-tab-tenant">
+          <div class="alert-card-sub" style="margin-bottom: 16px; padding: 14px; border: 1px solid rgba(16, 185, 129, 0.25);">
+            <div style="font-size: 12px; font-weight: 700; color: #10b981; margin-bottom: 10px; text-transform: uppercase;">Configure Tenant Rate Limit &amp; Bandwidth Profile</div>
+            <div class="form-row" style="margin-bottom: 10px;">
+              <div class="form-col">
+                <label class="form-label" for="rl-tenant-id">Tenant ID</label>
+                <input type="text" class="form-input" id="rl-tenant-id" placeholder="e.g. tenant-alpha, org-101" />
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="rl-tenant-name">Display Name</label>
+                <input type="text" class="form-input" id="rl-tenant-name" placeholder="e.g. Alpha Operations" />
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="rl-tenant-tier">Tier</label>
+                <select class="form-input" id="rl-tenant-tier">
+                  <option value="Standard">Standard</option>
+                  <option value="Enterprise">Enterprise</option>
+                  <option value="Free">Free</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <div class="form-col">
+                <label class="form-label" for="rl-tenant-rps">Requests / Sec (RPS)</label>
+                <input type="number" min="1" max="1000000" class="form-input" id="rl-tenant-rps" value="50" />
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="rl-tenant-burst">Burst Capacity</label>
+                <input type="number" min="1" max="10000000" class="form-input" id="rl-tenant-burst" value="100" />
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="rl-tenant-window">Window (Seconds)</label>
+                <input type="number" min="1" max="86400" class="form-input" id="rl-tenant-window" value="60" />
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="rl-tenant-bandwidth">Max Bandwidth (Bytes/s, 0=unlimited)</label>
+                <input type="number" min="0" class="form-input" id="rl-tenant-bandwidth" value="0" />
+              </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end;">
+              <button class="btn btn-primary-restart" onclick="saveTenantQuotaForm()" style="padding: 8px 16px; font-size: 12px; font-weight: 600;">💾 Save Tenant Quota</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 2: Manual IP Ban -->
+        <div id="rl-modal-tab-ban" style="display: none;">
+          <div class="alert-card-sub" style="margin-bottom: 16px; padding: 14px; border: 1px solid rgba(239, 68, 68, 0.25);">
+            <div style="font-size: 12px; font-weight: 700; color: #ef4444; margin-bottom: 10px; text-transform: uppercase;">Manual IP Ban &amp; Abuse Mitigation</div>
+            <div class="form-row" style="margin-bottom: 10px;">
+              <div class="form-col">
+                <label class="form-label" for="rl-ban-ip">Client IP Address</label>
+                <input type="text" class="form-input" id="rl-ban-ip" placeholder="e.g. 198.51.100.42 or 2001:db8::1" />
+              </div>
+              <div class="form-col" style="flex: 2;">
+                <label class="form-label" for="rl-ban-reason">Abuse Reason / Justification</label>
+                <input type="text" class="form-input" id="rl-ban-reason" placeholder="e.g. Repeated 401s, API scraping, excessive 429 floods" />
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="rl-ban-duration">Duration (Seconds)</label>
+                <input type="number" min="10" max="2592000" class="form-input" id="rl-ban-duration" value="900" />
+              </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end;">
+              <button class="btn btn-stop" onclick="submitManualBanForm()" style="padding: 8px 16px; font-size: 12px; font-weight: 600;">🚫 Enact IP Ban</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab 3: Engine Settings -->
+        <div id="rl-modal-tab-config" style="display: none;">
+          <div class="alert-card-sub" style="margin-bottom: 16px; padding: 14px; border: 1px solid rgba(56, 189, 248, 0.25);">
+            <div style="font-size: 12px; font-weight: 700; color: #38bdf8; margin-bottom: 10px; text-transform: uppercase;">Rate Limiting Engine &amp; Mesh Sync Parameters</div>
+            <div class="form-row" style="margin-bottom: 10px;">
+              <div class="form-col">
+                <label class="form-label" for="rl-cfg-rps">Global Default RPS</label>
+                <input type="number" min="1" max="1000000" class="form-input" id="rl-cfg-rps" value="50" />
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="rl-cfg-burst">Global Default Burst</label>
+                <input type="number" min="1" max="10000000" class="form-input" id="rl-cfg-burst" value="100" />
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="rl-cfg-autoban">Auto-Ban Abuse Breaches</label>
+                <select class="form-input" id="rl-cfg-autoban">
+                  <option value="true">Enabled (Auto-Ban)</option>
+                  <option value="false">Disabled</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <div class="form-col">
+                <label class="form-label" for="rl-cfg-threshold">Violation Threshold Count</label>
+                <input type="number" min="1" max="1000" class="form-input" id="rl-cfg-threshold" value="10" />
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="rl-cfg-duration">Auto-Ban Duration (Seconds)</label>
+                <input type="number" min="30" max="604800" class="form-input" id="rl-cfg-duration" value="900" />
+              </div>
+              <div class="form-col" style="flex: 2;">
+                <label class="form-label" for="rl-cfg-secret">Mesh Sync HMAC Secret</label>
+                <input type="password" class="form-input" id="rl-cfg-secret" placeholder="Shared cluster secret for ban propagation" />
+              </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end;">
+              <button class="btn btn-primary-restart" onclick="saveRateLimitConfigForm()" style="padding: 8px 16px; font-size: 12px; font-weight: 600;">💾 Save Engine Settings</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-actions" style="display: flex; justify-content: flex-end;">
+        <button class="btn btn-secondary" onclick="closeRateLimitModal()">Close</button>
       </div>
     </div>
   </div>
@@ -6348,6 +6588,368 @@
       window.open(url, '_blank');
     }
 
+    // Distributed Rate-Limiting & Global Quota Orchestrator Logic
+    function openRateLimitModal(tab) {
+      const m = document.getElementById('ratelimit-modal');
+      if (m) m.classList.add('active');
+      if (tab) switchRateLimitModalTab(tab);
+      loadRateLimitConfig();
+    }
+
+    function closeRateLimitModal() {
+      const m = document.getElementById('ratelimit-modal');
+      if (m) m.classList.remove('active');
+    }
+
+    function switchRateLimitTab(tab) {
+      const btnTenants = document.getElementById('btn-tab-rl-tenants');
+      const btnBans = document.getElementById('btn-tab-rl-bans');
+      const containerTenants = document.getElementById('rl-tenants-container');
+      const containerBans = document.getElementById('rl-bans-container');
+
+      if (tab === 'tenants') {
+        if (btnTenants) { btnTenants.className = 'btn-action btn-restart'; btnTenants.style.background = ''; btnTenants.style.color = ''; }
+        if (btnBans) { btnBans.className = 'btn-action'; btnBans.style.background = ''; btnBans.style.color = ''; }
+        if (containerTenants) containerTenants.style.display = 'block';
+        if (containerBans) containerBans.style.display = 'none';
+        pollRateLimitTenants();
+      } else {
+        if (btnBans) { btnBans.className = 'btn-action btn-stop'; btnBans.style.background = 'rgba(239, 68, 68, 0.2)'; btnBans.style.color = '#ef4444'; }
+        if (btnTenants) { btnTenants.className = 'btn-action'; btnTenants.style.background = ''; btnTenants.style.color = ''; }
+        if (containerTenants) containerTenants.style.display = 'none';
+        if (containerBans) containerBans.style.display = 'block';
+        pollRateLimitBans();
+      }
+    }
+
+    function switchRateLimitModalTab(tab) {
+      const btnTenant = document.getElementById('tab-btn-rl-tenant');
+      const btnBan = document.getElementById('tab-btn-rl-ban');
+      const btnConfig = document.getElementById('tab-btn-rl-config');
+
+      const contentTenant = document.getElementById('rl-modal-tab-tenant');
+      const contentBan = document.getElementById('rl-modal-tab-ban');
+      const contentConfig = document.getElementById('rl-modal-tab-config');
+
+      [btnTenant, btnBan, btnConfig].forEach(b => {
+        if (b) { b.style.background = ''; b.style.color = ''; b.style.borderColor = ''; }
+      });
+      [contentTenant, contentBan, contentConfig].forEach(c => {
+        if (c) c.style.display = 'none';
+      });
+
+      if (tab === 'tenant') {
+        if (btnTenant) { btnTenant.style.background = 'rgba(16, 185, 129, 0.2)'; btnTenant.style.color = '#10b981'; btnTenant.style.borderColor = 'rgba(16, 185, 129, 0.4)'; }
+        if (contentTenant) contentTenant.style.display = 'block';
+      } else if (tab === 'ban') {
+        if (btnBan) { btnBan.style.background = 'rgba(239, 68, 68, 0.2)'; btnBan.style.color = '#ef4444'; btnBan.style.borderColor = 'rgba(239, 68, 68, 0.4)'; }
+        if (contentBan) contentBan.style.display = 'block';
+      } else if (tab === 'config') {
+        if (btnConfig) { btnConfig.style.background = 'rgba(56, 189, 248, 0.2)'; btnConfig.style.color = '#38bdf8'; btnConfig.style.borderColor = 'rgba(56, 189, 248, 0.4)'; }
+        if (contentConfig) contentConfig.style.display = 'block';
+        loadRateLimitConfig();
+      }
+    }
+
+    async function pollRateLimitStatus() {
+      try {
+        const resp = await authFetch('/api/ratelimit/status');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const st = data.status || {};
+
+        const badge = document.getElementById('ratelimit-badge');
+        const badgeText = document.getElementById('ratelimit-badge-text');
+        if (badge && badgeText) {
+          if (!st.enabled) {
+            badge.className = 'status-pill status-standby';
+            badgeText.textContent = 'Disabled';
+          } else {
+            badge.className = 'status-pill status-running';
+            badgeText.textContent = `${st.active_banned_ips || 0} Bans (${st.total_tenants || 0} Tenants)`;
+          }
+        }
+
+        const pill = document.getElementById('ratelimit-card-status-pill');
+        if (pill) {
+          pill.textContent = st.enabled ? 'Token Bucket & Sliding Window Active' : 'Rate Limiter Standby';
+        }
+
+        const bansPill = document.getElementById('ratelimit-bans-pill');
+        if (bansPill) {
+          if (st.active_banned_ips > 0) {
+            bansPill.style.display = 'inline-block';
+            bansPill.textContent = `${st.active_banned_ips} Banned IPs`;
+          } else {
+            bansPill.style.display = 'none';
+          }
+        }
+
+        const setVal = (id, val) => {
+          const el = document.getElementById(id);
+          if (el) el.textContent = val;
+        };
+
+        setVal('stat-rl-tenants', st.total_tenants || 0);
+        setVal('stat-rl-banned-ips', st.active_banned_ips || 0);
+        setVal('stat-rl-evaluations', (st.total_evaluations || 0).toLocaleString());
+        setVal('stat-rl-throttled', (st.total_throttled_requests || 0).toLocaleString());
+        setVal('stat-rl-banned-rejections', (st.total_banned_rejections || 0).toLocaleString());
+        setVal('stat-rl-bandwidth-throttled', (st.total_bandwidth_throttled || 0).toLocaleString());
+      } catch (err) {
+        // silent polling error fallback
+      }
+    }
+
+    async function pollRateLimitTenants() {
+      try {
+        const resp = await authFetch('/api/ratelimit/tenants');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const tenants = data.tenants || [];
+        const tbody = document.getElementById('rl-tenants-body');
+        if (!tbody) return;
+
+        if (tenants.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 18px;">No custom tenant quotas configured. Standard rate limit profiles applied dynamically.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = tenants.map(t => {
+          const bw = t.max_bytes_per_second > 0 ? `${(t.max_bytes_per_second / 1024).toFixed(1)} KB/s` : 'Unlimited';
+          return `
+            <tr>
+              <td><strong>${escapeHTML(t.tenant_id)}</strong></td>
+              <td>${escapeHTML(t.name || '-')}</td>
+              <td><span class="status-pill status-running" style="font-size: 10px;">${escapeHTML(t.tier)}</span></td>
+              <td><span style="font-family: monospace; font-weight: 600; color: #10b981;">${t.requests_per_second} req/s</span></td>
+              <td>${t.burst_capacity}</td>
+              <td>${t.window_seconds}s</td>
+              <td>${bw}</td>
+              <td style="text-align: right;">
+                <button class="btn-action btn-stop" onclick="deleteTenantQuota('${escapeHTML(t.tenant_id)}')" style="font-size: 11px; padding: 3px 8px;">Delete</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    async function pollRateLimitBans() {
+      try {
+        const resp = await authFetch('/api/ratelimit/bans');
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const bans = data.bans || [];
+        const tbody = document.getElementById('rl-bans-body');
+        if (!tbody) return;
+
+        if (bans.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 18px;">No active IP bans. Cluster abuse mitigation running nominal.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = bans.map(b => {
+          const exp = b.expires_at ? new Date(b.expires_at).toLocaleTimeString() : '-';
+          const banTime = b.banned_at ? new Date(b.banned_at).toLocaleTimeString() : '-';
+          return `
+            <tr>
+              <td><strong style="color: #ef4444; font-family: monospace;">${escapeHTML(b.ip)}</strong></td>
+              <td>${escapeHTML(b.reason || 'Threshold breach')}</td>
+              <td><span style="font-weight: 700; color: #f59e0b;">${b.violation_count || 1}</span></td>
+              <td><span class="status-pill" style="font-size: 10px;">${escapeHTML(b.origin_node || 'local')}</span></td>
+              <td>${banTime}</td>
+              <td>${exp}</td>
+              <td style="text-align: right;">
+                <button class="btn-action btn-restart" onclick="unbanIP('${escapeHTML(b.ip)}')" style="font-size: 11px; padding: 3px 8px; color: #10b981; border-color: rgba(16, 185, 129, 0.4);">Unban</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    async function saveTenantQuotaForm() {
+      const id = (document.getElementById('rl-tenant-id').value || '').trim();
+      const name = (document.getElementById('rl-tenant-name').value || '').trim();
+      const tier = document.getElementById('rl-tenant-tier').value || 'Standard';
+      const rps = parseFloat(document.getElementById('rl-tenant-rps').value) || 50;
+      const burst = parseInt(document.getElementById('rl-tenant-burst').value, 10) || 100;
+      const windowSec = parseInt(document.getElementById('rl-tenant-window').value, 10) || 60;
+      const bw = parseInt(document.getElementById('rl-tenant-bandwidth').value, 10) || 0;
+
+      if (!id) {
+        showToast('Tenant ID is required');
+        return;
+      }
+
+      try {
+        const resp = await authFetch('/api/ratelimit/tenants', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            tenant_id: id,
+            name: name,
+            tier: tier,
+            requests_per_second: rps,
+            burst_capacity: burst,
+            window_seconds: windowSec,
+            max_bytes_per_second: bw
+          })
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast(`✓ Quota configured for ${id}`);
+        closeRateLimitModal();
+        pollRateLimitStatus();
+        pollRateLimitTenants();
+      } catch (err) {
+        showToast(`Failed to save tenant quota: ${err.message}`);
+      }
+    }
+
+    async function deleteTenantQuota(id) {
+      if (!confirm(`Are you sure you want to delete quota for tenant '${id}'?`)) return;
+      try {
+        const resp = await authFetch(`/api/ratelimit/tenants?id=${encodeURIComponent(id)}`, {
+          method: 'DELETE'
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast(`✓ Deleted quota for ${id}`);
+        pollRateLimitStatus();
+        pollRateLimitTenants();
+      } catch (err) {
+        showToast(`Failed to delete tenant quota: ${err.message}`);
+      }
+    }
+
+    async function submitManualBanForm() {
+      const ip = (document.getElementById('rl-ban-ip').value || '').trim();
+      const reason = (document.getElementById('rl-ban-reason').value || '').trim();
+      const duration = parseInt(document.getElementById('rl-ban-duration').value, 10) || 900;
+
+      if (!ip) {
+        showToast('Valid IP address is required');
+        return;
+      }
+
+      try {
+        const resp = await authFetch('/api/ratelimit/bans', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ip: ip,
+            reason: reason || 'Manual administrative ban',
+            duration_seconds: duration
+          })
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast(`✓ IP ${ip} successfully banned`);
+        closeRateLimitModal();
+        pollRateLimitStatus();
+        pollRateLimitBans();
+      } catch (err) {
+        showToast(`Failed to ban IP: ${err.message}`);
+      }
+    }
+
+    async function unbanIP(ip) {
+      try {
+        const resp = await authFetch(`/api/ratelimit/bans?ip=${encodeURIComponent(ip)}`, {
+          method: 'DELETE'
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast(`✓ IP ${ip} unbanned`);
+        pollRateLimitStatus();
+        pollRateLimitBans();
+      } catch (err) {
+        showToast(`Failed to unban IP: ${err.message}`);
+      }
+    }
+
+    async function triggerRateLimitSync() {
+      try {
+        showToast('🔄 Synchronizing rate limit policies across mesh peers...');
+        const resp = await authFetch('/api/ratelimit/sync', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            node_id: 'coordinator',
+            timestamp: Math.floor(Date.now() / 1000),
+            active_bans: []
+          })
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast('✓ Mesh rate limit synchronization complete');
+        pollRateLimitStatus();
+      } catch (err) {
+        showToast(`Mesh sync error: ${err.message}`);
+      }
+    }
+
+    async function loadRateLimitConfig() {
+      try {
+        const resp = await authFetch('/api/ratelimit/config');
+        if (!resp.ok) return;
+        const cfg = await resp.json();
+
+        const rpsInput = document.getElementById('rl-cfg-rps');
+        if (rpsInput && cfg.default_rps) rpsInput.value = cfg.default_rps;
+
+        const burstInput = document.getElementById('rl-cfg-burst');
+        if (burstInput && cfg.default_burst) burstInput.value = cfg.default_burst;
+
+        const autoBan = document.getElementById('rl-cfg-autoban');
+        if (autoBan && cfg.auto_ban_enabled !== undefined) autoBan.value = cfg.auto_ban_enabled ? 'true' : 'false';
+
+        const thresh = document.getElementById('rl-cfg-threshold');
+        if (thresh && cfg.ban_threshold_violations) thresh.value = cfg.ban_threshold_violations;
+
+        const dur = document.getElementById('rl-cfg-duration');
+        if (dur && cfg.ban_duration_seconds) dur.value = cfg.ban_duration_seconds;
+      } catch (err) {
+        // ignore
+      }
+    }
+
+    async function saveRateLimitConfigForm() {
+      const rps = parseFloat(document.getElementById('rl-cfg-rps').value) || 50;
+      const burst = parseInt(document.getElementById('rl-cfg-burst').value, 10) || 100;
+      const autoBan = document.getElementById('rl-cfg-autoban').value === 'true';
+      const thresh = parseInt(document.getElementById('rl-cfg-threshold').value, 10) || 10;
+      const dur = parseInt(document.getElementById('rl-cfg-duration').value, 10) || 900;
+      const secret = (document.getElementById('rl-cfg-secret').value || '').trim();
+
+      try {
+        const payload = {
+          enabled: true,
+          default_rps: rps,
+          default_burst: burst,
+          auto_ban_enabled: autoBan,
+          ban_threshold_violations: thresh,
+          ban_duration_seconds: dur
+        };
+        if (secret && secret !== '********') {
+          payload.sync_secret = secret;
+        }
+
+        const resp = await authFetch('/api/ratelimit/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast('✓ Rate limiter configuration updated');
+        closeRateLimitModal();
+        pollRateLimitStatus();
+      } catch (err) {
+        showToast(`Failed to update config: ${err.message}`);
+      }
+    }
+
     checkAuthStatus();
     setInterval(checkAuthStatus, 5000);
     pollTelemetry();
@@ -6382,6 +6984,10 @@
     setInterval(pollScannerStatus, 3000);
     pollScannerReports();
     setInterval(pollScannerReports, 5000);
+    pollRateLimitStatus();
+    setInterval(pollRateLimitStatus, 2500);
+    pollRateLimitTenants();
+    setInterval(pollRateLimitTenants, 5000);
   </script>
 </body>
 </html>

@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-10-18
+
+### Added
+- Distributed Rate-Limiting & Global Quota Orchestrator (`internal/ratelimit/`):
+  - High-performance token bucket rate limiter supporting fractional token refill intervals and configurable burst capacities (`internal/ratelimit/token_bucket.go`, `internal/ratelimit/token_bucket_test.go`).
+  - Sub-bucket sliding window rate limiter and bandwidth throttling controls calculating real-time consumption against rolling time windows (`internal/ratelimit/sliding_window.go`, `internal/ratelimit/sliding_window_test.go`).
+  - Automated abuse tracking and IP banning engine (`IPBanTracker`) featuring violation thresholds, manual ban and unban mutations, local loopback immunity, and periodic background expiration sweeping (`internal/ratelimit/ip_ban.go`, `internal/ratelimit/ip_ban_test.go`).
+  - Cross-node peer synchronization engine (`PeerSyncManager`) transmitting signed rate-limit updates and ban propagation events using HMAC-SHA256 signatures with 60-second replay attack defense (`internal/ratelimit/mesh_sync.go`, `internal/ratelimit/mesh_sync_test.go`).
+  - Central `LimiterEngine` coordinating token buckets, per-tenant quotas, IP bans, audit logging (`audit.AuditEvent`), and webhook alert dispatches (`alert.Event`) (`internal/ratelimit/engine.go`, `internal/ratelimit/engine_test.go`).
+  - Core domain models, configuration sanitization with secret masking, and identifier regex validation (`internal/ratelimit/types.go`, `internal/ratelimit/types_test.go`).
+- Distributed Rate-Limiting & Quota REST APIs (`internal/api/ratelimit.go`, `internal/api/ratelimit_test.go`):
+  - `GET /api/ratelimit/status`: Overall limiter engine status, tenant count, active bans, and sync metrics (requires `RoleViewer`).
+  - `GET /api/ratelimit/tenants`: Lists all tenant quota definitions and real-time usage (requires `RoleViewer`).
+  - `POST /api/ratelimit/tenants`: Configures or updates tenant RPS, burst limits, and bandwidth throttles (requires `RoleAdmin`).
+  - `DELETE /api/ratelimit/tenants`: Removes a tenant quota definition (requires `RoleAdmin`).
+  - `GET /api/ratelimit/bans`: Lists active IP ban records with expiration times and violation reasons (requires `RoleViewer`).
+  - `POST /api/ratelimit/bans`: Manually bans an IP address or subnet (requires `RoleAdmin`).
+  - `DELETE /api/ratelimit/bans`: Unbans an IP address (requires `RoleAdmin`).
+  - `POST /api/ratelimit/sync`: Ingests and applies signed rate-limit and ban sync packets from peer nodes (requires `RoleAdmin` or valid HMAC signature).
+  - `GET /api/ratelimit/config`: Returns limiter engine configuration with masked sync secrets (requires `RoleViewer`).
+  - `POST /api/ratelimit/config`: Updates engine settings dynamically with parameter bounds validation (requires `RoleAdmin`).
+- Prometheus Metrics Exporter Extension (`internal/metrics/ratelimit.go`, `internal/metrics/prometheus.go`):
+  - Exposes `dock_radar_ratelimit_requests_total`, `dock_radar_ratelimit_rejected_total`, `dock_radar_ratelimit_bytes_total`, `dock_radar_ratelimit_active_bans`, `dock_radar_ratelimit_peer_sync_total`, and `dock_radar_ratelimit_active` metrics for Grafana monitoring.
+- Embedded Dark-Mode Dashboard Glassmorphism UI (`web/dist/index.html`):
+  - Header rate-limiting status badge (`#ratelimit-badge`) showing active quotas and bans with direct link to management modal.
+  - Dedicated Distributed Rate-Limiting & Global Quota section with 6 live KPI counters (Total Requests, Rejected/Throttled, Active IP Bans, Configured Tenants, Synced Peers, Engine Status).
+  - Interactive Tenant Quotas and IP Bans tables with dynamic add/remove triggers.
+  - Rate-Limiting Management Modal (`#ratelimit-modal`) featuring 3 interactive tabs: Tenant Quotas, IP Ban List, and Mesh Sync & Config.
+- Command-Line Flags & Environment Variables (`main.go`):
+  - Added `--ratelimit`, `--ratelimit-default-rps`, `--ratelimit-burst`, `--ratelimit-autoban`, and `--ratelimit-sync-secret` with matching environment variable bindings (`DOCK_RADAR_RATELIMIT`, `DOCK_RADAR_RATELIMIT_DEFAULT_RPS`, `DOCK_RADAR_RATELIMIT_BURST`, `DOCK_RADAR_RATELIMIT_AUTOBAN`, `DOCK_RADAR_RATELIMIT_SYNC_SECRET`).
+
 ## [2.2.0] - 2026-10-18
 
 ### Added
