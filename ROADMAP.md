@@ -121,9 +121,9 @@ This document outlines the architectural milestones and engineering priorities f
 ---
 
 ## Milestone 19: v2.4.0 (eBPF Micro-Firewall & Container Network Isolator)
-- [ ] Kernel-level packet filtering and dynamic eBPF network isolation rules.
-- [ ] Zero-trust network policy enforcement across inter-container traffic.
-- [ ] Visual egress/ingress bandwidth inspector with automatic DDoS throttling.
+- [x] Kernel-level packet filtering and dynamic eBPF network isolation rules.
+- [x] Zero-trust network policy enforcement across inter-container traffic.
+- [x] Visual egress/ingress bandwidth inspector with automatic DDoS throttling.
 
 ---
 
@@ -243,6 +243,14 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Ephemeral distributed leader election leases with automated heartbeat keep-alives and fencing tokens.
 - [ ] Cluster-wide scheduled container jobs, automated maintenance tasks, and backup cron triggers.
 - [ ] Split-brain resilient lease renewal and automatic failover coordinator with audit trail.
+
+---
+
+## Milestone 37: v4.2.0 (Zero-Downtime Live Container Migration & CRIU Checkpointer)
+- [ ] Userspace CRIU (Checkpoint/Restore in Userspace) state capture pipeline for stateful container memory, file descriptors, and socket states.
+- [ ] Pre-copy iterative memory delta synchronization over encrypted mesh peer overlay tunnels.
+- [ ] Instant socket handoff and Gratuitous ARP / BGP virtual IP takeover for seamless zero-drop cross-host container migration.
+
 
 
 

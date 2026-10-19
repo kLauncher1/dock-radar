@@ -16,6 +16,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/ebpf"
 	"github.com/kLauncher1/dock-radar/internal/federation"
+	"github.com/kLauncher1/dock-radar/internal/firewall"
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
@@ -63,6 +64,7 @@ type HandlerConfig struct {
 	FederationEngine *federation.Engine
 	ScannerEngine    *scanner.ScannerEngine
 	RateLimitEngine  *ratelimit.LimiterEngine
+	FirewallEngine   *firewall.Engine
 	AppVersion       string
 	TokenAuth        *security.TokenAuth
 	AllowRemote      bool
@@ -104,6 +106,7 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	ebpfEngine := ebpf.NewEngine(ebpf.DefaultEBPFConfig(), dockerClient, alertDispatcher, auditLogger)
 	scannerEngine := scanner.NewEngine(scanner.DefaultScannerConfig(), dockerClient, alertDispatcher, auditLogger)
 	rateLimitEngine := ratelimit.NewLimiterEngine(ratelimit.DefaultLimiterConfig(), "local-node", alertDispatcher, auditLogger)
+	firewallEngine := firewall.NewEngine(firewall.DefaultFirewallConfig(), dockerClient, alertDispatcher, auditLogger)
 
 	cfg := &HandlerConfig{
 		DockerClient:     dockerClient,
@@ -119,7 +122,8 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 		EBPFEngine:       ebpfEngine,
 		ScannerEngine:    scannerEngine,
 		RateLimitEngine:  rateLimitEngine,
-		AppVersion:       "2.3.0",
+		FirewallEngine:   firewallEngine,
+		AppVersion:       "2.4.0",
 		TokenAuth:        tokenAuth,
 		AllowRemote:      allowRemote,
 	}
@@ -229,6 +233,17 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	mux.HandleFunc("/api/ratelimit/bans", cfg.handleRateLimitBans)
 	mux.HandleFunc("/api/ratelimit/sync", cfg.handleRateLimitSync)
 	mux.HandleFunc("/api/ratelimit/config", cfg.handleRateLimitConfig)
+
+	// eBPF Micro-Firewall & Container Network Isolator
+	mux.HandleFunc("/api/firewall/status", cfg.handleFirewallStatus)
+	mux.HandleFunc("/api/firewall/rules", cfg.handleFirewallRules)
+	mux.HandleFunc("/api/firewall/isolation", cfg.handleFirewallIsolation)
+	mux.HandleFunc("/api/firewall/isolate", cfg.handleFirewallIsolate)
+	mux.HandleFunc("/api/firewall/unisolate", cfg.handleFirewallUnisolate)
+	mux.HandleFunc("/api/firewall/bandwidth", cfg.handleFirewallBandwidth)
+	mux.HandleFunc("/api/firewall/ddos/alerts", cfg.handleFirewallDDoSAlerts)
+	mux.HandleFunc("/api/firewall/simulate", cfg.handleFirewallSimulate)
+	mux.HandleFunc("/api/firewall/config", cfg.handleFirewallConfig)
 
 	// Embedded Static UI
 	if staticFS != nil {

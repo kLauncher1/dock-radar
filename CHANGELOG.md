@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-10-19
+
+### Added
+- eBPF Micro-Firewall & Container Network Isolator (`internal/firewall/`):
+  - High-throughput packet evaluation pipeline supporting priority-ordered filtering rules with CIDR matching, port lists, transport protocols (TCP, UDP, ICMP), traffic directions (INGRESS, EGRESS, BOTH), and actions (ALLOW, DROP, REJECT, LOG) (`internal/firewall/filter.go`, `internal/firewall/filter_test.go`).
+  - Zero-trust container network isolator enforcing strict inter-container network boundaries, quarantine state machines, granular peer whitelisting, and dropped packet telemetry counters (`internal/firewall/isolator.go`, `internal/firewall/isolator_test.go`).
+  - Real-time bandwidth throughput inspector and volumetric DDoS detection engine calculating ingress/egress BPS and PPS deltas, sliding-window rate tracking, and automated alert triggering with deduplication (`internal/firewall/throttler.go`, `internal/firewall/throttler_test.go`).
+  - Central `Engine` orchestrator coordinating packet filtering, container quarantine, bandwidth sampling, background container lifecycle reconciliation, webhook alerts, and structured audit logs (`internal/firewall/engine.go`, `internal/firewall/engine_test.go`).
+  - Core domain models, configuration sanitization, and CIDR/port parsing helpers (`internal/firewall/types.go`, `internal/firewall/types_test.go`).
+- eBPF Micro-Firewall REST APIs (`internal/api/firewall.go`, `internal/api/firewall_test.go`):
+  - `GET /api/firewall/status`: Overall firewall engine status, active rule count, isolated containers, and packet evaluation counters (requires `RoleViewer`).
+  - `GET /api/firewall/rules`: Lists active packet filtering rules with hit counters (requires `RoleViewer`).
+  - `POST /api/firewall/rules`: Deploys a new filtering rule with priority ordering and CIDR validation (requires `RoleAdmin`).
+  - `DELETE /api/firewall/rules`: Removes a filtering rule by ID (requires `RoleAdmin`).
+  - `GET /api/firewall/isolation`: Lists container isolation and quarantine states with dropped counters (requires `RoleViewer`).
+  - `POST /api/firewall/isolation`: Enforces zero-trust quarantine on a target container with peer allowlists (requires `RoleAdmin`).
+  - `POST /api/firewall/isolation/unisolate`: Restores a quarantined container to nominal cluster network fabric (requires `RoleAdmin`).
+  - `GET /api/firewall/bandwidth`: Container ingress and egress bandwidth rates (BPS/PPS) and peak utilization metrics (requires `RoleViewer`).
+  - `GET /api/firewall/ddos/alerts`: Volumetric flood detection history and incident telemetry (requires `RoleViewer`).
+  - `POST /api/firewall/simulate`: Performs synthetic packet evaluation through the filtering engine with nanosecond latency (requires `RoleAdmin`).
+  - `GET /api/firewall/config`: Retrieves firewall engine configuration (requires `RoleViewer`).
+  - `POST /api/firewall/config`: Updates firewall configuration, DDoS thresholds, and zero-trust policies (requires `RoleAdmin`).
+- Prometheus Metrics Exporter Extension (`internal/metrics/firewall.go`, `internal/metrics/prometheus.go`):
+  - Exposes `dock_radar_firewall_rules_active`, `dock_radar_firewall_containers_isolated`, `dock_radar_firewall_packets_permitted_total`, `dock_radar_firewall_packets_dropped_total`, `dock_radar_firewall_bytes_evaluated_total`, `dock_radar_firewall_ddos_events_total`, `dock_radar_firewall_active`, and `dock_radar_firewall_zerotrust_mode` metrics for Prometheus and Grafana dashboards.
+- Embedded Glassmorphism Web Console (`web/dist/index.html`):
+  - Header firewall status pill (`#firewall-badge`) displaying active rule count with direct modal launch.
+  - Dedicated Micro-Firewall & Network Isolator dashboard section with 6 live KPI cards (Active Rules, Isolated Containers, Permitted Packets, Blocked/Dropped Packets, Evaluated Data, DDoS Events).
+  - Four interactive tabs: Active Filter Rules, Zero-Trust Isolation Matrix, Bandwidth & Rate Monitor, and DDoS Defense Telemetry.
+  - Interactive Firewall Management Modal (`#firewall-modal`) with Rule Builder, Container Quarantine, Packet Simulator, and Engine Settings.
+- Command-Line Flags & Environment Variables (`main.go`):
+  - Added `--firewall`, `--firewall-zerotrust`, `--firewall-ddos-pps`, `--firewall-ddos-bps`, and `--firewall-autoban` CLI flags with matching environment variables (`DOCK_RADAR_FIREWALL`, `DOCK_RADAR_FIREWALL_ZEROTRUST`, `DOCK_RADAR_FIREWALL_DDOS_PPS`, `DOCK_RADAR_FIREWALL_DDOS_BPS`, `DOCK_RADAR_FIREWALL_AUTOBAN`).
+
 ## [2.3.0] - 2026-10-18
 
 ### Added

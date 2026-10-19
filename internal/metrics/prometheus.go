@@ -10,6 +10,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/ebpf"
 	"github.com/kLauncher1/dock-radar/internal/federation"
+	"github.com/kLauncher1/dock-radar/internal/firewall"
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
@@ -98,7 +99,7 @@ func FormatMetricsFull(
 	return FormatMetricsAll(
 		sys, dock, ringBuffer, alertDispatcher, auditLogger,
 		meshSummary, meshNodes, healingStats, anomalySummary, anomalyPreds,
-		discStatus, gossipSummary, gossipMembers, nil, nil, nil, nil, nil, nil, appVersion,
+		discStatus, gossipSummary, gossipMembers, nil, nil, nil, nil, nil, nil, nil, appVersion,
 	)
 }
 
@@ -123,6 +124,7 @@ func FormatMetricsAll(
 	fedStatus *federation.FederationStatus,
 	scannerStatus *scanner.ScannerStatus,
 	rateLimitStatus *ratelimit.LimiterStatus,
+	firewallStatus *firewall.FirewallStatus,
 	appVersion string,
 ) string {
 	var b strings.Builder
@@ -465,6 +467,9 @@ func FormatMetricsAll(
 
 	// 18. Distributed Rate-Limiting & Global Quota Orchestrator Telemetry
 	AppendRateLimitMetrics(&b, rateLimitStatus)
+
+	// 19. eBPF Micro-Firewall & Container Network Isolator Telemetry
+	AppendFirewallMetrics(&b, firewallStatus)
 
 	return b.String()
 }
