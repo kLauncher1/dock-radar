@@ -27,7 +27,7 @@ import (
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "2.3.0"
+const AppVersion = "2.4.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -66,6 +66,11 @@ func main() {
 	ratelimitBurstFlag := flag.Int("ratelimit-burst", 100, "Default token bucket burst capacity (env: DOCK_RADAR_RATELIMIT_BURST)")
 	ratelimitAutoBanFlag := flag.Bool("ratelimit-autoban", true, "Automatically ban IPs exceeding abuse thresholds (env: DOCK_RADAR_RATELIMIT_AUTOBAN)")
 	ratelimitSecretFlag := flag.String("ratelimit-sync-secret", "", "Shared HMAC secret for cluster rate limit mesh sync (env: DOCK_RADAR_RATELIMIT_SYNC_SECRET)")
+	firewallFlag := flag.Bool("firewall", true, "Enable eBPF micro-firewall & container network isolator (env: DOCK_RADAR_FIREWALL_ENABLED)")
+	firewallZeroTrustFlag := flag.Bool("firewall-zerotrust", false, "Enable zero-trust network isolation policy by default (env: DOCK_RADAR_FIREWALL_ZEROTRUST)")
+	firewallDDoSPPSFlag := flag.Uint64("firewall-ddos-pps", 50000, "Packets/sec threshold for DDoS attack mitigation (env: DOCK_RADAR_FIREWALL_DDOS_PPS)")
+	firewallDDoSBPSFlag := flag.Uint64("firewall-ddos-bps", 104857600, "Bytes/sec threshold for DDoS bandwidth exhaustion (env: DOCK_RADAR_FIREWALL_DDOS_BPS)")
+	firewallAutoBanFlag := flag.Bool("firewall-autoban", true, "Automatically quarantine containers on severe DDoS attacks (env: DOCK_RADAR_FIREWALL_AUTOBAN)")
 	versionFlag := flag.Bool("version", false, "Print dock-radar version and exit")
 	flag.Parse()
 
@@ -378,6 +383,48 @@ func main() {
 		}
 	}
 
+	// Launch eBPF micro-firewall & container network isolator
+	if handlerCfg != nil && handlerCfg.FirewallEngine != nil {
+		fwEnabled := *firewallFlag
+		if envFW := os.Getenv("DOCK_RADAR_FIREWALL_ENABLED"); envFW != "" {
+			fwEnabled = strings.EqualFold(envFW, "true") || envFW == "1"
+		}
+		fwZT := *firewallZeroTrustFlag
+		if envZT := os.Getenv("DOCK_RADAR_FIREWALL_ZEROTRUST"); envZT != "" {
+			fwZT = strings.EqualFold(envZT, "true") || envZT == "1"
+		}
+		fwPPS := *firewallDDoSPPSFlag
+		if envPPS := os.Getenv("DOCK_RADAR_FIREWALL_DDOS_PPS"); envPPS != "" {
+			if u, err := strconv.ParseUint(envPPS, 10, 64); err == nil && u > 0 {
+				fwPPS = u
+			}
+		}
+		fwBPS := *firewallDDoSBPSFlag
+		if envBPS := os.Getenv("DOCK_RADAR_FIREWALL_DDOS_BPS"); envBPS != "" {
+			if u, err := strconv.ParseUint(envBPS, 10, 64); err == nil && u > 0 {
+				fwBPS = u
+			}
+		}
+		fwAutoBan := *firewallAutoBanFlag
+		if envBan := os.Getenv("DOCK_RADAR_FIREWALL_AUTOBAN"); envBan != "" {
+			fwAutoBan = strings.EqualFold(envBan, "true") || envBan == "1"
+		}
+
+		fwCfg := handlerCfg.FirewallEngine.Config()
+		fwCfg.Enabled = fwEnabled
+		fwCfg.ZeroTrustEnabled = fwZT
+		fwCfg.DDoSThresholdPPS = fwPPS
+		fwCfg.DDoSThresholdBPS = fwBPS
+		fwCfg.AutoQuarantineOnDDoS = fwAutoBan
+		_ = handlerCfg.FirewallEngine.UpdateConfig(fwCfg)
+
+		if fwEnabled {
+			fwCtx, fwCancel := context.WithCancel(context.Background())
+			defer fwCancel()
+			go handlerCfg.FirewallEngine.Start(fwCtx)
+		}
+	}
+
 	scheme := "http"
 	tlsStatus := "Inactive (Plain HTTP)"
 
@@ -540,6 +587,14 @@ func main() {
 		}
 	}
 
+	firewallStatusDesc := "Disabled"
+	if handlerCfg != nil && handlerCfg.FirewallEngine != nil {
+		st := handlerCfg.FirewallEngine.Status()
+		if st.Enabled {
+			firewallStatusDesc = fmt.Sprintf("Active (%d rules · %d isolated · %d quarantined)", st.TotalRules, st.IsolatedContainers, st.QuarantinedContainers)
+		}
+	}
+
 	fmt.Println("=========================================================")
 	fmt.Printf(" 🚀 Dock-Radar v%s · Single-Binary Container & System Monitor\n", AppVersion)
 	fmt.Printf(" 📡 Web Dashboard Live at %s://localhost:%s\n", scheme, port)
@@ -557,6 +612,7 @@ func main() {
 	fmt.Printf(" 🌍 Edge Federation   : %s\n", federationStatusDesc)
 	fmt.Printf(" 🔍 Vulnerability/SBOM : %s\n", scannerStatusDesc)
 	fmt.Printf(" 🚦 Rate Limiting      : %s\n", rateLimitStatusDesc)
+	fmt.Printf(" 🧱 Micro-Firewall     : %s\n", firewallStatusDesc)
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")
 	fmt.Println("=========================================================")
 

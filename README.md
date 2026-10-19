@@ -120,6 +120,11 @@ go build -ldflags="-s -w" -o dock-radar .
 | `--ratelimit-burst` | `DOCK_RADAR_RATELIMIT_BURST` | `200` | Default burst capacity tokens for tenant rate limiters |
 | `--ratelimit-autoban` | `DOCK_RADAR_RATELIMIT_AUTOBAN` | `true` | Automatically ban IP addresses exceeding abusive violation thresholds |
 | `--ratelimit-sync-secret` | `DOCK_RADAR_RATELIMIT_SYNC_SECRET` | `""` | Shared secret key for HMAC-SHA256 authenticated peer rate-limit sync |
+| `--firewall` | `DOCK_RADAR_FIREWALL` | `false` | Enable eBPF micro-firewall and zero-trust container network isolator |
+| `--firewall-zerotrust` | `DOCK_RADAR_FIREWALL_ZEROTRUST` | `true` | Enforce zero-trust default drop policy for inter-container traffic |
+| `--firewall-ddos-pps` | `DOCK_RADAR_FIREWALL_DDOS_PPS` | `25000` | Ingress packets-per-second threshold triggering DDoS rate throttling |
+| `--firewall-ddos-bps` | `DOCK_RADAR_FIREWALL_DDOS_BPS` | `104857600` | Ingress bytes-per-second threshold (100MB/s) triggering DDoS mitigation |
+| `--firewall-autoban` | `DOCK_RADAR_FIREWALL_AUTOBAN` | `true` | Automatically quarantine containers generating abusive volumetric traffic |
 | `--version` | — | — | Print dock-radar version and exit |
 
 ---
@@ -160,11 +165,15 @@ go build -ldflags="-s -w" -o dock-radar .
 │   • Standard Prometheus  │      • /metrics (Prometheus)│
 │   • Exposition Formatter │      • /api/docker/*        │
 │   • Multi-Region Gauges  │      • /api/ratelimit/*     │
-├──────────────────────────┤      • /api/scanner/*       │
-│   internal/security      │      • /api/federation/*    │
-│   • In-Memory ECDSA TLS  │      • /api/storage/*       │
-│   • Constant-Time Bearer │      • /api/ebpf/*          │
-│   • RBAC (Admin/Viewer)  │      • /api/healing/*       │
+├──────────────────────────┤      • /api/firewall/*      │
+│   internal/security      │      • /api/scanner/*       │
+│   • In-Memory ECDSA TLS  │      • /api/federation/*    │
+│   • Constant-Time Bearer │      • /api/storage/*       │
+│   • RBAC (Admin/Viewer)  │      • /api/ebpf/*          │
+│   internal/firewall      │      • /api/healing/*       │
+│   • eBPF Packet Filter   │                             │
+│   • Zero-Trust Isolator  │                             │
+│   • DDoS Rate Throttler  │                             │
 ├──────────────────────────┴─────────────────────────────┤
 │                 Embedded Web Dashboard                 │
 │         (React 19 + TypeScript / Vite Bundled)         │
@@ -200,6 +209,14 @@ go build -ldflags="-s -w" -o dock-radar .
 | `/api/ratelimit/bans` | `GET` / `POST` / `DELETE` | `viewer` / `admin` | Lists active IP ban records, manually bans an IP, or unbans an IP address |
 | `/api/ratelimit/sync` | `POST` | `admin` | Ingests and processes HMAC-SHA256 authenticated peer rate-limit and ban sync packets |
 | `/api/ratelimit/config` | `GET` / `POST` | `viewer` / `admin` | Fetches or updates rate limiter configuration with masked sync secret |
+| `/api/firewall/status` | `GET` | `viewer` | eBPF micro-firewall engine state, active rule count, isolated containers, and telemetry |
+| `/api/firewall/rules` | `GET` / `POST` / `DELETE` | `viewer` / `admin` | Lists active packet rules, deploys new priority filtering rule, or removes rule |
+| `/api/firewall/isolation` | `GET` / `POST` | `viewer` / `admin` | Lists container quarantine states, or places a target container into zero-trust isolation |
+| `/api/firewall/isolation/unisolate` | `POST` | `admin` | Restores an isolated container back into nominal cluster network fabric |
+| `/api/firewall/bandwidth` | `GET` | `viewer` | Real-time container ingress/egress BPS and PPS bandwidth throughput inspector |
+| `/api/firewall/ddos/alerts` | `GET` | `viewer` | Volumetric DDoS flood detection events and auto-mitigation incident telemetry |
+| `/api/firewall/simulate` | `POST` | `admin` | Evaluates a synthetic packet payload through the eBPF filter pipeline with sub-microsecond latency |
+| `/api/firewall/config` | `GET` / `POST` | `viewer` / `admin` | Fetches or updates micro-firewall settings, DDoS thresholds, and zero-trust policies |
 | `/api/scanner/status` | `GET` | `viewer` | Overall vulnerability scanner engine status, scan counts, and gating metrics |
 | `/api/scanner/reports` | `GET` | `viewer` | Recent container image vulnerability scan reports (`?container=&image=&limit=50`) |
 | `/api/scanner/report` | `GET` | `viewer` | Detailed vulnerability report for a specific container or image (`?id=&image=`) |

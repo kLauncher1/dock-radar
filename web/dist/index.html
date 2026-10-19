@@ -651,6 +651,7 @@
       <button id="federation-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(14, 165, 233, 0.4); background: rgba(14, 165, 233, 0.15); color: #0ea5e9; display: inline-flex; align-items: center; gap: 4px;" onclick="openFederationModal()" title="Multi-Region Edge Peer Federation & WAN Sync">🌍 Federation: <span id="federation-badge-text">1 Region</span></button>
       <button id="scanner-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(244, 63, 94, 0.4); background: rgba(244, 63, 94, 0.15); color: #f43f5e; display: inline-flex; align-items: center; gap: 4px;" onclick="openScannerModal()" title="Container Image Vulnerability Scanner & SBOM Audit">🛡️ SBOM/CVE: <span id="scanner-badge-text">0 Images</span></button>
       <button id="ratelimit-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.15); color: #10b981; display: inline-flex; align-items: center; gap: 4px;" onclick="openRateLimitModal()" title="Distributed Rate-Limiting & Global Quota Orchestrator">🚦 Rate Limits: <span id="ratelimit-badge-text">0 Bans</span></button>
+      <button id="firewall-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.15); color: #ef4444; display: inline-flex; align-items: center; gap: 4px;" onclick="openFirewallModal()" title="eBPF Micro-Firewall & Container Network Isolator">🧱 Firewall: <span id="firewall-badge-text">3 Rules</span></button>
       <button id="btn-export-audit" class="status-pill" style="font-size: 11px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;" onclick="exportAuditTrail()" title="Export Audit Trail in NDJSON format">📋 Export Audit</button>
       <span>•</span>
       <span id="host-badge">Loading...</span>
@@ -1776,6 +1777,173 @@
         </div>
       </div>
     </div>
+
+    <!-- eBPF Micro-Firewall & Container Network Isolator Section -->
+    <div class="card" id="firewall-section" style="margin-top: 24px;">
+      <div class="alerts-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <h2 style="font-size: 16px; font-weight: 700; color: var(--text-main); margin: 0; display: flex; align-items: center; gap: 8px;">
+            <span>🧱 eBPF Micro-Firewall &amp; Container Network Isolator</span>
+          </h2>
+          <span id="fw-engine-status-badge" class="status-pill status-running" style="font-size: 11px; padding: 2px 8px; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.15); color: #10b981;">eBPF ACTIVE</span>
+          <span id="fw-zerotrust-status-badge" class="status-pill" style="font-size: 11px; padding: 2px 8px; border: 1px solid rgba(59, 130, 246, 0.4); background: rgba(59, 130, 246, 0.15); color: #3b82f6;">ZERO-TRUST: ON</span>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn btn-secondary" onclick="openFirewallModal('rule')" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">+ Add Rule</button>
+          <button class="btn btn-secondary" onclick="openFirewallModal('isolate')" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">🔒 Isolate Container</button>
+          <button class="btn btn-secondary" onclick="openFirewallModal('simulate')" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">🧪 Packet Simulator</button>
+          <button class="btn btn-secondary" onclick="openFirewallModal('config')" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">⚙️ Config</button>
+          <button class="btn btn-secondary" onclick="pollFirewallAll()" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">🔄 Refresh</button>
+        </div>
+      </div>
+
+      <!-- Firewall Metric KPI Cards -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 20px;">
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Active Rules</div>
+          <div id="stat-fw-rules" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--accent-blue);">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Isolated Containers</div>
+          <div id="stat-fw-isolated" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #f59e0b;">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Permitted Packets</div>
+          <div id="stat-fw-permitted" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #10b981;">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Blocked / Dropped</div>
+          <div id="stat-fw-dropped" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #ef4444;">0</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">Evaluated Data</div>
+          <div id="stat-fw-bytes" style="font-size: 20px; font-weight: 700; font-family: monospace; color: var(--text-main);">0 B</div>
+        </div>
+        <div class="alert-card-sub" style="padding: 12px 16px;">
+          <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase;">DDoS Events / Throttled</div>
+          <div id="stat-fw-ddos" style="font-size: 20px; font-weight: 700; font-family: monospace; color: #c084fc;">0</div>
+        </div>
+      </div>
+
+      <!-- Firewall Navigation Tabs -->
+      <div style="display: flex; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
+        <button id="btn-tab-fw-rules" class="btn-action btn-restart" onclick="switchFirewallMainTab('rules')" style="font-size: 11px; padding: 4px 12px;">Active Filter Rules</button>
+        <button id="btn-tab-fw-isolation" class="btn-action" onclick="switchFirewallMainTab('isolation')" style="font-size: 11px; padding: 4px 12px;">Zero-Trust Isolation Matrix</button>
+        <button id="btn-tab-fw-bandwidth" class="btn-action" onclick="switchFirewallMainTab('bandwidth')" style="font-size: 11px; padding: 4px 12px;">Bandwidth &amp; Rate Monitor</button>
+        <button id="btn-tab-fw-alerts" class="btn-action" onclick="switchFirewallMainTab('alerts')" style="font-size: 11px; padding: 4px 12px;">DDoS Defense Telemetry</button>
+      </div>
+
+      <!-- Tab 1: Rules Table -->
+      <div id="fw-rules-container">
+        <div class="alert-events-scroll" style="max-height: 280px;">
+          <table class="alert-events-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th>Pri</th>
+                <th>Rule Name</th>
+                <th>Action</th>
+                <th>Dir</th>
+                <th>Proto</th>
+                <th>Source CIDR:Port</th>
+                <th>Destination CIDR:Port</th>
+                <th>Container</th>
+                <th>Matched Packets</th>
+                <th>Matched Bytes</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="fw-rules-body">
+              <tr>
+                <td colspan="11" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                  No active firewall filtering rules. Default zero-trust or baseline policies applied.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 2: Zero-Trust Isolation Table -->
+      <div id="fw-isolation-container" style="display: none;">
+        <div class="alert-events-scroll" style="max-height: 280px;">
+          <table class="alert-events-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th>Container ID / Name</th>
+                <th>Isolation State</th>
+                <th>Quarantine Reason</th>
+                <th>Whitelisted Peers</th>
+                <th>Dropped Packets</th>
+                <th>Dropped Bytes</th>
+                <th>Last Active</th>
+                <th style="text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="fw-isolation-body">
+              <tr>
+                <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                  No containers in quarantine. Zero-trust fabric operating normally.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 3: Bandwidth Monitor Table -->
+      <div id="fw-bandwidth-container" style="display: none;">
+        <div class="alert-events-scroll" style="max-height: 280px;">
+          <table class="alert-events-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th>Container</th>
+                <th>Ingress Rate</th>
+                <th>Egress Rate</th>
+                <th>Ingress PPS</th>
+                <th>Egress PPS</th>
+                <th>Peak Ingress</th>
+                <th>Peak Egress</th>
+                <th>Total Ingress</th>
+                <th>Total Egress</th>
+              </tr>
+            </thead>
+            <tbody id="fw-bandwidth-body">
+              <tr>
+                <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                  No active bandwidth data. Traffic sampling will record metrics upon container activity.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 4: DDoS Telemetry Table -->
+      <div id="fw-alerts-container" style="display: none;">
+        <div class="alert-events-scroll" style="max-height: 280px;">
+          <table class="alert-events-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th>Timestamp</th>
+                <th>Container</th>
+                <th>Triggered Metric</th>
+                <th>Configured Threshold</th>
+                <th>Measured Rate</th>
+                <th>Action Executed</th>
+                <th>State</th>
+              </tr>
+            </thead>
+            <tbody id="fw-alerts-body">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                  No DDoS volumetric anomalies detected. Traffic nominal across cluster interfaces.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- Lifecycle Action Confirmation Modal -->
@@ -2657,6 +2825,233 @@
       </div>
       <div class="modal-actions" style="display: flex; justify-content: flex-end;">
         <button class="btn btn-secondary" onclick="closeRateLimitModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Firewall Management Modal -->
+  <div class="modal-backdrop" id="firewall-modal">
+    <div class="modal-card" style="max-width: 720px; width: 90%;">
+      <div class="modal-title" style="color: #ef4444; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+        <span>🧱 eBPF Micro-Firewall &amp; Network Isolator Control</span>
+      </div>
+
+      <!-- Modal Tabs -->
+      <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
+        <button id="btn-fw-mtab-rule" class="btn-action btn-restart" onclick="switchFirewallModalTab('rule')" style="font-size: 11px; padding: 4px 12px;">Rule Builder</button>
+        <button id="btn-fw-mtab-isolate" class="btn-action" onclick="switchFirewallModalTab('isolate')" style="font-size: 11px; padding: 4px 12px;">Container Quarantine</button>
+        <button id="btn-fw-mtab-simulate" class="btn-action" onclick="switchFirewallModalTab('simulate')" style="font-size: 11px; padding: 4px 12px;">Packet Simulator</button>
+        <button id="btn-fw-mtab-config" class="btn-action" onclick="switchFirewallModalTab('config')" style="font-size: 11px; padding: 4px 12px;">Firewall Settings</button>
+      </div>
+
+      <!-- Tab 1: Rule Builder -->
+      <div id="fw-mtab-rule-content">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="form-row">
+            <div class="form-col" style="flex: 2;">
+              <label class="form-label" for="fw-rule-name">Rule Name</label>
+              <input type="text" class="form-input" id="fw-rule-name" placeholder="e.g. block-outbound-smtp" />
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fw-rule-priority">Priority (1-1000)</label>
+              <input type="number" min="1" max="1000" class="form-input" id="fw-rule-priority" value="100" />
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fw-rule-action">Action</label>
+              <select class="form-input" id="fw-rule-action">
+                <option value="ALLOW">ALLOW (Permit)</option>
+                <option value="DROP" selected>DROP (Silent Discard)</option>
+                <option value="REJECT">REJECT (ICMP Unreachable)</option>
+                <option value="LOG">LOG (Audit Only)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-col">
+              <label class="form-label" for="fw-rule-direction">Direction</label>
+              <select class="form-input" id="fw-rule-direction">
+                <option value="INGRESS">INGRESS (Inbound)</option>
+                <option value="EGRESS" selected>EGRESS (Outbound)</option>
+                <option value="BOTH">BOTH (Bi-directional)</option>
+              </select>
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fw-rule-protocol">Protocol</label>
+              <select class="form-input" id="fw-rule-protocol">
+                <option value="ANY">ANY (All Protocols)</option>
+                <option value="TCP" selected>TCP</option>
+                <option value="UDP">UDP</option>
+                <option value="ICMP">ICMP</option>
+              </select>
+            </div>
+            <div class="form-col" style="flex: 2;">
+              <label class="form-label" for="fw-rule-container">Target Container (Optional ID / Name)</label>
+              <input type="text" class="form-input" id="fw-rule-container" placeholder="Leave blank for global rule" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-col">
+              <label class="form-label" for="fw-rule-src-cidr">Source CIDR</label>
+              <input type="text" class="form-input" id="fw-rule-src-cidr" placeholder="0.0.0.0/0" value="0.0.0.0/0" />
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fw-rule-src-ports">Source Ports (e.g. 80,443)</label>
+              <input type="text" class="form-input" id="fw-rule-src-ports" placeholder="ANY" />
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fw-rule-dst-cidr">Destination CIDR</label>
+              <input type="text" class="form-input" id="fw-rule-dst-cidr" placeholder="0.0.0.0/0" value="0.0.0.0/0" />
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fw-rule-dst-ports">Destination Ports (e.g. 25,587)</label>
+              <input type="text" class="form-input" id="fw-rule-dst-ports" placeholder="25,587" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-col" style="flex: 3;">
+              <label class="form-label" for="fw-rule-desc">Rule Description</label>
+              <input type="text" class="form-input" id="fw-rule-desc" placeholder="Operational rationale or security mandate" />
+            </div>
+            <div class="form-col" style="display: flex; align-items: flex-end;">
+              <button class="btn btn-primary-restart" onclick="saveFirewallRuleForm()" style="width: 100%; padding: 8px 16px; font-size: 12px; font-weight: 600;">➕ Deploy Rule</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Container Quarantine -->
+      <div id="fw-mtab-isolate-content" style="display: none;">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
+            Quarantine a compromised or suspicious container. When isolated, all ingress/egress is severed except to explicit whitelisted peer containers.
+          </p>
+          <div class="form-row">
+            <div class="form-col" style="flex: 2;">
+              <label class="form-label" for="fw-iso-container-id">Target Container ID / Name</label>
+              <input type="text" class="form-input" id="fw-iso-container-id" placeholder="e.g. redis-prod or container ID" />
+            </div>
+            <div class="form-col" style="flex: 2;">
+              <label class="form-label" for="fw-iso-whitelist">Whitelisted Peers (Comma-separated IDs)</label>
+              <input type="text" class="form-input" id="fw-iso-whitelist" placeholder="e.g. monitoring-agent, auth-service" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-col" style="flex: 3;">
+              <label class="form-label" for="fw-iso-reason">Quarantine Reason</label>
+              <input type="text" class="form-input" id="fw-iso-reason" placeholder="e.g. Suspicious outbound C2 traffic detected" value="Manual administrator zero-trust containment" />
+            </div>
+            <div class="form-col" style="display: flex; align-items: flex-end;">
+              <button class="btn btn-danger" onclick="submitContainerIsolationForm()" style="width: 100%; padding: 8px 16px; font-size: 12px; font-weight: 600; background: #dc2626; color: white;">🔒 Enforce Quarantine</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Packet Simulator -->
+      <div id="fw-mtab-simulate-content" style="display: none;">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <p style="font-size: 12px; color: var(--text-muted); margin: 0;">
+            Test how the eBPF kernel filter and zero-trust policies evaluate an arbitrary synthetic packet without sending network traffic.
+          </p>
+          <div class="form-row">
+            <div class="form-col">
+              <label class="form-label" for="fw-sim-src-ip">Source IP</label>
+              <input type="text" class="form-input" id="fw-sim-src-ip" value="10.0.0.5" />
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fw-sim-src-port">Source Port</label>
+              <input type="number" class="form-input" id="fw-sim-src-port" value="54321" />
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fw-sim-dst-ip">Destination IP</label>
+              <input type="text" class="form-input" id="fw-sim-dst-ip" value="192.168.1.100" />
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fw-sim-dst-port">Destination Port</label>
+              <input type="number" class="form-input" id="fw-sim-dst-port" value="80" />
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-col">
+              <label class="form-label" for="fw-sim-protocol">Protocol</label>
+              <select class="form-input" id="fw-sim-protocol">
+                <option value="TCP" selected>TCP</option>
+                <option value="UDP">UDP</option>
+                <option value="ICMP">ICMP</option>
+              </select>
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fw-sim-container">Simulated Container Context</label>
+              <input type="text" class="form-input" id="fw-sim-container" placeholder="Leave empty for external" />
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fw-sim-length">Packet Size (Bytes)</label>
+              <input type="number" class="form-input" id="fw-sim-length" value="128" />
+            </div>
+            <div class="form-col" style="display: flex; align-items: flex-end;">
+              <button class="btn btn-primary-restart" onclick="runSimulatePacketForm()" style="width: 100%; padding: 8px 16px; font-size: 12px; font-weight: 600;">⚡ Simulate Evaluation</button>
+            </div>
+          </div>
+          <!-- Simulation Result Display -->
+          <div id="fw-sim-result" style="display: none; background: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-subtle); border-radius: 6px; padding: 12px; font-family: monospace; font-size: 12px;">
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 4: Firewall Settings -->
+      <div id="fw-mtab-config-content" style="display: none;">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="form-row">
+            <div class="form-col">
+              <label class="form-label" for="fw-cfg-enabled">Firewall Engine Enabled</label>
+              <select class="form-input" id="fw-cfg-enabled">
+                <option value="true" selected>Enabled</option>
+                <option value="false">Disabled (Bypass All)</option>
+              </select>
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fw-cfg-zerotrust">Zero-Trust Default Policy</label>
+              <select class="form-input" id="fw-cfg-zerotrust">
+                <option value="true" selected>Active (Default Drop Unspecified)</option>
+                <option value="false">Permissive (Default Allow)</option>
+              </select>
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fw-cfg-ddos">DDoS Protection Active</label>
+              <select class="form-input" id="fw-cfg-ddos">
+                <option value="true" selected>Active</option>
+                <option value="false">Disabled</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-row">
+            <div class="form-col">
+              <label class="form-label" for="fw-cfg-pps">DDoS PPS Threshold</label>
+              <input type="number" min="100" max="1000000" class="form-input" id="fw-cfg-pps" value="25000" />
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fw-cfg-bps">DDoS BPS Threshold (Bytes/s)</label>
+              <input type="number" min="100000" max="10000000000" class="form-input" id="fw-cfg-bps" value="104857600" />
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="fw-cfg-autoban">Auto-Quarantine on DDoS</label>
+              <select class="form-input" id="fw-cfg-autoban">
+                <option value="true" selected>Enabled (Auto-Isolate)</option>
+                <option value="false">Disabled (Alert Only)</option>
+              </select>
+            </div>
+          </div>
+          <div style="display: flex; justify-content: flex-end;">
+            <button class="btn btn-primary-restart" onclick="saveFirewallConfigForm()" style="padding: 8px 16px; font-size: 12px; font-weight: 600;">💾 Save Firewall Settings</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; margin-top: 16px;">
+        <button class="btn btn-secondary" onclick="closeFirewallModal()">Close</button>
       </div>
     </div>
   </div>
@@ -6984,10 +7379,561 @@
     setInterval(pollScannerStatus, 3000);
     pollScannerReports();
     setInterval(pollScannerReports, 5000);
+    // ==========================================
+    // eBPF Micro-Firewall & Network Isolator
+    // ==========================================
+
+    function openFirewallModal(tab = 'rule') {
+      const modal = document.getElementById('firewall-modal');
+      if (modal) {
+        modal.style.display = 'flex';
+        switchFirewallModalTab(tab);
+        if (tab === 'config') {
+          loadFirewallConfig();
+        }
+      }
+    }
+
+    function closeFirewallModal() {
+      const modal = document.getElementById('firewall-modal');
+      if (modal) {
+        modal.style.display = 'none';
+      }
+    }
+
+    function switchFirewallMainTab(tab) {
+      const tabs = ['rules', 'isolation', 'bandwidth', 'alerts'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`btn-tab-fw-${t}`);
+        const container = document.getElementById(`fw-${t}-container`);
+        if (btn) {
+          if (t === tab) {
+            btn.classList.add('btn-restart');
+          } else {
+            btn.classList.remove('btn-restart');
+          }
+        }
+        if (container) {
+          container.style.display = (t === tab) ? 'block' : 'none';
+        }
+      });
+      if (tab === 'rules') pollFirewallRules();
+      else if (tab === 'isolation') pollFirewallIsolation();
+      else if (tab === 'bandwidth') pollFirewallBandwidth();
+      else if (tab === 'alerts') pollFirewallAlerts();
+    }
+
+    function switchFirewallModalTab(tab) {
+      const tabs = ['rule', 'isolate', 'simulate', 'config'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`btn-fw-mtab-${t}`);
+        const content = document.getElementById(`fw-mtab-${t}-content`);
+        if (btn) {
+          if (t === tab) {
+            btn.classList.add('btn-restart');
+          } else {
+            btn.classList.remove('btn-restart');
+          }
+        }
+        if (content) {
+          content.style.display = (t === tab) ? 'block' : 'none';
+        }
+      });
+      if (tab === 'config') {
+        loadFirewallConfig();
+      }
+    }
+
+    function formatTrafficBytes(bytes) {
+      if (!bytes || bytes === 0) return '0 B';
+      const k = 1024;
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function formatRateBps(bps) {
+      if (!bps || bps === 0) return '0 B/s';
+      const k = 1024;
+      const sizes = ['B/s', 'KB/s', 'MB/s', 'GB/s'];
+      const i = Math.floor(Math.log(bps) / Math.log(k));
+      return parseFloat((bps / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    async function pollFirewallStatus() {
+      try {
+        const resp = await authFetch('/api/firewall/status');
+        if (!resp.ok) return;
+        const data = await resp.json();
+
+        const badgeText = document.getElementById('firewall-badge-text');
+        if (badgeText) {
+          badgeText.textContent = `${data.active_rules || 0} Rules`;
+        }
+
+        const engineBadge = document.getElementById('fw-engine-status-badge');
+        if (engineBadge) {
+          if (data.enabled) {
+            engineBadge.textContent = data.bpf_loaded ? 'eBPF ACTIVE' : 'KERNEL EMULATED';
+            engineBadge.style.color = '#10b981';
+            engineBadge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+            engineBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+          } else {
+            engineBadge.textContent = 'FILTER DISABLED';
+            engineBadge.style.color = '#ef4444';
+            engineBadge.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+            engineBadge.style.background = 'rgba(239, 68, 68, 0.15)';
+          }
+        }
+
+        const ztBadge = document.getElementById('fw-zerotrust-status-badge');
+        if (ztBadge) {
+          ztBadge.textContent = data.zero_trust_mode ? 'ZERO-TRUST: ON' : 'ZERO-TRUST: PERMISSIVE';
+          ztBadge.style.color = data.zero_trust_mode ? '#3b82f6' : '#f59e0b';
+        }
+
+        const statRules = document.getElementById('stat-fw-rules');
+        if (statRules) statRules.textContent = data.active_rules || 0;
+
+        const statIso = document.getElementById('stat-fw-isolated');
+        if (statIso) statIso.textContent = data.isolated_containers || 0;
+
+        const statPermitted = document.getElementById('stat-fw-permitted');
+        if (statPermitted) statPermitted.textContent = (data.total_packets_permitted || 0).toLocaleString();
+
+        const statDropped = document.getElementById('stat-fw-dropped');
+        if (statDropped) statDropped.textContent = (data.total_packets_dropped || 0).toLocaleString();
+
+        const statBytes = document.getElementById('stat-fw-bytes');
+        if (statBytes) statBytes.textContent = formatTrafficBytes(data.total_bytes_evaluated || 0);
+
+        const statDdos = document.getElementById('stat-fw-ddos');
+        if (statDdos) statDdos.textContent = data.ddos_events_detected || 0;
+      } catch (err) {}
+    }
+
+    async function pollFirewallRules() {
+      try {
+        const resp = await authFetch('/api/firewall/rules');
+        if (!resp.ok) return;
+        const rules = await resp.json();
+        const tbody = document.getElementById('fw-rules-body');
+        if (!tbody) return;
+
+        if (!rules || rules.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="11" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                No active firewall filtering rules. Default zero-trust or baseline policies applied.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = rules.map(r => {
+          let actionColor = '#10b981';
+          if (r.action === 'DROP') actionColor = '#ef4444';
+          else if (r.action === 'REJECT') actionColor = '#f59e0b';
+          else if (r.action === 'LOG') actionColor = '#3b82f6';
+
+          const srcPortStr = (r.src_ports && r.src_ports.length > 0) ? r.src_ports.join(',') : '*';
+          const dstPortStr = (r.dst_ports && r.dst_ports.length > 0) ? r.dst_ports.join(',') : '*';
+
+          return `
+            <tr>
+              <td style="font-family: monospace; font-weight: 700;">${r.priority}</td>
+              <td>
+                <div style="font-weight: 600; color: var(--text-main);">${escapeHTML(r.name)}</div>
+                <div style="font-size: 10px; color: var(--text-muted);">${escapeHTML(r.description || '')}</div>
+              </td>
+              <td><span style="font-weight: 700; color: ${actionColor}; font-size: 11px;">${escapeHTML(r.action)}</span></td>
+              <td><span style="font-size: 11px; color: var(--text-muted);">${escapeHTML(r.direction)}</span></td>
+              <td><span style="font-size: 11px; font-weight: 600;">${escapeHTML(r.protocol)}</span></td>
+              <td style="font-family: monospace; font-size: 11px;">${escapeHTML(r.src_cidr)}:${srcPortStr}</td>
+              <td style="font-family: monospace; font-size: 11px;">${escapeHTML(r.dst_cidr)}:${dstPortStr}</td>
+              <td><span style="font-size: 11px; font-family: monospace;">${escapeHTML(r.container_name || r.container_id || 'GLOBAL')}</span></td>
+              <td style="font-family: monospace; font-size: 11px;">${(r.packets_matched || 0).toLocaleString()}</td>
+              <td style="font-family: monospace; font-size: 11px;">${formatTrafficBytes(r.bytes_matched || 0)}</td>
+              <td style="text-align: right;">
+                <button class="btn-action" onclick="deleteFirewallRule('${escapeHTML(r.id)}')" style="font-size: 10px; padding: 2px 6px; color: #ef4444;" title="Delete Rule">Delete</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {}
+    }
+
+    async function pollFirewallIsolation() {
+      try {
+        const resp = await authFetch('/api/firewall/isolation');
+        if (!resp.ok) return;
+        const states = await resp.json();
+        const tbody = document.getElementById('fw-isolation-body');
+        if (!tbody) return;
+
+        if (!states || states.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                No containers in quarantine. Zero-trust fabric operating normally.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = states.map(s => {
+          const statusBadge = s.quarantined
+            ? `<span style="font-weight: 700; color: #ef4444; font-size: 11px;">QUARANTINED</span>`
+            : `<span style="font-weight: 600; color: #10b981; font-size: 11px;">NORMAL</span>`;
+
+          const peersStr = (s.whitelisted_peers && s.whitelisted_peers.length > 0)
+            ? s.whitelisted_peers.map(p => escapeHTML(p)).join(', ')
+            : '<span style="color: var(--text-muted);">None</span>';
+
+          const lastActive = s.last_activity ? new Date(s.last_activity).toLocaleTimeString() : 'N/A';
+
+          return `
+            <tr>
+              <td>
+                <div style="font-weight: 700; color: var(--accent-blue); font-family: monospace;">${escapeHTML(s.container_name || s.container_id)}</div>
+                <div style="font-size: 10px; color: var(--text-muted); font-family: monospace;">${escapeHTML(s.container_id.substring(0, 12))}</div>
+              </td>
+              <td>${statusBadge}</td>
+              <td style="font-size: 11px; color: var(--text-muted);">${escapeHTML(s.quarantine_reason || 'N/A')}</td>
+              <td style="font-size: 11px; font-family: monospace;">${peersStr}</td>
+              <td style="font-family: monospace; font-size: 11px; color: #ef4444;">${(s.dropped_packets || 0).toLocaleString()}</td>
+              <td style="font-family: monospace; font-size: 11px;">${formatTrafficBytes(s.dropped_bytes || 0)}</td>
+              <td style="font-size: 11px; color: var(--text-muted);">${lastActive}</td>
+              <td style="text-align: right;">
+                ${s.quarantined ? `<button class="btn-action btn-restart" onclick="unisolateContainer('${escapeHTML(s.container_id)}')" style="font-size: 10px; padding: 2px 8px;">Unisolate</button>` : ''}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {}
+    }
+
+    async function pollFirewallBandwidth() {
+      try {
+        const resp = await authFetch('/api/firewall/bandwidth');
+        if (!resp.ok) return;
+        const bwMap = await resp.json();
+        const tbody = document.getElementById('fw-bandwidth-body');
+        if (!tbody) return;
+
+        const entries = Object.values(bwMap || {});
+        if (entries.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                No active bandwidth data. Traffic sampling will record metrics upon container activity.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = entries.map(b => {
+          return `
+            <tr>
+              <td>
+                <div style="font-weight: 700; font-family: monospace; color: var(--text-main);">${escapeHTML(b.container_name || b.container_id)}</div>
+                <div style="font-size: 10px; color: var(--text-muted); font-family: monospace;">${escapeHTML(b.container_id.substring(0, 12))}</div>
+              </td>
+              <td style="font-family: monospace; font-size: 11px; color: #10b981;">${formatRateBps(b.current_ingress_bps)}</td>
+              <td style="font-family: monospace; font-size: 11px; color: #3b82f6;">${formatRateBps(b.current_egress_bps)}</td>
+              <td style="font-family: monospace; font-size: 11px;">${(b.current_ingress_pps || 0).toLocaleString()} pps</td>
+              <td style="font-family: monospace; font-size: 11px;">${(b.current_egress_pps || 0).toLocaleString()} pps</td>
+              <td style="font-family: monospace; font-size: 11px; color: var(--text-muted);">${formatRateBps(b.peak_ingress_bps)}</td>
+              <td style="font-family: monospace; font-size: 11px; color: var(--text-muted);">${formatRateBps(b.peak_egress_bps)}</td>
+              <td style="font-family: monospace; font-size: 11px;">${formatTrafficBytes(b.total_ingress_bytes)}</td>
+              <td style="font-family: monospace; font-size: 11px;">${formatTrafficBytes(b.total_egress_bytes)}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {}
+    }
+
+    async function pollFirewallAlerts() {
+      try {
+        const resp = await authFetch('/api/firewall/ddos/alerts');
+        if (!resp.ok) return;
+        const alerts = await resp.json();
+        const tbody = document.getElementById('fw-alerts-body');
+        if (!tbody) return;
+
+        if (!alerts || alerts.length === 0) {
+          tbody.innerHTML = `
+            <tr>
+              <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                No DDoS volumetric anomalies detected. Traffic nominal across cluster interfaces.
+              </td>
+            </tr>
+          `;
+          return;
+        }
+
+        tbody.innerHTML = alerts.map(a => {
+          const ts = a.timestamp ? new Date(a.timestamp).toLocaleTimeString() : 'N/A';
+          const resolvedBadge = a.resolved
+            ? `<span style="color: #10b981; font-weight: 600;">Resolved</span>`
+            : `<span style="color: #ef4444; font-weight: 700;">ACTIVE</span>`;
+
+          return `
+            <tr>
+              <td style="font-family: monospace; font-size: 11px; color: var(--text-muted);">${ts}</td>
+              <td style="font-family: monospace; font-weight: 700; color: #f59e0b;">${escapeHTML(a.container_name || a.container_id)}</td>
+              <td style="font-family: monospace; font-size: 11px;">${escapeHTML(a.detected_metric)}</td>
+              <td style="font-family: monospace; font-size: 11px; color: var(--text-muted);">${(a.threshold || 0).toLocaleString()}</td>
+              <td style="font-family: monospace; font-size: 11px; color: #ef4444; font-weight: 700;">${(a.measured_value || 0).toLocaleString()}</td>
+              <td style="font-size: 11px;"><span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; padding: 1px 6px; border-radius: 4px;">${escapeHTML(a.action_taken)}</span></td>
+              <td style="font-size: 11px;">${resolvedBadge}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {}
+    }
+
+    function pollFirewallAll() {
+      pollFirewallStatus();
+      pollFirewallRules();
+      pollFirewallIsolation();
+      pollFirewallBandwidth();
+      pollFirewallAlerts();
+    }
+
+    async function saveFirewallRuleForm() {
+      const name = (document.getElementById('fw-rule-name').value || '').trim();
+      const priority = parseInt(document.getElementById('fw-rule-priority').value, 10) || 100;
+      const action = document.getElementById('fw-rule-action').value;
+      const direction = document.getElementById('fw-rule-direction').value;
+      const protocol = document.getElementById('fw-rule-protocol').value;
+      const container = (document.getElementById('fw-rule-container').value || '').trim();
+      const srcCidr = (document.getElementById('fw-rule-src-cidr').value || '0.0.0.0/0').trim();
+      const srcPortsStr = (document.getElementById('fw-rule-src-ports').value || '').trim();
+      const dstCidr = (document.getElementById('fw-rule-dst-cidr').value || '0.0.0.0/0').trim();
+      const dstPortsStr = (document.getElementById('fw-rule-dst-ports').value || '').trim();
+      const desc = (document.getElementById('fw-rule-desc').value || '').trim();
+
+      if (!name) {
+        showToast('Rule name is required');
+        return;
+      }
+
+      const parsePorts = (str) => {
+        if (!str || str.toUpperCase() === 'ANY') return [];
+        return str.split(',').map(s => parseInt(s.trim(), 10)).filter(p => !isNaN(p) && p > 0);
+      };
+
+      const payload = {
+        name,
+        priority,
+        action,
+        direction,
+        protocol,
+        src_cidr: srcCidr,
+        src_ports: parsePorts(srcPortsStr),
+        dst_cidr: dstCidr,
+        dst_ports: parsePorts(dstPortsStr),
+        container_id: container,
+        description: desc,
+        enabled: true
+      };
+
+      try {
+        const resp = await authFetch('/api/firewall/rules', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast(`✓ Firewall rule '${name}' deployed`);
+        document.getElementById('fw-rule-name').value = '';
+        document.getElementById('fw-rule-desc').value = '';
+        closeFirewallModal();
+        pollFirewallStatus();
+        pollFirewallRules();
+      } catch (err) {
+        showToast(`Failed to deploy rule: ${err.message}`);
+      }
+    }
+
+    async function deleteFirewallRule(ruleId) {
+      if (!ruleId) return;
+      try {
+        const resp = await authFetch(`/api/firewall/rules?id=${encodeURIComponent(ruleId)}`, {
+          method: 'DELETE'
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast(`✓ Rule removed from eBPF pipeline`);
+        pollFirewallStatus();
+        pollFirewallRules();
+      } catch (err) {
+        showToast(`Failed to delete rule: ${err.message}`);
+      }
+    }
+
+    async function submitContainerIsolationForm() {
+      const containerId = (document.getElementById('fw-iso-container-id').value || '').trim();
+      const whitelistStr = (document.getElementById('fw-iso-whitelist').value || '').trim();
+      const reason = (document.getElementById('fw-iso-reason').value || '').trim();
+
+      if (!containerId) {
+        showToast('Container ID or Name is required');
+        return;
+      }
+
+      const peers = whitelistStr ? whitelistStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+      try {
+        const resp = await authFetch('/api/firewall/isolation', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            container_id: containerId,
+            reason: reason || 'Manual administrator containment',
+            peers
+          })
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast(`🔒 Container '${containerId}' placed in zero-trust quarantine`);
+        closeFirewallModal();
+        pollFirewallStatus();
+        pollFirewallIsolation();
+      } catch (err) {
+        showToast(`Quarantine failed: ${err.message}`);
+      }
+    }
+
+    async function unisolateContainer(containerId) {
+      if (!containerId) return;
+      try {
+        const resp = await authFetch('/api/firewall/isolation/unisolate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ container_id: containerId })
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast(`✓ Container '${containerId}' restored to normal network fabric`);
+        pollFirewallStatus();
+        pollFirewallIsolation();
+      } catch (err) {
+        showToast(`Unisolate failed: ${err.message}`);
+      }
+    }
+
+    async function runSimulatePacketForm() {
+      const srcIp = (document.getElementById('fw-sim-src-ip').value || '10.0.0.5').trim();
+      const srcPort = parseInt(document.getElementById('fw-sim-src-port').value, 10) || 54321;
+      const dstIp = (document.getElementById('fw-sim-dst-ip').value || '192.168.1.100').trim();
+      const dstPort = parseInt(document.getElementById('fw-sim-dst-port').value, 10) || 80;
+      const protocol = document.getElementById('fw-sim-protocol').value || 'TCP';
+      const containerId = (document.getElementById('fw-sim-container').value || '').trim();
+      const length = parseInt(document.getElementById('fw-sim-length').value, 10) || 128;
+
+      const resultBox = document.getElementById('fw-sim-result');
+      if (resultBox) {
+        resultBox.style.display = 'block';
+        resultBox.innerHTML = '<span style="color: var(--text-muted);">Evaluating synthetic packet through eBPF engine...</span>';
+      }
+
+      try {
+        const resp = await authFetch('/api/firewall/simulate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            src_ip: srcIp,
+            dst_ip: dstIp,
+            src_port: srcPort,
+            dst_port: dstPort,
+            protocol,
+            container_id: containerId,
+            length
+          })
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        const res = await resp.json();
+
+        let actionColor = '#10b981';
+        if (res.action === 'DROP') actionColor = '#ef4444';
+        else if (res.action === 'REJECT') actionColor = '#f59e0b';
+
+        if (resultBox) {
+          resultBox.innerHTML = `
+            <div style="font-weight: 700; margin-bottom: 6px;">Evaluation Verdict: <span style="color: ${actionColor}; font-size: 14px;">${escapeHTML(res.action)}</span></div>
+            <div style="color: var(--text-muted); margin-bottom: 4px;">Matched Rule: <span style="color: var(--text-main); font-weight: 600;">${escapeHTML(res.matched_rule_name || 'None (Default Policy)')}</span></div>
+            <div style="color: var(--text-muted); margin-bottom: 4px;">Evaluation Reason: <span style="color: var(--text-main);">${escapeHTML(res.reason || 'Nominal pass')}</span></div>
+            <div style="color: var(--text-muted);">Latency: <span style="color: var(--accent-blue);">${res.latency_ns || 0} ns</span></div>
+          `;
+        }
+      } catch (err) {
+        if (resultBox) {
+          resultBox.innerHTML = `<span style="color: #ef4444;">Simulation error: ${escapeHTML(err.message)}</span>`;
+        }
+      }
+    }
+
+    async function loadFirewallConfig() {
+      try {
+        const resp = await authFetch('/api/firewall/config');
+        if (!resp.ok) return;
+        const cfg = await resp.json();
+        const enabledElem = document.getElementById('fw-cfg-enabled');
+        if (enabledElem) enabledElem.value = cfg.enabled ? 'true' : 'false';
+        const ztElem = document.getElementById('fw-cfg-zerotrust');
+        if (ztElem) ztElem.value = cfg.zero_trust_default ? 'true' : 'false';
+        const ddosElem = document.getElementById('fw-cfg-ddos');
+        if (ddosElem) ddosElem.value = cfg.ddos_protection_enabled ? 'true' : 'false';
+        const ppsElem = document.getElementById('fw-cfg-pps');
+        if (ppsElem) ppsElem.value = cfg.ddos_pps_threshold || 25000;
+        const bpsElem = document.getElementById('fw-cfg-bps');
+        if (bpsElem) bpsElem.value = cfg.ddos_bps_threshold || 104857600;
+        const autoBanElem = document.getElementById('fw-cfg-autoban');
+        if (autoBanElem) autoBanElem.value = cfg.ddos_auto_quarantine ? 'true' : 'false';
+      } catch (err) {}
+    }
+
+    async function saveFirewallConfigForm() {
+      const enabled = document.getElementById('fw-cfg-enabled').value === 'true';
+      const zeroTrust = document.getElementById('fw-cfg-zerotrust').value === 'true';
+      const ddos = document.getElementById('fw-cfg-ddos').value === 'true';
+      const pps = parseInt(document.getElementById('fw-cfg-pps').value, 10) || 25000;
+      const bps = parseInt(document.getElementById('fw-cfg-bps').value, 10) || 104857600;
+      const autoBan = document.getElementById('fw-cfg-autoban').value === 'true';
+
+      try {
+        const resp = await authFetch('/api/firewall/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            enabled,
+            zero_trust_default: zeroTrust,
+            ddos_protection_enabled: ddos,
+            ddos_pps_threshold: pps,
+            ddos_bps_threshold: bps,
+            ddos_auto_quarantine: autoBan,
+            audit_logging: true
+          })
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        showToast('✓ Firewall configuration updated');
+        closeFirewallModal();
+        pollFirewallStatus();
+      } catch (err) {
+        showToast(`Failed to update config: ${err.message}`);
+      }
+    }
+
     pollRateLimitStatus();
     setInterval(pollRateLimitStatus, 2500);
     pollRateLimitTenants();
     setInterval(pollRateLimitTenants, 5000);
+    pollFirewallStatus();
+    setInterval(pollFirewallStatus, 2500);
+    pollFirewallRules();
+    setInterval(pollFirewallRules, 5000);
   </script>
 </body>
 </html>
