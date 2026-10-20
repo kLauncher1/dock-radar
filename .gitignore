@@ -10,16 +10,43 @@ bin/
 .env
 .env.*
 *.local
+*.svault
+accounts.json
+accounts_export.json
+env.json
+.env.json
 
-# Node modules
+# Node modules & build
 node_modules/
 dist/
+*.map
 
-# Local AI Backlogs & Logs (Internal Only)
+# Local Autonomous Kit & Planning Specs
 TASK_BACKLOG.md
+AUTONOMOUS_SPEC.md
+AUTONOMOUS_DEV_LOG.md
+AUTONOMOUS_*
+WORK_LOG.md
+ARCHITECTURE_MAP.md
+workspace_manifest.json
+autonomous_env.json
+docs/VIBE_CODING_MODULAR_GUIDE.md
+docs/ASSET_INTEGRITY_GUIDE.md
+docs/00-pm/
+docs/01-plan/
+docs/02-design/
+scripts/
+
+# Logs & temp
 dev_logs/
-scripts/ARCHITECTURE_MAP.md
-scripts/AUTONOMOUS_SPEC.md
+logs/
+*.log
+tmp/
+temp/
+scratch/
+.gemini/
+.idea/
+.vscode/
 
 # OS files
 .DS_Store
