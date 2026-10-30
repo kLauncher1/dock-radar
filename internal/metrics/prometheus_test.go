@@ -12,6 +12,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/ebpf"
 	"github.com/kLauncher1/dock-radar/internal/federation"
 	"github.com/kLauncher1/dock-radar/internal/firewall"
+	"github.com/kLauncher1/dock-radar/internal/gitops"
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
@@ -439,7 +440,7 @@ func TestFormatMetrics_RollingRestarts(t *testing.T) {
 		TotalRollbacks:           1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, rollingStats, nil, nil, nil, nil, nil, nil, "1.8.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, rollingStats, nil, nil, nil, nil, nil, nil, nil, "1.8.0")
 
 	expectedMetrics := []string{
 		"dock_radar_rolling_operations_total 5",
@@ -469,7 +470,7 @@ func TestFormatMetrics_Storage(t *testing.T) {
 		S3Enabled:       true,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, storageStatus, nil, nil, nil, nil, nil, "1.9.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, storageStatus, nil, nil, nil, nil, nil, nil, "1.9.0")
 
 	expectedMetrics := []string{
 		"dock_radar_log_storage_chunks_total 20",
@@ -503,7 +504,7 @@ func TestFormatMetrics_EBPF(t *testing.T) {
 		CPUOverheadPercent:  0.04,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, ebpfStatus, nil, nil, nil, nil, "2.0.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, ebpfStatus, nil, nil, nil, nil, nil, "2.0.0")
 
 	expectedMetrics := []string{
 		"dock_radar_ebpf_flows_active 15",
@@ -538,7 +539,7 @@ func TestFormatMetrics_Federation(t *testing.T) {
 		FailoverCount:   1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fedStatus, nil, nil, nil, "2.1.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fedStatus, nil, nil, nil, nil, "2.1.0")
 
 	expectedMetrics := []string{
 		"dock_radar_federation_regions_total 3",
@@ -575,7 +576,7 @@ func TestFormatMetrics_Scanner(t *testing.T) {
 		GatingBlockedCount:   1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, scannerStatus, nil, nil, "2.2.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, scannerStatus, nil, nil, nil, "2.2.0")
 
 	expectedMetrics := []string{
 		"dock_radar_scanner_enabled 1",
@@ -609,7 +610,7 @@ func TestFormatMetrics_RateLimit(t *testing.T) {
 		SyncedPeersCount:        4,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, limiterStatus, nil, "2.3.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, limiterStatus, nil, nil, "2.3.0")
 
 	expectedMetrics := []string{
 		"dock_radar_ratelimit_enabled 1",
@@ -649,7 +650,7 @@ func TestFormatMetrics_Firewall(t *testing.T) {
 		ActiveDDoSAlerts:      1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, firewallStatus, "2.4.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, firewallStatus, nil, "2.4.0")
 
 	expectedMetrics := []string{
 		"dock_radar_firewall_enabled 1",
@@ -665,6 +666,41 @@ func TestFormatMetrics_Firewall(t *testing.T) {
 		"dock_radar_firewall_bytes_evaluated_total 50000",
 		"dock_radar_firewall_bytes_blocked_total 4000",
 		"dock_radar_firewall_ddos_alerts_active 1",
+	}
+
+	for _, m := range expectedMetrics {
+		if !strings.Contains(output, m) {
+			t.Errorf("expected output to contain %q, but was missing:\n%s", m, output)
+		}
+	}
+}
+
+func TestFormatMetrics_GitOps(t *testing.T) {
+	sys := system.Metrics{OS: "linux", Arch: "amd64", Hostname: "node-gitops"}
+	dock := docker.DaemonStatus{Available: true}
+
+	gitopsStatus := &gitops.GitOpsStatus{
+		Enabled:                true,
+		TrackedReposCount:      2,
+		TotalDeployments:       15,
+		SuccessfulDeployments:  13,
+		RolledBackDeployments:  1,
+		FailedDeployments:      1,
+		SignatureFailuresTotal: 0,
+		LastSyncTime:           time.Unix(1710000000, 0),
+	}
+
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, gitopsStatus, "2.5.0")
+
+	expectedMetrics := []string{
+		"dock_radar_gitops_enabled 1",
+		"dock_radar_gitops_tracked_repos 2",
+		"dock_radar_gitops_deployments_total 15",
+		"dock_radar_gitops_deployments_success_total 13",
+		"dock_radar_gitops_deployments_rollback_total 1",
+		"dock_radar_gitops_deployments_failed_total 1",
+		"dock_radar_gitops_signature_failures_total 0",
+		"dock_radar_gitops_last_sync_timestamp_seconds 1710000000",
 	}
 
 	for _, m := range expectedMetrics {

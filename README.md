@@ -10,7 +10,7 @@
 
 **Ultra-lightweight single-binary container & system metrics monitor with embedded real-time dark-mode web dashboard.**
 
-[![Release](https://img.shields.io/badge/Release-v2.3.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
+[![Release](https://img.shields.io/badge/Release-v2.5.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg?style=flat&logo=go)](https://golang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6%2B-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
@@ -27,6 +27,8 @@
 
 - **Single Executable Deployment**: The web dashboard is baked directly into the Go binary via `//go:embed`. No Node.js runtime, external assets, or separate frontend servers needed.
 - **Ultra-Low Memory Footprint**: Runs persistently under **15 MB of RAM** with bounded circular ring buffers, making it ideal for low-spec VPS, Raspberry Pi, and homelab environments.
+- **GitOps Continuous Sync & Webhook Auto-Deployer**: Automated Git repository tracking and branch polling over HTTP/HTTPS with smart refs parsing. Features cryptographic commit signature verification supporting GPG and SSH signatures with configurable enforcement levels (`disabled`, `warn`, `strict`), constant-time HMAC-SHA256 and GitLab token webhook authenticators defending against timing attacks, zero-downtime container image pull and rollout executor, automated rollback triggers backed by post-deployment HTTP health check gating, Prometheus GitOps metrics, and interactive glassmorphism repository and rollout managers in the web console.
+- **eBPF Micro-Firewall & Container Network Isolator**: Priority-ordered packet filtering pipeline supporting CIDR matching, port lists, transport protocols (TCP, UDP, ICMP), and actions (ALLOW, DROP, REJECT, LOG). Features zero-trust container network boundary isolation with quarantine state machines, granular peer whitelisting, real-time bandwidth throughput inspector (BPS/PPS deltas), automated volumetric DDoS flood mitigation with container auto-quarantine, nanosecond synthetic packet simulation, and dedicated Prometheus firewall metrics.
 - **Distributed Rate-Limiting & Global Quota Orchestrator**: Thread-safe token bucket and sliding-window rate limiters with fractional refill intervals, burst capacities, and bandwidth throttling controls. Features automated abuse mitigation and IP ban propagation (`IPBanTracker`) with configurable violation thresholds and local loopback immunity, cross-node HMAC-SHA256 authenticated peer sync protocol with 60-second replay attack defense, Prometheus rate-limiting exporter gauges, and interactive dark-mode dashboard management tables.
 - **Container Image Vulnerability Scanner & SBOM Audit**: In-line container image layer analysis and curated multi-ecosystem vulnerability database lookup covering Alpine (`apk`), Debian (`deb`), Go, NPM, and PyPI packages. Features automated Software Bill of Materials (SBOM) generation supporting both SPDX 2.3 and CycloneDX 1.5 JSON standards with pURL formatting, automated deployment security gating policy evaluator with configurable critical/high thresholds and license compliance policies, interactive live dashboard audit table, and one-click SBOM export.
 - **Multi-Region Edge Peer Federation & WAN Sync**: Secure cross-region edge mesh federation over AES-256-GCM encrypted overlay tunnels authenticated via HMAC-SHA256 signatures with 60-second replay attack defense. Features low-bandwidth delta sync protocol utilizing SHA-256 inventory digests and gzip compression, Haversine spherical distance geo-routing, automated failover triggers on consecutive probe failures with probation recovery windows, and dedicated edge federation views in the embedded dark-mode web dashboard.
@@ -125,6 +127,11 @@ go build -ldflags="-s -w" -o dock-radar .
 | `--firewall-ddos-pps` | `DOCK_RADAR_FIREWALL_DDOS_PPS` | `25000` | Ingress packets-per-second threshold triggering DDoS rate throttling |
 | `--firewall-ddos-bps` | `DOCK_RADAR_FIREWALL_DDOS_BPS` | `104857600` | Ingress bytes-per-second threshold (100MB/s) triggering DDoS mitigation |
 | `--firewall-autoban` | `DOCK_RADAR_FIREWALL_AUTOBAN` | `true` | Automatically quarantine containers generating abusive volumetric traffic |
+| `--gitops` | `DOCK_RADAR_GITOPS_ENABLED` | `true` | Enable GitOps continuous sync and webhook auto-deployer |
+| `--gitops-poll-interval` | `DOCK_RADAR_GITOPS_POLL_INTERVAL` | `30s` | Default background repository polling interval |
+| `--gitops-strict-signatures` | `DOCK_RADAR_GITOPS_STRICT_SIGNATURES` | `false` | Reject commits with missing or invalid cryptographic signatures |
+| `--gitops-auto-rollback` | `DOCK_RADAR_GITOPS_AUTO_ROLLBACK` | `true` | Automatically rollback deployments failing post-deploy health check |
+| `--gitops-webhook-secret` | `DOCK_RADAR_GITOPS_WEBHOOK_SECRET` | `""` | Default HMAC secret for incoming Git webhooks |
 | `--version` | — | — | Print dock-radar version and exit |
 
 ---
@@ -171,9 +178,14 @@ go build -ldflags="-s -w" -o dock-radar .
 │   • Constant-Time Bearer │      • /api/storage/*       │
 │   • RBAC (Admin/Viewer)  │      • /api/ebpf/*          │
 │   internal/firewall      │      • /api/healing/*       │
-│   • eBPF Packet Filter   │                             │
+│   • eBPF Packet Filter   │      • /api/gitops/*        │
 │   • Zero-Trust Isolator  │                             │
 │   • DDoS Rate Throttler  │                             │
+├──────────────────────────┤                             │
+│   internal/gitops        │                             │
+│   • Repo Branch Tracking │                             │
+│   • GPG/SSH Verification │                             │
+│   • Webhook Auto-Rollout │                             │
 ├──────────────────────────┴─────────────────────────────┤
 │                 Embedded Web Dashboard                 │
 │         (React 19 + TypeScript / Vite Bundled)         │
@@ -217,6 +229,14 @@ go build -ldflags="-s -w" -o dock-radar .
 | `/api/firewall/ddos/alerts` | `GET` | `viewer` | Volumetric DDoS flood detection events and auto-mitigation incident telemetry |
 | `/api/firewall/simulate` | `POST` | `admin` | Evaluates a synthetic packet payload through the eBPF filter pipeline with sub-microsecond latency |
 | `/api/firewall/config` | `GET` / `POST` | `viewer` / `admin` | Fetches or updates micro-firewall settings, DDoS thresholds, and zero-trust policies |
+| `/api/gitops/status` | `GET` | `viewer` | Overall GitOps engine status, tracked repo counts, and rollout counters |
+| `/api/gitops/repos` | `GET` / `POST` / `DELETE` | `viewer` / `admin` | Lists, registers, or deregisters tracked Git repositories |
+| `/api/gitops/sync` | `POST` | `admin` | Triggers manual Git repository sync and branch update check |
+| `/api/gitops/deploy` | `POST` | `admin` | Manually triggers container image pull and rollout for a specific commit SHA |
+| `/api/gitops/rollback` | `POST` | `admin` | Reverts deployment to previous commit SHA and container image tag |
+| `/api/gitops/deployments` | `GET` | `viewer` | Queries recent automated and manual rollout execution history and logs |
+| `/api/gitops/webhook` | `POST` | `none` | Ingests incoming GitHub (`X-Hub-Signature-256`) and GitLab push webhooks |
+| `/api/gitops/config` | `GET` / `POST` | `viewer` / `admin` | Fetches or updates global GitOps configuration and signature policies |
 | `/api/scanner/status` | `GET` | `viewer` | Overall vulnerability scanner engine status, scan counts, and gating metrics |
 | `/api/scanner/reports` | `GET` | `viewer` | Recent container image vulnerability scan reports (`?container=&image=&limit=50`) |
 | `/api/scanner/report` | `GET` | `viewer` | Detailed vulnerability report for a specific container or image (`?id=&image=`) |

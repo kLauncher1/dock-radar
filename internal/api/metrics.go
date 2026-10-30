@@ -8,6 +8,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/ebpf"
 	"github.com/kLauncher1/dock-radar/internal/federation"
 	"github.com/kLauncher1/dock-radar/internal/firewall"
+	"github.com/kLauncher1/dock-radar/internal/gitops"
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/metrics"
@@ -121,6 +122,12 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		firewallStatus = &st
 	}
 
+	var gitopsStatus *gitops.GitOpsStatus
+	if h.GitOpsEngine != nil {
+		st := h.GitOpsEngine.Status()
+		gitopsStatus = &st
+	}
+
 	text := metrics.FormatMetricsAll(
 		sysMetrics,
 		dockerStatus,
@@ -142,6 +149,7 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		scannerStatus,
 		rateLimitStatus,
 		firewallStatus,
+		gitopsStatus,
 		version,
 	)
 

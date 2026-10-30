@@ -18,6 +18,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/ebpf"
 	"github.com/kLauncher1/dock-radar/internal/federation"
+	"github.com/kLauncher1/dock-radar/internal/gitops"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/scanner"
 	"github.com/kLauncher1/dock-radar/internal/security"
@@ -27,7 +28,7 @@ import (
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "2.4.0"
+const AppVersion = "2.5.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -71,6 +72,11 @@ func main() {
 	firewallDDoSPPSFlag := flag.Uint64("firewall-ddos-pps", 50000, "Packets/sec threshold for DDoS attack mitigation (env: DOCK_RADAR_FIREWALL_DDOS_PPS)")
 	firewallDDoSBPSFlag := flag.Uint64("firewall-ddos-bps", 104857600, "Bytes/sec threshold for DDoS bandwidth exhaustion (env: DOCK_RADAR_FIREWALL_DDOS_BPS)")
 	firewallAutoBanFlag := flag.Bool("firewall-autoban", true, "Automatically quarantine containers on severe DDoS attacks (env: DOCK_RADAR_FIREWALL_AUTOBAN)")
+	gitopsFlag := flag.Bool("gitops", true, "Enable GitOps continuous sync & webhook auto-deployer (env: DOCK_RADAR_GITOPS_ENABLED)")
+	gitopsPollIntervalFlag := flag.Duration("gitops-poll-interval", 30*time.Second, "Default background repository polling interval (env: DOCK_RADAR_GITOPS_POLL_INTERVAL)")
+	gitopsStrictSigFlag := flag.Bool("gitops-strict-signatures", false, "Reject commits with missing or invalid cryptographic signatures (env: DOCK_RADAR_GITOPS_STRICT_SIGNATURES)")
+	gitopsAutoRollbackFlag := flag.Bool("gitops-auto-rollback", true, "Automatically rollback deployments failing post-deploy health check (env: DOCK_RADAR_GITOPS_AUTO_ROLLBACK)")
+	gitopsWebhookSecretFlag := flag.String("gitops-webhook-secret", "", "Default HMAC secret for incoming Git webhooks (env: DOCK_RADAR_GITOPS_WEBHOOK_SECRET)")
 	versionFlag := flag.Bool("version", false, "Print dock-radar version and exit")
 	flag.Parse()
 
@@ -425,6 +431,52 @@ func main() {
 		}
 	}
 
+	// Launch GitOps continuous sync & webhook auto-deployer
+	if handlerCfg != nil && handlerCfg.GitOpsEngine != nil {
+		gitopsEnabled := *gitopsFlag
+		if envGitOps := os.Getenv("DOCK_RADAR_GITOPS_ENABLED"); envGitOps != "" {
+			gitopsEnabled = strings.EqualFold(envGitOps, "true") || envGitOps == "1"
+		}
+		pollInterval := *gitopsPollIntervalFlag
+		if envInterval := os.Getenv("DOCK_RADAR_GITOPS_POLL_INTERVAL"); envInterval != "" {
+			if d, err := time.ParseDuration(envInterval); err == nil && d > 0 {
+				pollInterval = d
+			}
+		}
+		strictSig := *gitopsStrictSigFlag
+		if envStrict := os.Getenv("DOCK_RADAR_GITOPS_STRICT_SIGNATURES"); envStrict != "" {
+			strictSig = strings.EqualFold(envStrict, "true") || envStrict == "1"
+		}
+		autoRollback := *gitopsAutoRollbackFlag
+		if envRollback := os.Getenv("DOCK_RADAR_GITOPS_AUTO_ROLLBACK"); envRollback != "" {
+			autoRollback = strings.EqualFold(envRollback, "true") || envRollback == "1"
+		}
+		webhookSecret := *gitopsWebhookSecretFlag
+		if envSecret := os.Getenv("DOCK_RADAR_GITOPS_WEBHOOK_SECRET"); envSecret != "" {
+			webhookSecret = envSecret
+		}
+
+		gCfg := handlerCfg.GitOpsEngine.Config()
+		gCfg.Enabled = gitopsEnabled
+		if pollInterval.Seconds() >= 5 {
+			gCfg.DefaultPollIntervalSec = int(pollInterval.Seconds())
+		}
+		if strictSig {
+			gCfg.DefaultSignaturePolicy = gitops.PolicyStrict
+		} else {
+			gCfg.DefaultSignaturePolicy = gitops.PolicyWarn
+		}
+		gCfg.AutoRollback = autoRollback
+		gCfg.DefaultWebhookSecret = webhookSecret
+		_ = handlerCfg.GitOpsEngine.UpdateConfig(gCfg)
+
+		if gitopsEnabled {
+			gitopsCtx, gitopsCancel := context.WithCancel(context.Background())
+			defer gitopsCancel()
+			go handlerCfg.GitOpsEngine.Start(gitopsCtx)
+		}
+	}
+
 	scheme := "http"
 	tlsStatus := "Inactive (Plain HTTP)"
 
@@ -595,6 +647,14 @@ func main() {
 		}
 	}
 
+	gitopsStatusDesc := "Disabled"
+	if handlerCfg != nil && handlerCfg.GitOpsEngine != nil {
+		st := handlerCfg.GitOpsEngine.Status()
+		if st.Enabled {
+			gitopsStatusDesc = fmt.Sprintf("Active (%d repos tracked · %d deployments · %d rollbacks)", st.TrackedReposCount, st.TotalDeployments, st.RolledBackDeployments)
+		}
+	}
+
 	fmt.Println("=========================================================")
 	fmt.Printf(" 🚀 Dock-Radar v%s · Single-Binary Container & System Monitor\n", AppVersion)
 	fmt.Printf(" 📡 Web Dashboard Live at %s://localhost:%s\n", scheme, port)
@@ -613,6 +673,7 @@ func main() {
 	fmt.Printf(" 🔍 Vulnerability/SBOM : %s\n", scannerStatusDesc)
 	fmt.Printf(" 🚦 Rate Limiting      : %s\n", rateLimitStatusDesc)
 	fmt.Printf(" 🧱 Micro-Firewall     : %s\n", firewallStatusDesc)
+	fmt.Printf(" 🚀 GitOps Deployer    : %s\n", gitopsStatusDesc)
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")
 	fmt.Println("=========================================================")
 
