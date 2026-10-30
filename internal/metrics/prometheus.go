@@ -15,6 +15,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
+	"github.com/kLauncher1/dock-radar/internal/raft"
 	"github.com/kLauncher1/dock-radar/internal/ratelimit"
 	"github.com/kLauncher1/dock-radar/internal/rolling"
 	"github.com/kLauncher1/dock-radar/internal/scanner"
@@ -100,7 +101,7 @@ func FormatMetricsFull(
 	return FormatMetricsAll(
 		sys, dock, ringBuffer, alertDispatcher, auditLogger,
 		meshSummary, meshNodes, healingStats, anomalySummary, anomalyPreds,
-		discStatus, gossipSummary, gossipMembers, nil, nil, nil, nil, nil, nil, nil, nil, appVersion,
+		discStatus, gossipSummary, gossipMembers, nil, nil, nil, nil, nil, nil, nil, nil, nil, appVersion,
 	)
 }
 
@@ -127,6 +128,7 @@ func FormatMetricsAll(
 	rateLimitStatus *ratelimit.LimiterStatus,
 	firewallStatus *firewall.FirewallStatus,
 	gitopsStatus *gitops.GitOpsStatus,
+	raftStatus *raft.RaftStatus,
 	appVersion string,
 ) string {
 	var b strings.Builder
@@ -475,6 +477,9 @@ func FormatMetricsAll(
 
 	// 20. GitOps Continuous Sync & Webhook Auto-Deployer Telemetry
 	AppendGitOpsMetrics(&b, gitopsStatus)
+
+	// 21. High-Availability Raft Cluster Consensus Telemetry
+	AppendRaftMetrics(&b, raftStatus)
 
 	return b.String()
 }

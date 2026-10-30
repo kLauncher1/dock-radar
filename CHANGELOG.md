@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-10-30
+
+### Added
+- High-Availability Raft Cluster Consensus Engine (`internal/raft/`):
+  - Pure standard-library Raft consensus algorithm implementation with zero external runtime dependencies (`internal/raft/engine.go`, `internal/raft/handlers.go`, `internal/raft/engine_test.go`).
+  - Randomized election timeout jitter and automated leader election maintaining authority through periodic heartbeats.
+  - Strict majority quorum validation (`(N/2) + 1`) providing split-brain immunity across network partitions.
+  - In-memory replicated log storage with monotonic 1-based indexing, conflict suffix truncation, and checkpoint compaction (`internal/raft/log.go`, `internal/raft/log_test.go`).
+  - Replicated State Machine (`StateMachine`) synchronizing autonomous self-healing policies, container quarantine blacklists, cluster node states, and dynamic cluster key-values (`internal/raft/fsm.go`, `internal/raft/fsm_test.go`).
+  - Resilient inter-node HTTP transport with bounded timeouts, URL validation, and optional Bearer token authentication (`internal/raft/transport.go`, `internal/raft/transport_test.go`).
+  - Core domain data models, configuration validator, and node ID bounds checking (`internal/raft/types.go`, `internal/raft/types_test.go`).
+- Raft Consensus REST APIs (`internal/api/raft.go`, `internal/api/raft_test.go`):
+  - `GET /api/raft/status`: Retrieves consensus status, term, node role, leader ID, commit index, and quorum (requires `RoleViewer`).
+  - `GET /api/raft/fsm`: Queries synchronized state machine data including healing policy, blacklist, and node directory (requires `RoleViewer`).
+  - `POST /api/raft/propose`: Submits state mutations to cluster leader for log replication and quorum commit (requires `RoleAdmin`).
+  - `GET /api/raft/peers`: Lists active consensus peers and quorum size (requires `RoleViewer`).
+  - `POST /api/raft/peers`: Dynamically registers a new peer node into the consensus group (requires `RoleAdmin`).
+  - `DELETE /api/raft/peers`: Removes a peer node from the consensus group (requires `RoleAdmin`).
+  - `POST /api/raft/stepdown`: Forces leader to step down to follower for automated failover drills (requires `RoleAdmin`).
+  - `POST /api/raft/snapshot`: Triggers on-demand state machine snapshot and log compaction (requires `RoleAdmin`).
+  - `POST /api/raft/rpc/vote`: Internal Raft RPC handling candidate vote solicitations.
+  - `POST /api/raft/rpc/append`: Internal Raft RPC handling log replication and heartbeats.
+- Prometheus Metrics Exporter Extension (`internal/metrics/raft.go`, `internal/metrics/prometheus.go`):
+  - Exposes `dock_radar_raft_is_leader`, `dock_radar_raft_term`, `dock_radar_raft_commit_index`, `dock_radar_raft_applied_index`, `dock_radar_raft_last_log_index`, `dock_radar_raft_peers_count`, `dock_radar_raft_quorum_size`, `dock_radar_raft_fsm_applied_total`, and `dock_radar_raft_state`.
+- Embedded Glassmorphism Web Console (`web/dist/index.html`):
+  - Header Raft status badge (`#raft-badge`) displaying role and term with direct modal launch.
+  - High-Availability Raft Cluster Consensus Engine dashboard section with 6 live KPI cards (Consensus Role, Term & Leader, Commit Index, Active Quorum, FSM Blacklist, FSM Applied Total).
+  - Interactive tabs for Consensus Topology & Peers, Replicated State Machine, and Split-Brain & Safety Architecture.
+  - Interactive Raft Modal (`#raft-modal`) with Command Proposer, Cluster Peers manager, and Failover/Compaction Drills.
+- Command-Line Flags & Environment Variables (`main.go`):
+  - Added `--raft`, `--raft-peers`, `--raft-heartbeat`, `--raft-election-timeout`, and `--raft-data-dir` flags with environment variable bindings (`DOCK_RADAR_RAFT_ENABLED`, `DOCK_RADAR_RAFT_PEERS`, `DOCK_RADAR_RAFT_HEARTBEAT`, `DOCK_RADAR_RAFT_ELECTION_TIMEOUT`, `DOCK_RADAR_RAFT_DATA_DIR`).
+
 ## [2.5.0] - 2026-10-30
 
 ### Added

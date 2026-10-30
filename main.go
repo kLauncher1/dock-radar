@@ -20,6 +20,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/federation"
 	"github.com/kLauncher1/dock-radar/internal/gitops"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
+	"github.com/kLauncher1/dock-radar/internal/raft"
 	"github.com/kLauncher1/dock-radar/internal/scanner"
 	"github.com/kLauncher1/dock-radar/internal/security"
 	"github.com/kLauncher1/dock-radar/internal/storage"
@@ -28,7 +29,7 @@ import (
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "2.5.0"
+const AppVersion = "2.6.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -77,6 +78,11 @@ func main() {
 	gitopsStrictSigFlag := flag.Bool("gitops-strict-signatures", false, "Reject commits with missing or invalid cryptographic signatures (env: DOCK_RADAR_GITOPS_STRICT_SIGNATURES)")
 	gitopsAutoRollbackFlag := flag.Bool("gitops-auto-rollback", true, "Automatically rollback deployments failing post-deploy health check (env: DOCK_RADAR_GITOPS_AUTO_ROLLBACK)")
 	gitopsWebhookSecretFlag := flag.String("gitops-webhook-secret", "", "Default HMAC secret for incoming Git webhooks (env: DOCK_RADAR_GITOPS_WEBHOOK_SECRET)")
+	raftFlag := flag.Bool("raft", true, "Enable High-Availability Raft cluster consensus engine (env: DOCK_RADAR_RAFT_ENABLED)")
+	raftPeersFlag := flag.String("raft-peers", "", "Comma-separated list of remote Raft consensus peer URLs (env: DOCK_RADAR_RAFT_PEERS)")
+	raftHeartbeatFlag := flag.Duration("raft-heartbeat", 200*time.Millisecond, "Raft leader heartbeat interval (env: DOCK_RADAR_RAFT_HEARTBEAT)")
+	raftElectionTimeoutFlag := flag.Duration("raft-election-timeout", 1000*time.Millisecond, "Raft election timeout base (env: DOCK_RADAR_RAFT_ELECTION_TIMEOUT)")
+	raftDataDirFlag := flag.String("raft-data-dir", filepath.Join("data", "raft"), "Local Raft state directory (env: DOCK_RADAR_RAFT_DATA_DIR)")
 	versionFlag := flag.Bool("version", false, "Print dock-radar version and exit")
 	flag.Parse()
 
@@ -477,6 +483,69 @@ func main() {
 		}
 	}
 
+	// Launch High-Availability Raft Cluster Consensus Engine
+	raftEnabled := *raftFlag
+	if envRaft := os.Getenv("DOCK_RADAR_RAFT_ENABLED"); envRaft != "" {
+		raftEnabled = strings.EqualFold(envRaft, "true") || envRaft == "1"
+	}
+	raftPeers := *raftPeersFlag
+	if envPeers := os.Getenv("DOCK_RADAR_RAFT_PEERS"); envPeers != "" {
+		raftPeers = envPeers
+	}
+	raftHeartbeat := *raftHeartbeatFlag
+	if envHB := os.Getenv("DOCK_RADAR_RAFT_HEARTBEAT"); envHB != "" {
+		if d, err := time.ParseDuration(envHB); err == nil && d > 0 {
+			raftHeartbeat = d
+		}
+	}
+	raftElectionTimeout := *raftElectionTimeoutFlag
+	if envET := os.Getenv("DOCK_RADAR_RAFT_ELECTION_TIMEOUT"); envET != "" {
+		if d, err := time.ParseDuration(envET); err == nil && d > 0 {
+			raftElectionTimeout = d
+		}
+	}
+	raftDataDir := *raftDataDirFlag
+	if envData := os.Getenv("DOCK_RADAR_RAFT_DATA_DIR"); envData != "" {
+		raftDataDir = envData
+	}
+
+	if handlerCfg != nil && handlerCfg.RaftEngine != nil {
+		rCfg := raft.DefaultRaftConfig()
+		rCfg.Enabled = raftEnabled
+		rCfg.NodeID = nodeName
+		rCfg.BindAddr = fmt.Sprintf(":%s", port)
+		rCfg.DataDir = raftDataDir
+		rCfg.HeartbeatInterval = raftHeartbeat
+		rCfg.ElectionTimeoutMin = raftElectionTimeout
+		rCfg.ElectionTimeoutMax = raftElectionTimeout * 2
+
+		if raftPeers != "" {
+			for _, p := range strings.Split(raftPeers, ",") {
+				p = strings.TrimSpace(p)
+				if p != "" {
+					rCfg.Peers = append(rCfg.Peers, p)
+				}
+			}
+		}
+
+		// Rebuild engine with populated configuration if peers or custom timings given
+		var transportToken string
+		if adminToken != "" {
+			transportToken = adminToken
+		}
+		tr := raft.NewHTTPTransport(raftHeartbeat, transportToken)
+		rebuiltEngine, err := raft.NewEngine(rCfg, handlerCfg.RaftEngine.FSM(), tr, handlerCfg.AuditLogger, handlerCfg.AlertDispatcher)
+		if err == nil {
+			handlerCfg.RaftEngine = rebuiltEngine
+		}
+
+		if raftEnabled {
+			raftCtx, raftCancel := context.WithCancel(context.Background())
+			defer raftCancel()
+			handlerCfg.RaftEngine.Start(raftCtx)
+		}
+	}
+
 	scheme := "http"
 	tlsStatus := "Inactive (Plain HTTP)"
 
@@ -655,6 +724,12 @@ func main() {
 		}
 	}
 
+	raftStatusDesc := "Disabled"
+	if handlerCfg != nil && handlerCfg.RaftEngine != nil {
+		st := handlerCfg.RaftEngine.Status()
+		raftStatusDesc = fmt.Sprintf("Active (Role: %s · Term: %d · Quorum: %d/%d)", strings.ToUpper(st.State), st.Term, st.QuorumSize, st.PeerCount+1)
+	}
+
 	fmt.Println("=========================================================")
 	fmt.Printf(" 🚀 Dock-Radar v%s · Single-Binary Container & System Monitor\n", AppVersion)
 	fmt.Printf(" 📡 Web Dashboard Live at %s://localhost:%s\n", scheme, port)
@@ -674,6 +749,7 @@ func main() {
 	fmt.Printf(" 🚦 Rate Limiting      : %s\n", rateLimitStatusDesc)
 	fmt.Printf(" 🧱 Micro-Firewall     : %s\n", firewallStatusDesc)
 	fmt.Printf(" 🚀 GitOps Deployer    : %s\n", gitopsStatusDesc)
+	fmt.Printf(" 🗳️ Raft Consensus     : %s\n", raftStatusDesc)
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")
 	fmt.Println("=========================================================")
 

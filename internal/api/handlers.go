@@ -21,6 +21,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
+	"github.com/kLauncher1/dock-radar/internal/raft"
 	"github.com/kLauncher1/dock-radar/internal/ratelimit"
 	"github.com/kLauncher1/dock-radar/internal/rolling"
 	"github.com/kLauncher1/dock-radar/internal/scanner"
@@ -67,6 +68,7 @@ type HandlerConfig struct {
 	RateLimitEngine  *ratelimit.LimiterEngine
 	FirewallEngine   *firewall.Engine
 	GitOpsEngine     *gitops.Engine
+	RaftEngine       *raft.Engine
 	AppVersion       string
 	TokenAuth        *security.TokenAuth
 	AllowRemote      bool
@@ -110,6 +112,7 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	rateLimitEngine := ratelimit.NewLimiterEngine(ratelimit.DefaultLimiterConfig(), "local-node", alertDispatcher, auditLogger)
 	firewallEngine := firewall.NewEngine(firewall.DefaultFirewallConfig(), dockerClient, alertDispatcher, auditLogger)
 	gitopsEngine := gitops.NewEngine(gitops.DefaultGitOpsConfig(), dockerClient, alertDispatcher, auditLogger)
+	raftEngine, _ := raft.NewEngine(raft.DefaultRaftConfig(), raft.NewStateMachine(), nil, auditLogger, alertDispatcher)
 
 	cfg := &HandlerConfig{
 		DockerClient:     dockerClient,
@@ -127,7 +130,8 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 		RateLimitEngine:  rateLimitEngine,
 		FirewallEngine:   firewallEngine,
 		GitOpsEngine:     gitopsEngine,
-		AppVersion:       "2.5.0",
+		RaftEngine:       raftEngine,
+		AppVersion:       "2.6.0",
 		TokenAuth:        tokenAuth,
 		AllowRemote:      allowRemote,
 	}
@@ -258,6 +262,16 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	mux.HandleFunc("/api/gitops/deployments", cfg.handleGitOpsDeployments)
 	mux.HandleFunc("/api/gitops/webhook", cfg.handleGitOpsWebhook)
 	mux.HandleFunc("/api/gitops/config", cfg.handleGitOpsConfig)
+
+	// High-Availability Raft Cluster Consensus Engine
+	mux.HandleFunc("/api/raft/status", cfg.handleRaftStatus)
+	mux.HandleFunc("/api/raft/fsm", cfg.handleRaftFSM)
+	mux.HandleFunc("/api/raft/propose", cfg.handleRaftPropose)
+	mux.HandleFunc("/api/raft/peers", cfg.handleRaftPeers)
+	mux.HandleFunc("/api/raft/stepdown", cfg.handleRaftStepDown)
+	mux.HandleFunc("/api/raft/snapshot", cfg.handleRaftSnapshot)
+	mux.HandleFunc("/api/raft/rpc/vote", cfg.handleRaftRPCVote)
+	mux.HandleFunc("/api/raft/rpc/append", cfg.handleRaftRPCAppend)
 
 	// Embedded Static UI
 	if staticFS != nil {
