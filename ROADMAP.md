@@ -128,9 +128,9 @@ This document outlines the architectural milestones and engineering priorities f
 ---
 
 ## Milestone 20: v2.5.0 (GitOps Continuous Sync & Webhook Auto-Deployer)
-- [ ] Automated git repository tracking with cryptographic commit signature verification.
-- [ ] Zero-downtime container image pull and rollouts on verified webhook triggers.
-- [ ] Automated rollback triggers with deployment health gating.
+- [x] Automated git repository tracking with cryptographic commit signature verification.
+- [x] Zero-downtime container image pull and rollouts on verified webhook triggers.
+- [x] Automated rollback triggers with deployment health gating.
 
 ---
 
@@ -250,6 +250,14 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Userspace CRIU (Checkpoint/Restore in Userspace) state capture pipeline for stateful container memory, file descriptors, and socket states.
 - [ ] Pre-copy iterative memory delta synchronization over encrypted mesh peer overlay tunnels.
 - [ ] Instant socket handoff and Gratuitous ARP / BGP virtual IP takeover for seamless zero-drop cross-host container migration.
+
+---
+
+## Milestone 38: v4.3.0 (Autonomous Memory Ballooning & Kernel KSM Deduplication Engine)
+- [ ] Host kernel Kernel Samepage Merging (KSM) telemetry and identical memory page deduplication prober.
+- [ ] Dynamic memory ballooning driver adjusting container memory cgroups based on working-set footprint.
+- [ ] Cluster-wide RAM overcommit optimizer preventing OOM thrashing on memory-dense container nodes.
+
 
 
 

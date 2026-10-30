@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-10-30
+
+### Added
+- GitOps Continuous Sync & Webhook Auto-Deployer (`internal/gitops/`):
+  - Automated Git repository tracking and branch polling over HTTP/HTTPS with smart refs parsing (`internal/gitops/tracker.go`, `internal/gitops/tracker_test.go`).
+  - Cryptographic commit signature verification supporting GPG and SSH signatures, configurable signature policy enforcement (`disabled`, `warn`, `strict`), and authorized key ID validation (`internal/gitops/signature.go`, `internal/gitops/signature_test.go`).
+  - Constant-time HMAC-SHA256 signature and GitLab token webhook authenticators defending against timing side-channel attacks.
+  - Zero-downtime container image pull, container recreation rollout executor, and automated rollback engine with post-deployment HTTP health-check gating (`internal/gitops/deployer.go`, `internal/gitops/deployer_test.go`).
+  - Central `Engine` orchestrating background repo polling, deployment rollouts, circular deployment audit history, webhook event dispatches (`alert.Event`), and structured audit logging (`audit.AuditEvent`) (`internal/gitops/engine.go`, `internal/gitops/engine_test.go`).
+  - Core domain data models, repository configuration validator, and secret masking (`internal/gitops/types.go`, `internal/gitops/types_test.go`).
+- GitOps REST APIs (`internal/api/gitops.go`, `internal/api/gitops_test.go`):
+  - `GET /api/gitops/status`: Overall GitOps engine status, tracked repo counts, and rollout counters (requires `RoleViewer`).
+  - `GET /api/gitops/repos`: Lists all tracked Git repositories with latest commit SHA and synchronization statuses (requires `RoleViewer`).
+  - `POST /api/gitops/repos`: Registers a new Git repository or updates existing repository configuration (requires `RoleAdmin`).
+  - `DELETE /api/gitops/repos`: Deregisters a tracked repository (requires `RoleAdmin`).
+  - `POST /api/gitops/sync`: Manually triggers branch update check and sync (requires `RoleAdmin`).
+  - `POST /api/gitops/deploy`: Manually triggers deployment rollout for a commit SHA (requires `RoleAdmin`).
+  - `POST /api/gitops/rollback`: Executes rollback to previous commit and image tag (requires `RoleAdmin`).
+  - `GET /api/gitops/deployments`: Queries recent deployment rollout records and logs (requires `RoleViewer`).
+  - `POST /api/gitops/webhook`: Receives incoming GitHub (`X-Hub-Signature-256`) and GitLab (`X-Gitlab-Token`) push webhooks with HMAC validation.
+  - `GET /api/gitops/config`: Retrieves global GitOps configuration with masked secrets (requires `RoleViewer`).
+  - `POST /api/gitops/config`: Updates global GitOps engine configuration (requires `RoleAdmin`).
+- Prometheus Metrics Exporter Extension (`internal/metrics/gitops.go`, `internal/metrics/prometheus.go`):
+  - Exposes `dock_radar_gitops_active`, `dock_radar_gitops_tracked_repos`, `dock_radar_gitops_deployments_total`, `dock_radar_gitops_deployments_successful_total`, `dock_radar_gitops_deployments_failed_total`, `dock_radar_gitops_deployments_rolled_back_total`, and `dock_radar_gitops_strict_signatures_mode`.
+- Embedded Glassmorphism Web Console (`web/dist/index.html`):
+  - Header GitOps status badge (`#gitops-badge`) displaying tracked repo count with one-click modal launch.
+  - Dedicated GitOps Continuous Sync & Webhook Auto-Deployer dashboard section with 5 live KPI cards (Tracked Repos, Total Rollouts, Success Rate, Auto Rollbacks, Engine Status).
+  - Interactive tabs for Tracked Repositories and Rollout History with live status pills, manual sync, and rollback triggers.
+  - Interactive GitOps Modal (`#gitops-modal`) with Repository Builder, Instant Rollout trigger, and Subsystem Configuration tabs.
+- Command-Line Flags & Environment Variables (`main.go`):
+  - Added `--gitops`, `--gitops-poll-interval`, `--gitops-strict-signatures`, `--gitops-auto-rollback`, and `--gitops-webhook-secret` flags with environment variable bindings (`DOCK_RADAR_GITOPS_ENABLED`, `DOCK_RADAR_GITOPS_POLL_INTERVAL`, `DOCK_RADAR_GITOPS_STRICT_SIGNATURES`, `DOCK_RADAR_GITOPS_AUTO_ROLLBACK`, `DOCK_RADAR_GITOPS_WEBHOOK_SECRET`).
+
 ## [2.4.0] - 2026-10-19
 
 ### Added

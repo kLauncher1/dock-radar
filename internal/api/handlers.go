@@ -17,6 +17,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/ebpf"
 	"github.com/kLauncher1/dock-radar/internal/federation"
 	"github.com/kLauncher1/dock-radar/internal/firewall"
+	"github.com/kLauncher1/dock-radar/internal/gitops"
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
@@ -65,6 +66,7 @@ type HandlerConfig struct {
 	ScannerEngine    *scanner.ScannerEngine
 	RateLimitEngine  *ratelimit.LimiterEngine
 	FirewallEngine   *firewall.Engine
+	GitOpsEngine     *gitops.Engine
 	AppVersion       string
 	TokenAuth        *security.TokenAuth
 	AllowRemote      bool
@@ -107,6 +109,7 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	scannerEngine := scanner.NewEngine(scanner.DefaultScannerConfig(), dockerClient, alertDispatcher, auditLogger)
 	rateLimitEngine := ratelimit.NewLimiterEngine(ratelimit.DefaultLimiterConfig(), "local-node", alertDispatcher, auditLogger)
 	firewallEngine := firewall.NewEngine(firewall.DefaultFirewallConfig(), dockerClient, alertDispatcher, auditLogger)
+	gitopsEngine := gitops.NewEngine(gitops.DefaultGitOpsConfig(), dockerClient, alertDispatcher, auditLogger)
 
 	cfg := &HandlerConfig{
 		DockerClient:     dockerClient,
@@ -123,7 +126,8 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 		ScannerEngine:    scannerEngine,
 		RateLimitEngine:  rateLimitEngine,
 		FirewallEngine:   firewallEngine,
-		AppVersion:       "2.4.0",
+		GitOpsEngine:     gitopsEngine,
+		AppVersion:       "2.5.0",
 		TokenAuth:        tokenAuth,
 		AllowRemote:      allowRemote,
 	}
@@ -244,6 +248,16 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	mux.HandleFunc("/api/firewall/ddos/alerts", cfg.handleFirewallDDoSAlerts)
 	mux.HandleFunc("/api/firewall/simulate", cfg.handleFirewallSimulate)
 	mux.HandleFunc("/api/firewall/config", cfg.handleFirewallConfig)
+
+	// GitOps Continuous Sync & Webhook Auto-Deployer
+	mux.HandleFunc("/api/gitops/status", cfg.handleGitOpsStatus)
+	mux.HandleFunc("/api/gitops/repos", cfg.handleGitOpsRepos)
+	mux.HandleFunc("/api/gitops/sync", cfg.handleGitOpsSync)
+	mux.HandleFunc("/api/gitops/deploy", cfg.handleGitOpsDeploy)
+	mux.HandleFunc("/api/gitops/rollback", cfg.handleGitOpsRollback)
+	mux.HandleFunc("/api/gitops/deployments", cfg.handleGitOpsDeployments)
+	mux.HandleFunc("/api/gitops/webhook", cfg.handleGitOpsWebhook)
+	mux.HandleFunc("/api/gitops/config", cfg.handleGitOpsConfig)
 
 	// Embedded Static UI
 	if staticFS != nil {

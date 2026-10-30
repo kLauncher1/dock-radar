@@ -652,6 +652,7 @@
       <button id="scanner-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(244, 63, 94, 0.4); background: rgba(244, 63, 94, 0.15); color: #f43f5e; display: inline-flex; align-items: center; gap: 4px;" onclick="openScannerModal()" title="Container Image Vulnerability Scanner & SBOM Audit">🛡️ SBOM/CVE: <span id="scanner-badge-text">0 Images</span></button>
       <button id="ratelimit-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.15); color: #10b981; display: inline-flex; align-items: center; gap: 4px;" onclick="openRateLimitModal()" title="Distributed Rate-Limiting & Global Quota Orchestrator">🚦 Rate Limits: <span id="ratelimit-badge-text">0 Bans</span></button>
       <button id="firewall-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.15); color: #ef4444; display: inline-flex; align-items: center; gap: 4px;" onclick="openFirewallModal()" title="eBPF Micro-Firewall & Container Network Isolator">🧱 Firewall: <span id="firewall-badge-text">3 Rules</span></button>
+      <button id="gitops-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(139, 92, 246, 0.4); background: rgba(139, 92, 246, 0.15); color: #a78bfa; display: inline-flex; align-items: center; gap: 4px;" onclick="openGitOpsModal()" title="GitOps Continuous Sync & Webhook Auto-Deployer">🚀 GitOps: <span id="gitops-badge-text">0 Repos</span></button>
       <button id="btn-export-audit" class="status-pill" style="font-size: 11px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;" onclick="exportAuditTrail()" title="Export Audit Trail in NDJSON format">📋 Export Audit</button>
       <span>•</span>
       <span id="host-badge">Loading...</span>
@@ -1944,6 +1945,151 @@
         </div>
       </div>
     </div>
+
+    <!-- GitOps Continuous Sync & Webhook Auto-Deployer Section -->
+    <div class="card" id="gitops-section" style="margin-top: 24px;">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="card-title" style="margin: 0;">
+            <span>🚀 GitOps Continuous Sync &amp; Webhook Auto-Deployer</span>
+          </div>
+          <span id="gitops-status-pill" class="status-pill status-running" style="font-size: 11px;">Active</span>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary" onclick="openGitOpsModal('repo')" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">+ Add Repository</button>
+          <button class="btn btn-secondary" onclick="openGitOpsModal('deploy')" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">🚀 Rollout</button>
+          <button class="btn btn-secondary" onclick="openGitOpsModal('config')" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">⚙️ Config</button>
+          <button class="btn btn-secondary" onclick="pollGitOpsAll()" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">🔄 Refresh</button>
+        </div>
+      </div>
+
+      <!-- GitOps Metric KPI Cards -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 16px 0;">
+        <div style="background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #a78bfa; font-weight: 600; text-transform: uppercase;">Tracked Repos</div>
+          <div id="gitops-kpi-repos" style="font-size: 20px; font-weight: 700; color: #c4b5fd; margin-top: 4px;">0</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Automated polling</div>
+        </div>
+
+        <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #38bdf8; font-weight: 600; text-transform: uppercase;">Total Rollouts</div>
+          <div id="gitops-kpi-total" style="font-size: 20px; font-weight: 700; color: #7dd3fc; margin-top: 4px;">0</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Deploy attempts</div>
+        </div>
+
+        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #10b981; font-weight: 600; text-transform: uppercase;">Success Rate</div>
+          <div id="gitops-kpi-success" style="font-size: 20px; font-weight: 700; color: #34d399; margin-top: 4px;">100%</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;"><span id="gitops-kpi-success-count">0</span> passed health checks</div>
+        </div>
+
+        <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #f59e0b; font-weight: 600; text-transform: uppercase;">Auto Rollbacks</div>
+          <div id="gitops-kpi-rollbacks" style="font-size: 20px; font-weight: 700; color: #fbbf24; margin-top: 4px;">0</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Health gate reversals</div>
+        </div>
+
+        <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #ef4444; font-weight: 600; text-transform: uppercase;">Sig Rejections</div>
+          <div id="gitops-kpi-sig-failures" style="font-size: 20px; font-weight: 700; color: #f87171; margin-top: 4px;">0</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Signature violations</div>
+        </div>
+
+        <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #818cf8; font-weight: 600; text-transform: uppercase;">Last Synchronized</div>
+          <div id="gitops-kpi-last-sync" style="font-size: 13px; font-weight: 600; color: #a5b4fc; margin-top: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">Never</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Continuous heartbeat</div>
+        </div>
+      </div>
+
+      <!-- GitOps Section Tabs -->
+      <div style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; margin-bottom: 14px;">
+        <button id="btn-tab-gitops-repos" class="btn-action btn-restart" onclick="switchGitOpsMainTab('repos')" style="font-size: 11px; padding: 4px 12px;">Tracked Repositories</button>
+        <button id="btn-tab-gitops-deployments" class="btn-action" onclick="switchGitOpsMainTab('deployments')" style="font-size: 11px; padding: 4px 12px;">Deployment History</button>
+        <button id="btn-tab-gitops-webhook" class="btn-action" onclick="switchGitOpsMainTab('webhook')" style="font-size: 11px; padding: 4px 12px;">Webhook &amp; Signatures</button>
+      </div>
+
+      <!-- Tab 1: Tracked Repositories -->
+      <div id="gitops-repos-container" style="display: block;">
+        <div style="overflow-x: auto;">
+          <table class="data-table" style="width: 100%; font-size: 12px;">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Repository URL</th>
+                <th>Branch</th>
+                <th>Target Container</th>
+                <th>Signature Policy</th>
+                <th>Latest Commit</th>
+                <th>Sync Status</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="gitops-repos-body">
+              <tr>
+                <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                  No repositories registered. Click <strong>+ Add Repository</strong> above to track git branches.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 2: Deployment History -->
+      <div id="gitops-deployments-container" style="display: none;">
+        <div style="overflow-x: auto;">
+          <table class="data-table" style="width: 100%; font-size: 12px;">
+            <thead>
+              <tr>
+                <th>Deploy ID</th>
+                <th>Repository</th>
+                <th>Commit SHA</th>
+                <th>Target Container</th>
+                <th>Trigger</th>
+                <th>Status</th>
+                <th>Duration</th>
+                <th>Timestamp</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="gitops-deployments-body">
+              <tr>
+                <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 18px;">
+                  No deployments recorded yet. Trigger a sync, rollout, or incoming webhook event.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 3: Webhook & Signature Inspector -->
+      <div id="gitops-webhook-container" style="display: none;">
+        <div style="display: flex; flex-direction: column; gap: 12px; font-size: 12px;">
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div style="font-weight: 600; color: #a78bfa; margin-bottom: 6px;">Git Webhook Endpoint</div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <code style="background: rgba(255, 255, 255, 0.05); padding: 4px 8px; border-radius: 4px; color: #38bdf8; font-size: 11px; flex: 1;">POST /api/gitops/webhook</code>
+              <button class="btn btn-secondary" onclick="navigator.clipboard.writeText(window.location.origin + '/api/gitops/webhook'); showToast('Copied webhook URL');" style="padding: 4px 8px; font-size: 10px;">📋 Copy</button>
+            </div>
+            <div style="color: var(--text-muted); font-size: 11px; margin-top: 6px;">
+              Configure this webhook URL in GitHub (push events, application/json), GitLab (Push events), or Gitea.
+            </div>
+          </div>
+
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div style="font-weight: 600; color: #38bdf8; margin-bottom: 6px;">Cryptographic Verification &amp; Rollback Gates</div>
+            <ul style="margin: 0; padding-left: 20px; color: var(--text-muted); line-height: 1.6; font-size: 11px;">
+              <li><strong>HMAC-SHA256:</strong> Incoming GitHub webhooks verified against <code>X-Hub-Signature-256</code> in constant time.</li>
+              <li><strong>GitLab Token:</strong> GitLab webhooks verified against <code>X-Gitlab-Token</code> in constant time.</li>
+              <li><strong>Commit Signatures:</strong> Embedded GPG/SSH commit signatures parsed from raw git objects and validated against authorized signer keys.</li>
+              <li><strong>Health Gating:</strong> Staged probation checks execute against <code>health_check_url</code> before finalizing deployments.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- Lifecycle Action Confirmation Modal -->
@@ -3052,6 +3198,181 @@
 
       <div class="modal-actions" style="display: flex; justify-content: flex-end; margin-top: 16px;">
         <button class="btn btn-secondary" onclick="closeFirewallModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- GitOps Management Modal -->
+  <div class="modal-backdrop" id="gitops-modal">
+    <div class="modal-card" style="max-width: 720px; width: 90%;">
+      <div class="modal-title" style="color: #a78bfa; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+        <span>🚀 GitOps Continuous Delivery &amp; Rollout Manager</span>
+      </div>
+
+      <!-- Modal Tabs -->
+      <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
+        <button id="btn-gitops-mtab-repo" class="btn-action btn-restart" onclick="switchGitOpsModalTab('repo')" style="font-size: 11px; padding: 4px 12px;">Add Repository</button>
+        <button id="btn-gitops-mtab-deploy" class="btn-action" onclick="switchGitOpsModalTab('deploy')" style="font-size: 11px; padding: 4px 12px;">Manual Rollout</button>
+        <button id="btn-gitops-mtab-config" class="btn-action" onclick="switchGitOpsModalTab('config')" style="font-size: 11px; padding: 4px 12px;">Engine Settings</button>
+      </div>
+
+      <!-- Tab 1: Add Repository Form -->
+      <div id="gitops-mtab-repo-content">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="form-row">
+            <div class="form-col" style="flex: 1;">
+              <label class="form-label" for="gitops-repo-id">Repository ID</label>
+              <input type="text" class="form-input" id="gitops-repo-id" placeholder="e.g. web-app-prod" />
+            </div>
+            <div class="form-col" style="flex: 1;">
+              <label class="form-label" for="gitops-repo-name">Friendly Name</label>
+              <input type="text" class="form-input" id="gitops-repo-name" placeholder="e.g. Production Web Service" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-col" style="flex: 2;">
+              <label class="form-label" for="gitops-repo-url">Git Repository URL</label>
+              <input type="text" class="form-input" id="gitops-repo-url" placeholder="https://github.com/my-org/my-service.git" />
+            </div>
+            <div class="form-col" style="flex: 1;">
+              <label class="form-label" for="gitops-repo-branch">Tracked Branch</label>
+              <input type="text" class="form-input" id="gitops-repo-branch" value="main" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-col" style="flex: 1;">
+              <label class="form-label" for="gitops-repo-container">Target Container Name / ID</label>
+              <input type="text" class="form-input" id="gitops-repo-container" placeholder="e.g. web-app-container" />
+            </div>
+            <div class="form-col" style="flex: 1;">
+              <label class="form-label" for="gitops-repo-image">Target Image / Repository</label>
+              <input type="text" class="form-input" id="gitops-repo-image" placeholder="registry.example.com/web-app:latest" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-col" style="flex: 1;">
+              <label class="form-label" for="gitops-repo-secret">Webhook Secret (HMAC-SHA256)</label>
+              <input type="password" class="form-input" id="gitops-repo-secret" placeholder="Optional webhook token" />
+            </div>
+            <div class="form-col" style="flex: 1;">
+              <label class="form-label" for="gitops-repo-policy">Signature Verification Policy</label>
+              <select class="form-input" id="gitops-repo-policy">
+                <option value="warn" selected>Warn (Log unverified commits)</option>
+                <option value="strict">Strict (Reject unsigned/invalid commits)</option>
+                <option value="disabled">Disabled (Accept all commits)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-col" style="flex: 2;">
+              <label class="form-label" for="gitops-repo-health-url">Health Gating Probe URL</label>
+              <input type="text" class="form-input" id="gitops-repo-health-url" placeholder="http://localhost:8080/health" />
+            </div>
+            <div class="form-col" style="flex: 1;">
+              <label class="form-label" for="gitops-repo-health-timeout">Probe Timeout (s)</label>
+              <input type="number" min="1" max="60" class="form-input" id="gitops-repo-health-timeout" value="10" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-col" style="flex: 1;">
+              <label class="form-label" for="gitops-repo-poll-interval">Background Poll Interval (s)</label>
+              <input type="number" min="5" max="3600" class="form-input" id="gitops-repo-poll-interval" value="30" />
+            </div>
+            <div class="form-col" style="flex: 1;">
+              <label class="form-label" for="gitops-repo-auto-rollback">Health Failure Rollback</label>
+              <select class="form-input" id="gitops-repo-auto-rollback">
+                <option value="true" selected>Automatic Rollback</option>
+                <option value="false">Manual Reversal Only</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+            <button class="btn btn-primary-restart" onclick="saveGitOpsRepoForm()" style="padding: 8px 16px; font-size: 12px; font-weight: 600;">💾 Register Tracked Repository</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Manual Rollout -->
+      <div id="gitops-mtab-deploy-content" style="display: none;">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="form-row">
+            <div class="form-col" style="flex: 1;">
+              <label class="form-label" for="gitops-deploy-repo-select">Target Repository</label>
+              <select class="form-input" id="gitops-deploy-repo-select">
+                <option value="">Select a repository...</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-col" style="flex: 1;">
+              <label class="form-label" for="gitops-deploy-commit-sha">Target Commit Hash (SHA-1 / SHA-256)</label>
+              <input type="text" class="form-input" id="gitops-deploy-commit-sha" placeholder="40 or 64 character hex commit SHA" />
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+            <button class="btn btn-primary-restart" onclick="submitGitOpsDeployForm()" style="padding: 8px 16px; font-size: 12px; font-weight: 600;">🚀 Execute Rollout</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Global Settings -->
+      <div id="gitops-mtab-config-content" style="display: none;">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="form-row">
+            <div class="form-col">
+              <label class="form-label" for="gitops-cfg-enabled">Engine Status</label>
+              <select class="form-input" id="gitops-cfg-enabled">
+                <option value="true" selected>Enabled (Active Continuous Delivery)</option>
+                <option value="false">Disabled (Standby Mode)</option>
+              </select>
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="gitops-cfg-poll-interval">Default Polling Interval (s)</label>
+              <input type="number" min="5" max="3600" class="form-input" id="gitops-cfg-poll-interval" value="30" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-col">
+              <label class="form-label" for="gitops-cfg-policy">Default Signature Policy</label>
+              <select class="form-input" id="gitops-cfg-policy">
+                <option value="warn" selected>Warn (Permit unverified commits with log)</option>
+                <option value="strict">Strict (Enforce cryptographic signatures)</option>
+                <option value="disabled">Disabled</option>
+              </select>
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="gitops-cfg-auto-rollback">Default Auto-Rollback</label>
+              <select class="form-input" id="gitops-cfg-auto-rollback">
+                <option value="true" selected>Enabled (Revert on failed health gating)</option>
+                <option value="false">Disabled</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-col">
+              <label class="form-label" for="gitops-cfg-secret">Default Webhook Secret</label>
+              <input type="password" class="form-input" id="gitops-cfg-secret" placeholder="Shared fallback webhook secret" />
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+            <button class="btn btn-primary-restart" onclick="saveGitOpsConfigForm()" style="padding: 8px 16px; font-size: 12px; font-weight: 600;">💾 Save Engine Configuration</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; margin-top: 16px;">
+        <button class="btn btn-secondary" onclick="closeGitOpsModal()">Close</button>
       </div>
     </div>
   </div>
@@ -7934,6 +8255,373 @@
     setInterval(pollFirewallStatus, 2500);
     pollFirewallRules();
     setInterval(pollFirewallRules, 5000);
+
+    // ==========================================
+    // GitOps Continuous Sync & Auto-Deployer
+    // ==========================================
+
+    function openGitOpsModal(tab = 'repo') {
+      const modal = document.getElementById('gitops-modal');
+      if (modal) {
+        modal.style.display = 'flex';
+        switchGitOpsModalTab(tab);
+        if (tab === 'config') {
+          loadGitOpsConfig();
+        } else if (tab === 'deploy') {
+          populateGitOpsDeploySelect();
+        }
+      }
+    }
+
+    function closeGitOpsModal() {
+      const modal = document.getElementById('gitops-modal');
+      if (modal) {
+        modal.style.display = 'none';
+      }
+    }
+
+    function switchGitOpsMainTab(tab) {
+      const tabs = ['repos', 'deployments', 'webhook'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`btn-tab-gitops-${t}`);
+        const container = document.getElementById(`gitops-${t}-container`);
+        if (btn) {
+          if (t === tab) btn.classList.add('btn-restart');
+          else btn.classList.remove('btn-restart');
+        }
+        if (container) {
+          container.style.display = (t === tab) ? 'block' : 'none';
+        }
+      });
+      if (tab === 'repos') pollGitOpsRepos();
+      else if (tab === 'deployments') pollGitOpsDeployments();
+    }
+
+    function switchGitOpsModalTab(tab) {
+      const tabs = ['repo', 'deploy', 'config'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`btn-gitops-mtab-${t}`);
+        const content = document.getElementById(`gitops-mtab-${t}-content`);
+        if (btn) {
+          if (t === tab) btn.classList.add('btn-restart');
+          else btn.classList.remove('btn-restart');
+        }
+        if (content) {
+          content.style.display = (t === tab) ? 'block' : 'none';
+        }
+      });
+      if (tab === 'config') loadGitOpsConfig();
+      else if (tab === 'deploy') populateGitOpsDeploySelect();
+    }
+
+    async function pollGitOpsStatus() {
+      try {
+        const res = await authFetch('/api/gitops/status');
+        if (!res.ok) return;
+        const s = await res.json();
+
+        const badge = document.getElementById('gitops-badge-text');
+        if (badge) badge.textContent = `${s.tracked_repos_count} Repos`;
+
+        const pill = document.getElementById('gitops-status-pill');
+        if (pill) {
+          pill.textContent = s.enabled ? 'Active' : 'Disabled';
+          pill.className = `status-pill ${s.enabled ? 'status-running' : 'status-standby'}`;
+        }
+
+        const kpiRepos = document.getElementById('gitops-kpi-repos');
+        if (kpiRepos) kpiRepos.textContent = s.tracked_repos_count || 0;
+
+        const kpiTotal = document.getElementById('gitops-kpi-total');
+        if (kpiTotal) kpiTotal.textContent = s.total_deployments || 0;
+
+        const kpiSuccess = document.getElementById('gitops-kpi-success');
+        const kpiSuccessCount = document.getElementById('gitops-kpi-success-count');
+        if (kpiSuccess) {
+          const rate = s.total_deployments > 0 ? Math.round((s.successful_deployments / s.total_deployments) * 100) : 100;
+          kpiSuccess.textContent = `${rate}%`;
+        }
+        if (kpiSuccessCount) kpiSuccessCount.textContent = s.successful_deployments || 0;
+
+        const kpiRollbacks = document.getElementById('gitops-kpi-rollbacks');
+        if (kpiRollbacks) kpiRollbacks.textContent = s.rolled_back_deployments || 0;
+
+        const kpiSig = document.getElementById('gitops-kpi-sig-failures');
+        if (kpiSig) kpiSig.textContent = s.signature_failures_total || 0;
+
+        const kpiSync = document.getElementById('gitops-kpi-last-sync');
+        if (kpiSync) {
+          if (s.last_sync_time && s.last_sync_time !== '0001-01-01T00:00:00Z') {
+            kpiSync.textContent = new Date(s.last_sync_time).toLocaleTimeString();
+          } else {
+            kpiSync.textContent = 'Standby';
+          }
+        }
+      } catch (err) {}
+    }
+
+    let cachedGitOpsRepos = [];
+
+    async function pollGitOpsRepos() {
+      try {
+        const res = await authFetch('/api/gitops/repos');
+        if (!res.ok) return;
+        const data = await res.json();
+        const repos = data.repositories || [];
+        cachedGitOpsRepos = repos;
+
+        const tbody = document.getElementById('gitops-repos-body');
+        if (!tbody) return;
+
+        if (repos.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 18px;">No repositories registered. Click <strong>+ Add Repository</strong> above to track git branches.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = repos.map(r => {
+          const shortSHA = r.last_commit_sha ? r.last_commit_sha.substring(0, 8) : 'None';
+          const syncStatus = r.last_sync_status || 'idle';
+          return `
+            <tr>
+              <td><strong style="color: #a78bfa;">${r.id}</strong></td>
+              <td style="font-family: monospace; font-size: 11px; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${r.repo_url}">${r.repo_url}</td>
+              <td><span style="background: rgba(255,255,255,0.06); padding: 2px 6px; border-radius: 4px;">${r.branch}</span></td>
+              <td>${r.target_container}</td>
+              <td><span style="font-size: 11px; color: ${r.signature_policy === 'strict' ? '#ef4444' : r.signature_policy === 'warn' ? '#f59e0b' : 'var(--text-muted)'};">${r.signature_policy || 'warn'}</span></td>
+              <td><code style="color: #38bdf8;">${shortSHA}</code></td>
+              <td><span class="status-pill ${syncStatus === 'success' ? 'status-running' : 'status-standby'}" style="font-size: 10px;">${syncStatus}</span></td>
+              <td style="text-align: right; white-space: nowrap;">
+                <button class="btn btn-secondary" onclick="syncGitOpsRepo('${r.id}')" style="padding: 2px 8px; font-size: 11px; margin-right: 4px;">🔄 Sync</button>
+                <button class="btn btn-secondary" onclick="deleteGitOpsRepo('${r.id}')" style="padding: 2px 8px; font-size: 11px; color: #ef4444;">Delete</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {}
+    }
+
+    async function pollGitOpsDeployments() {
+      try {
+        const res = await authFetch('/api/gitops/deployments?limit=30');
+        if (!res.ok) return;
+        const data = await res.json();
+        const deploys = data.deployments || [];
+
+        const tbody = document.getElementById('gitops-deployments-body');
+        if (!tbody) return;
+
+        if (deploys.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 18px;">No deployments recorded yet. Trigger a sync, rollout, or incoming webhook event.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = deploys.map(d => {
+          const shortSHA = d.commit_sha ? d.commit_sha.substring(0, 8) : '-';
+          const statusClass = d.status === 'success' ? 'status-running' : d.status === 'rolled_back' ? 'status-standby' : 'status-failed';
+          const duration = d.duration_ms ? `${d.duration_ms}ms` : '-';
+          const timeStr = d.started_at ? new Date(d.started_at).toLocaleTimeString() : '-';
+          const canRollback = d.status === 'success' && d.prev_commit_sha;
+
+          return `
+            <tr>
+              <td><code style="color: var(--text-muted); font-size: 11px;">${d.id}</code></td>
+              <td><strong>${d.repo_id}</strong></td>
+              <td><code style="color: #38bdf8;">${shortSHA}</code></td>
+              <td>${d.target_container}</td>
+              <td><span style="font-size: 11px; color: var(--text-muted);">${d.trigger}</span></td>
+              <td><span class="status-pill ${statusClass}" style="font-size: 10px;">${d.status}</span></td>
+              <td>${duration}</td>
+              <td>${timeStr}</td>
+              <td style="text-align: right;">
+                ${canRollback ? `<button class="btn btn-secondary" onclick="triggerGitOpsRollback('${d.id}')" style="padding: 2px 8px; font-size: 11px; color: #f59e0b;">↩ Rollback</button>` : `<span style="color: var(--text-muted); font-size: 11px;">-</span>`}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {}
+    }
+
+    function pollGitOpsAll() {
+      pollGitOpsStatus();
+      pollGitOpsRepos();
+      pollGitOpsDeployments();
+      showToast('✓ GitOps telemetry refreshed');
+    }
+
+    async function syncGitOpsRepo(id) {
+      try {
+        const res = await authFetch(`/api/gitops/sync?id=${encodeURIComponent(id)}`, { method: 'POST' });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        showToast(data.message || '✓ Repository synchronized');
+        pollGitOpsAll();
+      } catch (err) {
+        showToast(`Sync failed: ${err.message}`);
+      }
+    }
+
+    async function deleteGitOpsRepo(id) {
+      if (!confirm(`Are you sure you want to stop tracking repository "${id}"?`)) return;
+      try {
+        const res = await authFetch(`/api/gitops/repos?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ Removed repository ${id}`);
+        pollGitOpsRepos();
+        pollGitOpsStatus();
+      } catch (err) {
+        showToast(`Failed to delete repo: ${err.message}`);
+      }
+    }
+
+    async function saveGitOpsRepoForm() {
+      const id = document.getElementById('gitops-repo-id').value.trim();
+      const name = document.getElementById('gitops-repo-name').value.trim() || id;
+      const repoUrl = document.getElementById('gitops-repo-url').value.trim();
+      const branch = document.getElementById('gitops-repo-branch').value.trim() || 'main';
+      const container = document.getElementById('gitops-repo-container').value.trim();
+      const image = document.getElementById('gitops-repo-image').value.trim();
+      const secret = document.getElementById('gitops-repo-secret').value;
+      const policy = document.getElementById('gitops-repo-policy').value;
+      const healthUrl = document.getElementById('gitops-repo-health-url').value.trim();
+      const healthTimeout = parseInt(document.getElementById('gitops-repo-health-timeout').value, 10) || 10;
+      const autoRollback = document.getElementById('gitops-repo-auto-rollback').value === 'true';
+      const pollInterval = parseInt(document.getElementById('gitops-repo-poll-interval').value, 10) || 30;
+
+      if (!id || !repoUrl || !container || !image) {
+        showToast('Please fill in required fields: ID, Repo URL, Container, and Image');
+        return;
+      }
+
+      try {
+        const res = await authFetch('/api/gitops/repos', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id,
+            name,
+            repo_url: repoUrl,
+            branch,
+            target_container: container,
+            target_image: image,
+            webhook_secret: secret,
+            signature_policy: policy,
+            health_check_url: healthUrl,
+            health_check_timeout_sec: healthTimeout,
+            auto_rollback: autoRollback,
+            poll_interval_sec: pollInterval,
+            enabled: true
+          })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ Repository "${id}" registered`);
+        closeGitOpsModal();
+        pollGitOpsRepos();
+        pollGitOpsStatus();
+      } catch (err) {
+        showToast(`Failed to save repo: ${err.message}`);
+      }
+    }
+
+    function populateGitOpsDeploySelect() {
+      const select = document.getElementById('gitops-deploy-repo-select');
+      if (!select) return;
+      select.innerHTML = '<option value="">Select a repository...</option>' +
+        cachedGitOpsRepos.map(r => `<option value="${r.id}">${r.name || r.id} (${r.branch})</option>`).join('');
+    }
+
+    async function submitGitOpsDeployForm() {
+      const repoId = document.getElementById('gitops-deploy-repo-select').value;
+      const commitSha = document.getElementById('gitops-deploy-commit-sha').value.trim();
+
+      if (!repoId || !commitSha) {
+        showToast('Please select a repository and enter a commit SHA');
+        return;
+      }
+
+      try {
+        const res = await authFetch('/api/gitops/deploy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ repo_id: repoId, commit_sha: commitSha })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ Rollout of ${commitSha.substring(0, 8)} initiated`);
+        closeGitOpsModal();
+        pollGitOpsDeployments();
+        pollGitOpsStatus();
+      } catch (err) {
+        showToast(`Rollout failed: ${err.message}`);
+      }
+    }
+
+    async function triggerGitOpsRollback(deployId) {
+      if (!confirm(`Are you sure you want to rollback deployment "${deployId}"?`)) return;
+      try {
+        const res = await authFetch('/api/gitops/rollback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ deployment_id: deployId, reason: 'operator manual rollback' })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ Rollback executed for ${deployId}`);
+        pollGitOpsDeployments();
+        pollGitOpsStatus();
+      } catch (err) {
+        showToast(`Rollback failed: ${err.message}`);
+      }
+    }
+
+    async function loadGitOpsConfig() {
+      try {
+        const res = await authFetch('/api/gitops/config');
+        if (!res.ok) return;
+        const cfg = await res.json();
+        const en = document.getElementById('gitops-cfg-enabled');
+        if (en) en.value = cfg.enabled ? 'true' : 'false';
+        const pi = document.getElementById('gitops-cfg-poll-interval');
+        if (pi) pi.value = cfg.default_poll_interval_sec || 30;
+        const pol = document.getElementById('gitops-cfg-policy');
+        if (pol) pol.value = cfg.default_signature_policy || 'warn';
+        const ar = document.getElementById('gitops-cfg-auto-rollback');
+        if (ar) ar.value = cfg.auto_rollback ? 'true' : 'false';
+      } catch (err) {}
+    }
+
+    async function saveGitOpsConfigForm() {
+      const enabled = document.getElementById('gitops-cfg-enabled').value === 'true';
+      const pollInterval = parseInt(document.getElementById('gitops-cfg-poll-interval').value, 10) || 30;
+      const policy = document.getElementById('gitops-cfg-policy').value;
+      const autoRollback = document.getElementById('gitops-cfg-auto-rollback').value === 'true';
+      const secret = document.getElementById('gitops-cfg-secret').value;
+
+      try {
+        const res = await authFetch('/api/gitops/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            enabled,
+            default_poll_interval_sec: pollInterval,
+            default_signature_policy: policy,
+            auto_rollback: autoRollback,
+            default_webhook_secret: secret,
+            max_history: 100
+          })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast('✓ GitOps configuration updated');
+        closeGitOpsModal();
+        pollGitOpsStatus();
+      } catch (err) {
+        showToast(`Failed to update config: ${err.message}`);
+      }
+    }
+
+    pollGitOpsStatus();
+    setInterval(pollGitOpsStatus, 2500);
+    pollGitOpsRepos();
+    setInterval(pollGitOpsRepos, 5000);
+    pollGitOpsDeployments();
+    setInterval(pollGitOpsDeployments, 5000);
   </script>
 </body>
 </html>
