@@ -135,9 +135,9 @@ This document outlines the architectural milestones and engineering priorities f
 ---
 
 ## Milestone 21: v2.6.0 (High-Availability Raft Cluster Consensus Engine)
-- [ ] Embedded Raft consensus algorithm for distributed leader election across dock-radar coordinators.
-- [ ] Replicated state machine synchronizing healing policies, container blacklist registers, and node states.
-- [ ] Split-brain protection with automated cluster quorum reconciliation.
+- [x] Embedded Raft consensus algorithm for distributed leader election across dock-radar coordinators.
+- [x] Replicated state machine synchronizing healing policies, container blacklist registers, and node states.
+- [x] Split-brain protection with automated cluster quorum reconciliation.
 
 ---
 
@@ -257,6 +257,13 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Host kernel Kernel Samepage Merging (KSM) telemetry and identical memory page deduplication prober.
 - [ ] Dynamic memory ballooning driver adjusting container memory cgroups based on working-set footprint.
 - [ ] Cluster-wide RAM overcommit optimizer preventing OOM thrashing on memory-dense container nodes.
+
+---
+
+## Milestone 39: v4.4.0 (Autonomous eBPF Flow Top-Talker Throttler & Micro-Burst Detector)
+- [ ] Kernel eBPF socket pacing and micro-burst packet queue depth telemetry.
+- [ ] Per-cgroup fair-queue scheduling preventing aggressive container noisy-neighbor network starvation.
+- [ ] Dynamic token bucket rate limiting on flow top-talkers with real-time TCP RTT jitter tracking.
 
 
 

@@ -653,6 +653,7 @@
       <button id="ratelimit-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.15); color: #10b981; display: inline-flex; align-items: center; gap: 4px;" onclick="openRateLimitModal()" title="Distributed Rate-Limiting & Global Quota Orchestrator">🚦 Rate Limits: <span id="ratelimit-badge-text">0 Bans</span></button>
       <button id="firewall-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.15); color: #ef4444; display: inline-flex; align-items: center; gap: 4px;" onclick="openFirewallModal()" title="eBPF Micro-Firewall & Container Network Isolator">🧱 Firewall: <span id="firewall-badge-text">3 Rules</span></button>
       <button id="gitops-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(139, 92, 246, 0.4); background: rgba(139, 92, 246, 0.15); color: #a78bfa; display: inline-flex; align-items: center; gap: 4px;" onclick="openGitOpsModal()" title="GitOps Continuous Sync & Webhook Auto-Deployer">🚀 GitOps: <span id="gitops-badge-text">0 Repos</span></button>
+      <button id="raft-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.15); color: #fbbf24; display: inline-flex; align-items: center; gap: 4px;" onclick="openRaftModal()" title="High-Availability Raft Cluster Consensus Engine">🗳️ Raft: <span id="raft-badge-text">Follower (Term 0)</span></button>
       <button id="btn-export-audit" class="status-pill" style="font-size: 11px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;" onclick="exportAuditTrail()" title="Export Audit Trail in NDJSON format">📋 Export Audit</button>
       <span>•</span>
       <span id="host-badge">Loading...</span>
@@ -2090,6 +2091,149 @@
         </div>
       </div>
     </div>
+
+    <!-- High-Availability Raft Cluster Consensus Engine Section -->
+    <div class="card" id="raft-section" style="margin-top: 24px;">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="card-title" style="margin: 0;">
+            <span>🗳️ High-Availability Raft Cluster Consensus Engine</span>
+          </div>
+          <span id="raft-status-pill" class="status-pill status-running" style="font-size: 11px;">Active</span>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn btn-secondary" onclick="openRaftModal('propose')" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">+ Propose Command</button>
+          <button class="btn btn-secondary" onclick="openRaftModal('peers')" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">🌐 Cluster Peers</button>
+          <button class="btn btn-secondary" onclick="triggerRaftStepDown()" style="padding: 6px 12px; font-size: 11px; font-weight: 600;" title="Relinquish leader role for failover drill">⚡ Step Down</button>
+          <button class="btn btn-secondary" onclick="triggerRaftSnapshot()" style="padding: 6px 12px; font-size: 11px; font-weight: 600;" title="Compact log against current FSM state">💾 Snapshot</button>
+          <button class="btn btn-secondary" onclick="pollRaftAll()" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">🔄 Refresh</button>
+        </div>
+      </div>
+
+      <!-- Raft Metric KPI Cards -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 16px 0;">
+        <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #f59e0b; font-weight: 600; text-transform: uppercase;">Consensus Role</div>
+          <div id="raft-kpi-role" style="font-size: 20px; font-weight: 700; color: #fbbf24; margin-top: 4px;">FOLLOWER</div>
+          <div id="raft-kpi-node-id" style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">node-1</div>
+        </div>
+
+        <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #38bdf8; font-weight: 600; text-transform: uppercase;">Term &amp; Leader</div>
+          <div id="raft-kpi-term" style="font-size: 20px; font-weight: 700; color: #7dd3fc; margin-top: 4px;">Term 0</div>
+          <div id="raft-kpi-leader" style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Leader: None</div>
+        </div>
+
+        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #10b981; font-weight: 600; text-transform: uppercase;">Commit Index</div>
+          <div id="raft-kpi-commit" style="font-size: 20px; font-weight: 700; color: #34d399; margin-top: 4px;">0</div>
+          <div id="raft-kpi-log-len" style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Applied: 0 · Entries: 0</div>
+        </div>
+
+        <div style="background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #a78bfa; font-weight: 600; text-transform: uppercase;">Active Quorum</div>
+          <div id="raft-kpi-quorum" style="font-size: 20px; font-weight: 700; color: #c4b5fd; margin-top: 4px;">1 of 1</div>
+          <div id="raft-kpi-peers-count" style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">0 remote peers</div>
+        </div>
+
+        <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #ef4444; font-weight: 600; text-transform: uppercase;">FSM Blacklist</div>
+          <div id="raft-kpi-blacklist" style="font-size: 20px; font-weight: 700; color: #f87171; margin-top: 4px;">0</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Quarantined containers</div>
+        </div>
+
+        <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #818cf8; font-weight: 600; text-transform: uppercase;">FSM Applied Total</div>
+          <div id="raft-kpi-applied-total" style="font-size: 20px; font-weight: 700; color: #a5b4fc; margin-top: 4px;">0</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Replicated commands</div>
+        </div>
+      </div>
+
+      <!-- Tab Buttons -->
+      <div style="display: flex; gap: 8px; margin-bottom: 12px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
+        <button id="btn-raft-tab-peers" class="btn-action btn-restart" onclick="switchRaftMainTab('peers')" style="font-size: 11px; padding: 4px 12px;">Consensus Topology &amp; Peers</button>
+        <button id="btn-raft-tab-fsm" class="btn-action" onclick="switchRaftMainTab('fsm')" style="font-size: 11px; padding: 4px 12px;">Replicated State Machine</button>
+        <button id="btn-raft-tab-safety" class="btn-action" onclick="switchRaftMainTab('safety')" style="font-size: 11px; padding: 4px 12px;">Split-Brain &amp; Safety Spec</button>
+      </div>
+
+      <!-- Tab 1: Consensus Topology & Peers -->
+      <div id="raft-peers-container">
+        <div style="overflow-x: auto;">
+          <table style="width: 100%; border-collapse: collapse; font-size: 12px; text-align: left;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--border-subtle); color: var(--text-muted);">
+                <th style="padding: 8px;">Node / Peer Address</th>
+                <th style="padding: 8px;">Consensus Role</th>
+                <th style="padding: 8px;">Quorum Participation</th>
+                <th style="padding: 8px;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="raft-peers-table-body">
+              <tr>
+                <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 16px;">
+                  Standalone cluster mode. Add remote peers to form a distributed consensus group.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 2: Replicated State Machine -->
+      <div id="raft-fsm-container" style="display: none;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px;">
+          <!-- Replicated Blacklist -->
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+              <span style="font-weight: 600; color: #f87171;">Replicated Quarantine Blacklist</span>
+              <span id="raft-fsm-blacklist-count" style="font-size: 11px; color: var(--text-muted);">0 containers</span>
+            </div>
+            <div id="raft-fsm-blacklist-body" style="max-height: 180px; overflow-y: auto; font-size: 11px; color: var(--text-muted);">
+              No quarantined containers in consensus state machine.
+            </div>
+          </div>
+
+          <!-- Synchronized Healing Policy -->
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div style="font-weight: 600; color: #34d399; margin-bottom: 8px;">Consensus Self-Healing Policy</div>
+            <div id="raft-fsm-policy-body" style="font-size: 11px; color: var(--text-muted); line-height: 1.6;">
+              Loading synchronized policy...
+            </div>
+          </div>
+
+          <!-- Synchronized Node States -->
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div style="font-weight: 600; color: #7dd3fc; margin-bottom: 8px;">Replicated Node Directory</div>
+            <div id="raft-fsm-nodes-body" style="max-height: 180px; overflow-y: auto; font-size: 11px; color: var(--text-muted);">
+              Loading node states...
+            </div>
+          </div>
+
+          <!-- Cluster Key-Value Configuration -->
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div style="font-weight: 600; color: #c4b5fd; margin-bottom: 8px;">Consensus Configuration Key-Values</div>
+            <div id="raft-fsm-config-body" style="max-height: 180px; overflow-y: auto; font-size: 11px; color: var(--text-muted);">
+              No custom key-value settings.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Split-Brain & Safety Architecture -->
+      <div id="raft-safety-container" style="display: none;">
+        <div style="display: flex; flex-direction: column; gap: 12px; font-size: 12px;">
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div style="font-weight: 600; color: #fbbf24; margin-bottom: 6px;">Raft Consensus Invariants &amp; Quorum Protection</div>
+            <ul style="margin: 0; padding-left: 20px; color: var(--text-muted); line-height: 1.6; font-size: 11px;">
+              <li><strong>Leader Election:</strong> Candidates solicit votes across peers. A leader is only confirmed when receiving strict majority votes: <code>quorum = (N/2) + 1</code>.</li>
+              <li><strong>Log Matching Property:</strong> If two logs contain an entry with the same index and term, then the logs are identical in all entries up through the given index.</li>
+              <li><strong>Split-Brain Immunity:</strong> Isolated partitions containing fewer than majority quorum nodes cannot elect a leader or commit mutations.</li>
+              <li><strong>Automatic State Reconciliation:</strong> Follower logs that conflict with the leader are automatically truncated and overwritten with leader entries.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- Lifecycle Action Confirmation Modal -->
@@ -3373,6 +3517,97 @@
 
       <div class="modal-actions" style="display: flex; justify-content: flex-end; margin-top: 16px;">
         <button class="btn btn-secondary" onclick="closeGitOpsModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Raft Consensus Modal -->
+  <div class="modal-backdrop" id="raft-modal">
+    <div class="modal-card" style="max-width: 680px; width: 90%;">
+      <div class="modal-title" style="color: #fbbf24; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+        <span>🗳️ High-Availability Raft Consensus Management</span>
+      </div>
+
+      <!-- Modal Tabs -->
+      <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
+        <button id="btn-raft-mtab-propose" class="btn-action btn-restart" onclick="switchRaftModalTab('propose')" style="font-size: 11px; padding: 4px 12px;">Propose Command</button>
+        <button id="btn-raft-mtab-peers" class="btn-action" onclick="switchRaftModalTab('peers')" style="font-size: 11px; padding: 4px 12px;">Cluster Peers</button>
+        <button id="btn-raft-mtab-drills" class="btn-action" onclick="switchRaftModalTab('drills')" style="font-size: 11px; padding: 4px 12px;">Drills &amp; Compaction</button>
+      </div>
+
+      <!-- Tab 1: Propose Command -->
+      <div id="raft-mtab-propose-content">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="form-row">
+            <div class="form-col" style="flex: 1;">
+              <label class="form-label" for="raft-cmd-type">Command Type</label>
+              <select class="form-input" id="raft-cmd-type" onchange="onRaftCmdTypeChange()">
+                <option value="cluster_config">cluster_config (Cluster Key-Value)</option>
+                <option value="add_blacklist">add_blacklist (Quarantine Container)</option>
+                <option value="remove_blacklist">remove_blacklist (Un-Quarantine Container)</option>
+                <option value="set_healing_policy">set_healing_policy (Synchronize Healing Policy)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-col">
+              <label class="form-label" for="raft-cmd-data">JSON Command Payload</label>
+              <textarea class="form-input" id="raft-cmd-data" rows="5" style="font-family: monospace; font-size: 12px;">{"key": "cluster_mode", "value": "ha_active"}</textarea>
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; margin-top: 8px;">
+            <button class="btn btn-primary-restart" onclick="submitRaftPropose()" style="padding: 8px 16px; font-size: 12px; font-weight: 600;">⚡ Propose to Raft Cluster</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: Cluster Peers -->
+      <div id="raft-mtab-peers-content" style="display: none;">
+        <div style="display: flex; flex-direction: column; gap: 12px;">
+          <div class="form-row">
+            <div class="form-col" style="flex: 2;">
+              <label class="form-label" for="raft-new-peer-addr">Remote Peer Address</label>
+              <input type="text" class="form-input" id="raft-new-peer-addr" placeholder="http://10.0.1.5:9080" />
+            </div>
+            <div class="form-col" style="flex: 1; align-self: flex-end;">
+              <button class="btn btn-primary-restart" onclick="addRaftPeer()" style="width: 100%; padding: 8px 12px; font-size: 12px;">+ Add Peer</button>
+            </div>
+          </div>
+
+          <div style="margin-top: 10px;">
+            <div style="font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px;">Active Raft Peer Nodes:</div>
+            <div id="raft-modal-peers-list" style="max-height: 200px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;">
+              <div style="font-size: 11px; color: var(--text-muted);">No remote peers configured.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Drills & Compaction -->
+      <div id="raft-mtab-drills-content" style="display: none;">
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div style="font-weight: 600; color: #fbbf24; margin-bottom: 6px;">Failover Drill (Leader Step Down)</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">
+              Forces the local coordinator to step down from Leader to Follower, testing automated cluster leader election.
+            </div>
+            <button class="btn btn-secondary" onclick="triggerRaftStepDown()" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">⚡ Execute Step Down Drill</button>
+          </div>
+
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div style="font-weight: 600; color: #38bdf8; margin-bottom: 6px;">Log Compaction &amp; Snapshot</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">
+              Generates an atomic snapshot of the replicated state machine and compacts committed log entries to minimize memory footprint.
+            </div>
+            <button class="btn btn-secondary" onclick="triggerRaftSnapshot()" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">💾 Compact Log &amp; Checkpoint</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; margin-top: 16px;">
+        <button class="btn btn-secondary" onclick="closeRaftModal()">Close</button>
       </div>
     </div>
   </div>
@@ -8622,6 +8857,375 @@
     setInterval(pollGitOpsRepos, 5000);
     pollGitOpsDeployments();
     setInterval(pollGitOpsDeployments, 5000);
+
+    // --- High-Availability Raft Consensus Engine Client Logic ---
+    let cachedRaftStatus = null;
+    let cachedRaftFSM = null;
+
+    function openRaftModal(tab = 'propose') {
+      const modal = document.getElementById('raft-modal');
+      if (modal) modal.classList.add('active');
+      switchRaftModalTab(tab);
+      pollRaftAll();
+    }
+
+    function closeRaftModal() {
+      const modal = document.getElementById('raft-modal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    function switchRaftMainTab(tab) {
+      const peersCont = document.getElementById('raft-peers-container');
+      const fsmCont = document.getElementById('raft-fsm-container');
+      const safetyCont = document.getElementById('raft-safety-container');
+      const btnPeers = document.getElementById('btn-raft-tab-peers');
+      const btnFsm = document.getElementById('btn-raft-tab-fsm');
+      const btnSafety = document.getElementById('btn-raft-tab-safety');
+
+      if (peersCont) peersCont.style.display = tab === 'peers' ? 'block' : 'none';
+      if (fsmCont) fsmCont.style.display = tab === 'fsm' ? 'block' : 'none';
+      if (safetyCont) safetyCont.style.display = tab === 'safety' ? 'block' : 'none';
+
+      if (btnPeers) btnPeers.className = tab === 'peers' ? 'btn-action btn-restart' : 'btn-action';
+      if (btnFsm) btnFsm.className = tab === 'fsm' ? 'btn-action btn-restart' : 'btn-action';
+      if (btnSafety) btnSafety.className = tab === 'safety' ? 'btn-action btn-restart' : 'btn-action';
+
+      if (tab === 'fsm') pollRaftFSM();
+      else if (tab === 'peers') pollRaftStatus();
+    }
+
+    function switchRaftModalTab(tab) {
+      const proposeContent = document.getElementById('raft-mtab-propose-content');
+      const peersContent = document.getElementById('raft-mtab-peers-content');
+      const drillsContent = document.getElementById('raft-mtab-drills-content');
+      const btnPropose = document.getElementById('btn-raft-mtab-propose');
+      const btnPeers = document.getElementById('btn-raft-mtab-peers');
+      const btnDrills = document.getElementById('btn-raft-mtab-drills');
+
+      if (proposeContent) proposeContent.style.display = tab === 'propose' ? 'block' : 'none';
+      if (peersContent) peersContent.style.display = tab === 'peers' ? 'block' : 'none';
+      if (drillsContent) drillsContent.style.display = tab === 'drills' ? 'block' : 'none';
+
+      if (btnPropose) btnPropose.className = tab === 'propose' ? 'btn-action btn-restart' : 'btn-action';
+      if (btnPeers) btnPeers.className = tab === 'peers' ? 'btn-action btn-restart' : 'btn-action';
+      if (btnDrills) btnDrills.className = tab === 'drills' ? 'btn-action btn-restart' : 'btn-action';
+    }
+
+    function onRaftCmdTypeChange() {
+      const select = document.getElementById('raft-cmd-type');
+      const textarea = document.getElementById('raft-cmd-data');
+      if (!select || !textarea) return;
+
+      switch (select.value) {
+        case 'cluster_config':
+          textarea.value = JSON.stringify({ key: 'cluster_mode', value: 'ha_active' }, null, 2);
+          break;
+        case 'add_blacklist':
+          textarea.value = JSON.stringify({ container_id: 'container_name_or_id', reason: 'High OOM restart frequency' }, null, 2);
+          break;
+        case 'remove_blacklist':
+          textarea.value = JSON.stringify({ container_id: 'container_name_or_id' }, null, 2);
+          break;
+        case 'set_healing_policy':
+          textarea.value = JSON.stringify({
+            enabled: true,
+            auto_restart_oom: true,
+            auto_restart_crash_loop: true,
+            auto_remediate_unhealthy: true,
+            max_attempts: 3,
+            base_backoff_sec: 2,
+            max_backoff_sec: 60,
+            jitter_factor: 0.25,
+            cooldown_sec: 300,
+            excluded_containers: []
+          }, null, 2);
+          break;
+      }
+    }
+
+    async function pollRaftStatus() {
+      try {
+        const res = await authFetch('/api/raft/status');
+        if (!res.ok) return;
+        const st = await res.json();
+        cachedRaftStatus = st;
+
+        const badgeText = document.getElementById('raft-badge-text');
+        if (badgeText) {
+          const roleStr = (st.state || 'follower').toUpperCase();
+          badgeText.textContent = `${roleStr} (Term ${st.term})`;
+        }
+
+        const roleEl = document.getElementById('raft-kpi-role');
+        if (roleEl) roleEl.textContent = (st.state || 'FOLLOWER').toUpperCase();
+        const nodeIdEl = document.getElementById('raft-kpi-node-id');
+        if (nodeIdEl) nodeIdEl.textContent = `Node: ${st.node_id}`;
+
+        const termEl = document.getElementById('raft-kpi-term');
+        if (termEl) termEl.textContent = `Term ${st.term}`;
+        const leaderEl = document.getElementById('raft-kpi-leader');
+        if (leaderEl) leaderEl.textContent = `Leader: ${st.leader_id || (st.is_leader ? st.node_id : 'None')}`;
+
+        const commitEl = document.getElementById('raft-kpi-commit');
+        if (commitEl) commitEl.textContent = `${st.commit_index}`;
+        const logLenEl = document.getElementById('raft-kpi-log-len');
+        if (logLenEl) logLenEl.textContent = `Applied: ${st.last_applied} · Entries: ${st.log_entries_count}`;
+
+        const quorumEl = document.getElementById('raft-kpi-quorum');
+        if (quorumEl) quorumEl.textContent = `${st.quorum_size} of ${(st.peer_count || 0) + 1}`;
+        const peersCountEl = document.getElementById('raft-kpi-peers-count');
+        if (peersCountEl) peersCountEl.textContent = `${st.peer_count || 0} remote peer(s)`;
+
+        const appliedTotalEl = document.getElementById('raft-kpi-applied-total');
+        if (appliedTotalEl) appliedTotalEl.textContent = `${st.applied_commands_count || 0}`;
+
+        renderRaftPeersTable(st);
+        renderRaftModalPeers(st);
+      } catch (err) {}
+    }
+
+    function renderRaftPeersTable(st) {
+      const tbody = document.getElementById('raft-peers-table-body');
+      if (!tbody) return;
+
+      let rows = `
+        <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+          <td style="padding: 10px 8px; font-weight: 600; color: #fbbf24;">${st.node_id} (Self)</td>
+          <td style="padding: 10px 8px;"><span class="status-pill status-running" style="font-size: 10px;">${(st.state || 'follower').toUpperCase()}</span></td>
+          <td style="padding: 10px 8px; color: #10b981;">Voting Coordinator (Quorum: ${st.quorum_size})</td>
+          <td style="padding: 10px 8px; color: var(--text-muted); font-size: 11px;">Local Instance</td>
+        </tr>
+      `;
+
+      if (st.peers && st.peers.length > 0) {
+        rows += st.peers.map(p => `
+          <tr style="border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+            <td style="padding: 10px 8px; font-family: monospace; color: #38bdf8;">${p}</td>
+            <td style="padding: 10px 8px;"><span class="status-pill" style="font-size: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8;">Consensus Peer</span></td>
+            <td style="padding: 10px 8px; color: #10b981;">Active Voter</td>
+            <td style="padding: 10px 8px;">
+              <button class="btn btn-secondary" onclick="removeRaftPeer('${p}')" style="padding: 2px 8px; font-size: 10px; color: #ef4444;">Remove</button>
+            </td>
+          </tr>
+        `).join('');
+      } else {
+        rows += `
+          <tr>
+            <td colspan="4" style="text-align: center; color: var(--text-muted); padding: 12px; font-size: 11px;">
+              No remote peer coordinators registered. Operating in standalone high-availability consensus mode.
+            </td>
+          </tr>
+        `;
+      }
+      tbody.innerHTML = rows;
+    }
+
+    function renderRaftModalPeers(st) {
+      const list = document.getElementById('raft-modal-peers-list');
+      if (!list) return;
+
+      if (!st.peers || st.peers.length === 0) {
+        list.innerHTML = '<div style="font-size: 11px; color: var(--text-muted);">No remote peers configured.</div>';
+        return;
+      }
+
+      list.innerHTML = st.peers.map(p => `
+        <div style="display: flex; justify-content: space-between; align-items: center; background: rgba(0, 0, 0, 0.2); padding: 6px 10px; border-radius: 4px; border: 1px solid var(--border-subtle);">
+          <code style="font-size: 11px; color: #38bdf8;">${p}</code>
+          <button class="btn btn-secondary" onclick="removeRaftPeer('${p}')" style="padding: 2px 8px; font-size: 10px; color: #ef4444;">Remove</button>
+        </div>
+      `).join('');
+    }
+
+    async function pollRaftFSM() {
+      try {
+        const res = await authFetch('/api/raft/fsm');
+        if (!res.ok) return;
+        const fsm = await res.json();
+        cachedRaftFSM = fsm;
+
+        const blCountEl = document.getElementById('raft-kpi-blacklist');
+        if (blCountEl) blCountEl.textContent = `${(fsm.blacklist || []).length}`;
+
+        const blCountHeader = document.getElementById('raft-fsm-blacklist-count');
+        if (blCountHeader) blCountHeader.textContent = `${(fsm.blacklist || []).length} container(s)`;
+
+        const blBody = document.getElementById('raft-fsm-blacklist-body');
+        if (blBody) {
+          if (!fsm.blacklist || fsm.blacklist.length === 0) {
+            blBody.innerHTML = '<div style="color: var(--text-muted); padding: 8px;">No quarantined containers in consensus state machine.</div>';
+          } else {
+            blBody.innerHTML = fsm.blacklist.map(b => `
+              <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 4px; padding: 6px 8px; margin-bottom: 6px;">
+                <div style="display: flex; justify-content: space-between; font-weight: 600; color: #f87171;">
+                  <span>${b.container_id}</span>
+                  <button class="btn btn-secondary" onclick="unblacklistRaftContainer('${b.container_id}')" style="padding: 1px 6px; font-size: 9px; color: #34d399;">Lift</button>
+                </div>
+                <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Reason: ${b.reason || 'quarantined'} · By: ${b.added_by || 'consensus'}</div>
+              </div>
+            `).join('');
+          }
+        }
+
+        const polBody = document.getElementById('raft-fsm-policy-body');
+        if (polBody && fsm.healing_policy) {
+          const p = fsm.healing_policy;
+          polBody.innerHTML = `
+            <div><strong>Status:</strong> ${p.enabled ? '<span style="color:#10b981;">Active</span>' : '<span style="color:#ef4444;">Disabled</span>'}</div>
+            <div><strong>Remediations:</strong> OOM=${p.auto_restart_oom}, CrashLoop=${p.auto_restart_crash_loop}, Unhealthy=${p.auto_remediate_unhealthy}</div>
+            <div><strong>Limits:</strong> Max Retries: ${p.max_attempts} · Backoff: ${p.base_backoff_sec}s-${p.max_backoff_sec}s</div>
+            <div><strong>Cooldown:</strong> ${p.cooldown_sec}s · Excluded: ${(p.excluded_containers || []).length} containers</div>
+          `;
+        }
+
+        const nodesBody = document.getElementById('raft-fsm-nodes-body');
+        if (nodesBody) {
+          if (!fsm.node_states || fsm.node_states.length === 0) {
+            nodesBody.innerHTML = '<div style="color: var(--text-muted); padding: 8px;">No remote coordinator states synchronized.</div>';
+          } else {
+            nodesBody.innerHTML = fsm.node_states.map(n => `
+              <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.2); border-radius: 4px; padding: 6px 8px; margin-bottom: 6px;">
+                <div style="font-weight: 600; color: #7dd3fc;">${n.node_id} (${n.role || 'coordinator'})</div>
+                <div style="font-size: 10px; color: var(--text-muted);">${n.address} · v${n.version || '2.6.0'} · ${n.status || 'online'}</div>
+              </div>
+            `).join('');
+          }
+        }
+
+        const cfgBody = document.getElementById('raft-fsm-config-body');
+        if (cfgBody) {
+          const keys = Object.keys(fsm.configs || {});
+          if (keys.length === 0) {
+            cfgBody.innerHTML = '<div style="color: var(--text-muted); padding: 8px;">No custom key-value settings replicated.</div>';
+          } else {
+            cfgBody.innerHTML = keys.map(k => `
+              <div style="display: flex; justify-content: space-between; padding: 4px 6px; background: rgba(255, 255, 255, 0.03); border-radius: 4px; margin-bottom: 4px;">
+                <code style="color: #c4b5fd;">${k}</code>
+                <span style="color: var(--text-main);">${fsm.configs[k]}</span>
+              </div>
+            `).join('');
+          }
+        }
+      } catch (err) {}
+    }
+
+    async function pollRaftAll() {
+      await pollRaftStatus();
+      await pollRaftFSM();
+    }
+
+    async function submitRaftPropose() {
+      const type = document.getElementById('raft-cmd-type').value;
+      const dataStr = document.getElementById('raft-cmd-data').value.trim();
+
+      let parsedData;
+      try {
+        parsedData = JSON.parse(dataStr);
+      } catch (e) {
+        showToast('Invalid JSON in command payload');
+        return;
+      }
+
+      try {
+        const res = await authFetch('/api/raft/propose', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ type, data: parsedData })
+        });
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text);
+        }
+        const data = await res.json();
+        showToast(`✓ Raft command committed: ${data.message || 'success'}`);
+        closeRaftModal();
+        pollRaftAll();
+      } catch (err) {
+        showToast(`Proposal failed: ${err.message}`);
+      }
+    }
+
+    async function addRaftPeer() {
+      const addrInput = document.getElementById('raft-new-peer-addr');
+      const peer = addrInput.value.trim();
+      if (!peer) {
+        showToast('Please enter peer address');
+        return;
+      }
+
+      try {
+        const res = await authFetch('/api/raft/peers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ peer })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ Added peer ${peer}`);
+        addrInput.value = '';
+        pollRaftStatus();
+      } catch (err) {
+        showToast(`Failed to add peer: ${err.message}`);
+      }
+    }
+
+    async function removeRaftPeer(peer) {
+      if (!confirm(`Remove peer ${peer} from Raft cluster?`)) return;
+      try {
+        const res = await authFetch(`/api/raft/peers?peer=${encodeURIComponent(peer)}`, {
+          method: 'DELETE'
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ Removed peer ${peer}`);
+        pollRaftStatus();
+      } catch (err) {
+        showToast(`Failed to remove peer: ${err.message}`);
+      }
+    }
+
+    async function triggerRaftStepDown() {
+      if (!confirm('Execute failover drill? Local leader will step down to follower.')) return;
+      try {
+        const res = await authFetch('/api/raft/stepdown', { method: 'POST' });
+        if (!res.ok) throw new Error(await res.text());
+        showToast('✓ Local coordinator stepped down to follower');
+        pollRaftStatus();
+      } catch (err) {
+        showToast(`Step down failed: ${err.message}`);
+      }
+    }
+
+    async function triggerRaftSnapshot() {
+      try {
+        const res = await authFetch('/api/raft/snapshot', { method: 'POST' });
+        if (!res.ok) throw new Error(await res.text());
+        showToast('✓ Raft log compacted & checkpoint snapshot created');
+        pollRaftStatus();
+      } catch (err) {
+        showToast(`Snapshot failed: ${err.message}`);
+      }
+    }
+
+    async function unblacklistRaftContainer(containerID) {
+      try {
+        const res = await authFetch('/api/raft/propose', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'remove_blacklist',
+            data: { container_id: containerID }
+          })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ Container ${containerID} unquarantined`);
+        pollRaftFSM();
+      } catch (err) {
+        showToast(`Failed to un-quarantine: ${err.message}`);
+      }
+    }
+
+    pollRaftAll();
+    setInterval(pollRaftStatus, 2500);
+    setInterval(pollRaftFSM, 5000);
   </script>
 </body>
 </html>

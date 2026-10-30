@@ -10,7 +10,7 @@
 
 **Ultra-lightweight single-binary container & system metrics monitor with embedded real-time dark-mode web dashboard.**
 
-[![Release](https://img.shields.io/badge/Release-v2.5.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
+[![Release](https://img.shields.io/badge/Release-v2.6.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg?style=flat&logo=go)](https://golang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6%2B-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
@@ -27,6 +27,7 @@
 
 - **Single Executable Deployment**: The web dashboard is baked directly into the Go binary via `//go:embed`. No Node.js runtime, external assets, or separate frontend servers needed.
 - **Ultra-Low Memory Footprint**: Runs persistently under **15 MB of RAM** with bounded circular ring buffers, making it ideal for low-spec VPS, Raspberry Pi, and homelab environments.
+- **High-Availability Raft Cluster Consensus Engine**: Embedded pure standard-library Raft consensus algorithm implementation with zero external dependencies. Features randomized election timeout jitter, automated leader election with periodic heartbeats, strict majority quorum validation (`(N/2) + 1`) providing split-brain immunity across network partitions, monotonic 1-based log indexing with conflict suffix truncation, replicated state machine (`StateMachine`) synchronizing autonomous self-healing policies, container quarantine blacklists, cluster node states, and cluster key-values, on-demand checkpoint log compaction, and glassmorphism consensus topology and state machine views in the web console.
 - **GitOps Continuous Sync & Webhook Auto-Deployer**: Automated Git repository tracking and branch polling over HTTP/HTTPS with smart refs parsing. Features cryptographic commit signature verification supporting GPG and SSH signatures with configurable enforcement levels (`disabled`, `warn`, `strict`), constant-time HMAC-SHA256 and GitLab token webhook authenticators defending against timing attacks, zero-downtime container image pull and rollout executor, automated rollback triggers backed by post-deployment HTTP health check gating, Prometheus GitOps metrics, and interactive glassmorphism repository and rollout managers in the web console.
 - **eBPF Micro-Firewall & Container Network Isolator**: Priority-ordered packet filtering pipeline supporting CIDR matching, port lists, transport protocols (TCP, UDP, ICMP), and actions (ALLOW, DROP, REJECT, LOG). Features zero-trust container network boundary isolation with quarantine state machines, granular peer whitelisting, real-time bandwidth throughput inspector (BPS/PPS deltas), automated volumetric DDoS flood mitigation with container auto-quarantine, nanosecond synthetic packet simulation, and dedicated Prometheus firewall metrics.
 - **Distributed Rate-Limiting & Global Quota Orchestrator**: Thread-safe token bucket and sliding-window rate limiters with fractional refill intervals, burst capacities, and bandwidth throttling controls. Features automated abuse mitigation and IP ban propagation (`IPBanTracker`) with configurable violation thresholds and local loopback immunity, cross-node HMAC-SHA256 authenticated peer sync protocol with 60-second replay attack defense, Prometheus rate-limiting exporter gauges, and interactive dark-mode dashboard management tables.
@@ -237,6 +238,14 @@ go build -ldflags="-s -w" -o dock-radar .
 | `/api/gitops/deployments` | `GET` | `viewer` | Queries recent automated and manual rollout execution history and logs |
 | `/api/gitops/webhook` | `POST` | `none` | Ingests incoming GitHub (`X-Hub-Signature-256`) and GitLab push webhooks |
 | `/api/gitops/config` | `GET` / `POST` | `viewer` / `admin` | Fetches or updates global GitOps configuration and signature policies |
+| `/api/raft/status` | `GET` | `viewer` | Cluster consensus status, term, node role, leader ID, commit index, and quorum |
+| `/api/raft/fsm` | `GET` | `viewer` | Synchronized state machine data (healing policy, blacklist, node directory, configs) |
+| `/api/raft/propose` | `POST` | `admin` | Submits state mutations to cluster leader for log replication and quorum commit |
+| `/api/raft/peers` | `GET` / `POST` / `DELETE` | `viewer` / `admin` | Lists, registers, or removes remote Raft cluster peer coordinators |
+| `/api/raft/stepdown` | `POST` | `admin` | Forces leader to step down to follower for automated failover drills |
+| `/api/raft/snapshot` | `POST` | `admin` | Triggers on-demand state machine snapshot and log compaction |
+| `/api/raft/rpc/vote` | `POST` | `none` | Internal Raft RPC handling candidate vote solicitations |
+| `/api/raft/rpc/append` | `POST` | `none` | Internal Raft RPC handling log replication and heartbeats |
 | `/api/scanner/status` | `GET` | `viewer` | Overall vulnerability scanner engine status, scan counts, and gating metrics |
 | `/api/scanner/reports` | `GET` | `viewer` | Recent container image vulnerability scan reports (`?container=&image=&limit=50`) |
 | `/api/scanner/report` | `GET` | `viewer` | Detailed vulnerability report for a specific container or image (`?id=&image=`) |
