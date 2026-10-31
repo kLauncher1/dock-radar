@@ -28,6 +28,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/security"
 	"github.com/kLauncher1/dock-radar/internal/storage"
 	"github.com/kLauncher1/dock-radar/internal/system"
+	"github.com/kLauncher1/dock-radar/internal/wireguard"
 )
 
 // ActionRequest parses input parameters for container control endpoints.
@@ -69,6 +70,7 @@ type HandlerConfig struct {
 	FirewallEngine   *firewall.Engine
 	GitOpsEngine     *gitops.Engine
 	RaftEngine       *raft.Engine
+	WireGuardEngine  *wireguard.Engine
 	AppVersion       string
 	TokenAuth        *security.TokenAuth
 	AllowRemote      bool
@@ -113,6 +115,7 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	firewallEngine := firewall.NewEngine(firewall.DefaultFirewallConfig(), dockerClient, alertDispatcher, auditLogger)
 	gitopsEngine := gitops.NewEngine(gitops.DefaultGitOpsConfig(), dockerClient, alertDispatcher, auditLogger)
 	raftEngine, _ := raft.NewEngine(raft.DefaultRaftConfig(), raft.NewStateMachine(), nil, auditLogger, alertDispatcher)
+	wireguardEngine, _ := wireguard.NewEngine(wireguard.DefaultWireGuardConfig(), auditLogger, alertDispatcher)
 
 	cfg := &HandlerConfig{
 		DockerClient:     dockerClient,
@@ -131,7 +134,8 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 		FirewallEngine:   firewallEngine,
 		GitOpsEngine:     gitopsEngine,
 		RaftEngine:       raftEngine,
-		AppVersion:       "2.6.0",
+		WireGuardEngine:  wireguardEngine,
+		AppVersion:       "2.7.0",
 		TokenAuth:        tokenAuth,
 		AllowRemote:      allowRemote,
 	}
@@ -272,6 +276,16 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	mux.HandleFunc("/api/raft/snapshot", cfg.handleRaftSnapshot)
 	mux.HandleFunc("/api/raft/rpc/vote", cfg.handleRaftRPCVote)
 	mux.HandleFunc("/api/raft/rpc/append", cfg.handleRaftRPCAppend)
+
+	// Zero-Trust WireGuard Mesh Tunneling & Peer Gateway
+	mux.HandleFunc("/api/wireguard/status", cfg.handleWireGuardStatus)
+	mux.HandleFunc("/api/wireguard/peers", cfg.handleWireGuardPeers)
+	mux.HandleFunc("/api/wireguard/handshake", cfg.handleWireGuardHandshake)
+	mux.HandleFunc("/api/wireguard/leases", cfg.handleWireGuardLeases)
+	mux.HandleFunc("/api/wireguard/leases/reclaim", cfg.handleWireGuardReclaimLeases)
+	mux.HandleFunc("/api/wireguard/routes", cfg.handleWireGuardRoutes)
+	mux.HandleFunc("/api/wireguard/keygen", cfg.handleWireGuardKeygen)
+	mux.HandleFunc("/api/wireguard/config", cfg.handleWireGuardConfig)
 
 	// Embedded Static UI
 	if staticFS != nil {

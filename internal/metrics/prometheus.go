@@ -21,6 +21,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/scanner"
 	"github.com/kLauncher1/dock-radar/internal/storage"
 	"github.com/kLauncher1/dock-radar/internal/system"
+	"github.com/kLauncher1/dock-radar/internal/wireguard"
 )
 
 // FormatMetrics serializes system, docker, engine, alert, and audit telemetry into standard Prometheus text format.
@@ -101,7 +102,7 @@ func FormatMetricsFull(
 	return FormatMetricsAll(
 		sys, dock, ringBuffer, alertDispatcher, auditLogger,
 		meshSummary, meshNodes, healingStats, anomalySummary, anomalyPreds,
-		discStatus, gossipSummary, gossipMembers, nil, nil, nil, nil, nil, nil, nil, nil, nil, appVersion,
+		discStatus, gossipSummary, gossipMembers, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, appVersion,
 	)
 }
 
@@ -129,6 +130,7 @@ func FormatMetricsAll(
 	firewallStatus *firewall.FirewallStatus,
 	gitopsStatus *gitops.GitOpsStatus,
 	raftStatus *raft.RaftStatus,
+	wgStatus *wireguard.WireGuardStatus,
 	appVersion string,
 ) string {
 	var b strings.Builder
@@ -480,6 +482,9 @@ func FormatMetricsAll(
 
 	// 21. High-Availability Raft Cluster Consensus Telemetry
 	AppendRaftMetrics(&b, raftStatus)
+
+	// 22. Zero-Trust WireGuard Mesh Tunneling & Peer Gateway Telemetry
+	AppendWireGuardMetrics(&b, wgStatus)
 
 	return b.String()
 }

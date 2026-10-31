@@ -10,7 +10,7 @@
 
 **Ultra-lightweight single-binary container & system metrics monitor with embedded real-time dark-mode web dashboard.**
 
-[![Release](https://img.shields.io/badge/Release-v2.6.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
+[![Release](https://img.shields.io/badge/Release-v2.7.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg?style=flat&logo=go)](https://golang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6%2B-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
@@ -27,6 +27,7 @@
 
 - **Single Executable Deployment**: The web dashboard is baked directly into the Go binary via `//go:embed`. No Node.js runtime, external assets, or separate frontend servers needed.
 - **Ultra-Low Memory Footprint**: Runs persistently under **15 MB of RAM** with bounded circular ring buffers, making it ideal for low-spec VPS, Raspberry Pi, and homelab environments.
+- **Zero-Trust WireGuard Mesh Tunneling & Peer Gateway**: Pure standard-library userspace WireGuard overlay protocol engine with RFC 7748 Curve25519 (X25519) Diffie-Hellman key exchange (`crypto/ecdh`) and symmetric AEAD encryption. Features dynamic overlay IP address leasing (`IPPool`) managing virtual CIDR subnets with collision detection and lease expiration reclamation, zero-trust cryptokey routing table (`Router`) validating packet source IPs against peer AllowedIPs prefixes and performing dynamic NAT hole punching with endpoint roaming, 64-packet bitmap anti-replay window protection, and embedded glassmorphism peer management, dynamic lease pool, and keypair provisioning in the web console.
 - **High-Availability Raft Cluster Consensus Engine**: Embedded pure standard-library Raft consensus algorithm implementation with zero external dependencies. Features randomized election timeout jitter, automated leader election with periodic heartbeats, strict majority quorum validation (`(N/2) + 1`) providing split-brain immunity across network partitions, monotonic 1-based log indexing with conflict suffix truncation, replicated state machine (`StateMachine`) synchronizing autonomous self-healing policies, container quarantine blacklists, cluster node states, and cluster key-values, on-demand checkpoint log compaction, and glassmorphism consensus topology and state machine views in the web console.
 - **GitOps Continuous Sync & Webhook Auto-Deployer**: Automated Git repository tracking and branch polling over HTTP/HTTPS with smart refs parsing. Features cryptographic commit signature verification supporting GPG and SSH signatures with configurable enforcement levels (`disabled`, `warn`, `strict`), constant-time HMAC-SHA256 and GitLab token webhook authenticators defending against timing attacks, zero-downtime container image pull and rollout executor, automated rollback triggers backed by post-deployment HTTP health check gating, Prometheus GitOps metrics, and interactive glassmorphism repository and rollout managers in the web console.
 - **eBPF Micro-Firewall & Container Network Isolator**: Priority-ordered packet filtering pipeline supporting CIDR matching, port lists, transport protocols (TCP, UDP, ICMP), and actions (ALLOW, DROP, REJECT, LOG). Features zero-trust container network boundary isolation with quarantine state machines, granular peer whitelisting, real-time bandwidth throughput inspector (BPS/PPS deltas), automated volumetric DDoS flood mitigation with container auto-quarantine, nanosecond synthetic packet simulation, and dedicated Prometheus firewall metrics.
@@ -182,11 +183,16 @@ go build -ldflags="-s -w" -o dock-radar .
 │   • eBPF Packet Filter   │      • /api/gitops/*        │
 │   • Zero-Trust Isolator  │                             │
 │   • DDoS Rate Throttler  │                             │
-├──────────────────────────┤                             │
-│   internal/gitops        │                             │
+├──────────────────────────┤      • /api/raft/*          │
+│   internal/gitops        │      • /api/wireguard/*     │
 │   • Repo Branch Tracking │                             │
 │   • GPG/SSH Verification │                             │
 │   • Webhook Auto-Rollout │                             │
+├──────────────────────────┤                             │
+│   internal/wireguard     │                             │
+│   • Userspace WireGuard  │                             │
+│   • Curve25519 ECDH Keys │                             │
+│   • Dynamic IP Pool/NAT  │                             │
 ├──────────────────────────┴─────────────────────────────┤
 │                 Embedded Web Dashboard                 │
 │         (React 19 + TypeScript / Vite Bundled)         │
@@ -246,6 +252,14 @@ go build -ldflags="-s -w" -o dock-radar .
 | `/api/raft/snapshot` | `POST` | `admin` | Triggers on-demand state machine snapshot and log compaction |
 | `/api/raft/rpc/vote` | `POST` | `none` | Internal Raft RPC handling candidate vote solicitations |
 | `/api/raft/rpc/append` | `POST` | `none` | Internal Raft RPC handling log replication and heartbeats |
+| `/api/wireguard/status` | `GET` | `viewer` | WireGuard tunnel gateway state, virtual IP, active peers, and traffic metrics |
+| `/api/wireguard/peers` | `GET` / `POST` / `DELETE` | `viewer` / `admin` | Lists, provisions, or removes mesh overlay peers and reclaims IP leases |
+| `/api/wireguard/handshake` | `POST` | `admin` | Initiates manual cryptographic re-keying handshake with a peer |
+| `/api/wireguard/leases` | `GET` | `viewer` | Queries dynamic overlay IP address leases and allocation timestamps |
+| `/api/wireguard/leases/reclaim` | `POST` | `admin` | Reclaims expired dynamic IP leases back into the overlay subnet pool |
+| `/api/wireguard/routes` | `GET` | `viewer` | Queries userspace cryptokey routing table and endpoint roaming entries |
+| `/api/wireguard/keygen` | `POST` | `admin` | Generates fresh X25519 Curve25519 keypair and symmetric preshared key |
+| `/api/wireguard/config` | `GET` | `viewer` | Retrieves gateway interface settings with masked private key |
 | `/api/scanner/status` | `GET` | `viewer` | Overall vulnerability scanner engine status, scan counts, and gating metrics |
 | `/api/scanner/reports` | `GET` | `viewer` | Recent container image vulnerability scan reports (`?container=&image=&limit=50`) |
 | `/api/scanner/report` | `GET` | `viewer` | Detailed vulnerability report for a specific container or image (`?id=&image=`) |

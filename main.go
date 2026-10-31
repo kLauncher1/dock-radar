@@ -24,12 +24,13 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/scanner"
 	"github.com/kLauncher1/dock-radar/internal/security"
 	"github.com/kLauncher1/dock-radar/internal/storage"
+	"github.com/kLauncher1/dock-radar/internal/wireguard"
 )
 
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "2.6.0"
+const AppVersion = "2.7.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -83,6 +84,10 @@ func main() {
 	raftHeartbeatFlag := flag.Duration("raft-heartbeat", 200*time.Millisecond, "Raft leader heartbeat interval (env: DOCK_RADAR_RAFT_HEARTBEAT)")
 	raftElectionTimeoutFlag := flag.Duration("raft-election-timeout", 1000*time.Millisecond, "Raft election timeout base (env: DOCK_RADAR_RAFT_ELECTION_TIMEOUT)")
 	raftDataDirFlag := flag.String("raft-data-dir", filepath.Join("data", "raft"), "Local Raft state directory (env: DOCK_RADAR_RAFT_DATA_DIR)")
+	wireguardFlag := flag.Bool("wireguard", true, "Enable Zero-Trust WireGuard mesh tunneling & peer gateway (env: DOCK_RADAR_WIREGUARD_ENABLED)")
+	wireguardPortFlag := flag.Int("wireguard-port", 51820, "UDP port for WireGuard tunnel listening (env: DOCK_RADAR_WIREGUARD_PORT)")
+	wireguardCidrFlag := flag.String("wireguard-cidr", "10.42.0.0/24", "Virtual overlay CIDR subnet (env: DOCK_RADAR_WIREGUARD_CIDR)")
+	wireguardKeepaliveFlag := flag.Int("wireguard-keepalive", 25, "Persistent keepalive interval in seconds (env: DOCK_RADAR_WIREGUARD_KEEPALIVE)")
 	versionFlag := flag.Bool("version", false, "Print dock-radar version and exit")
 	flag.Parse()
 
@@ -546,6 +551,44 @@ func main() {
 		}
 	}
 
+	// Launch Zero-Trust WireGuard Mesh Tunneling & Peer Gateway
+	wgEnabled := *wireguardFlag
+	if envWG := os.Getenv("DOCK_RADAR_WIREGUARD_ENABLED"); envWG != "" {
+		wgEnabled = strings.EqualFold(envWG, "true") || envWG == "1"
+	}
+	wgPort := *wireguardPortFlag
+	if envPort := os.Getenv("DOCK_RADAR_WIREGUARD_PORT"); envPort != "" {
+		if p, err := strconv.Atoi(envPort); err == nil && p > 0 {
+			wgPort = p
+		}
+	}
+	wgCIDR := *wireguardCidrFlag
+	if envCIDR := os.Getenv("DOCK_RADAR_WIREGUARD_CIDR"); envCIDR != "" {
+		wgCIDR = envCIDR
+	}
+	wgKeepalive := *wireguardKeepaliveFlag
+	if envKA := os.Getenv("DOCK_RADAR_WIREGUARD_KEEPALIVE"); envKA != "" {
+		if k, err := strconv.Atoi(envKA); err == nil && k > 0 {
+			wgKeepalive = k
+		}
+	}
+
+	if handlerCfg != nil {
+		wgCfg := wireguard.DefaultWireGuardConfig()
+		wgCfg.Enabled = wgEnabled
+		wgCfg.ListenPort = wgPort
+		wgCfg.VirtualCIDR = wgCIDR
+		wgCfg.KeepaliveInterval = wgKeepalive
+		if rebuiltWG, err := wireguard.NewEngine(wgCfg, handlerCfg.AuditLogger, handlerCfg.AlertDispatcher); err == nil {
+			handlerCfg.WireGuardEngine = rebuiltWG
+		}
+		if wgEnabled && handlerCfg.WireGuardEngine != nil {
+			wgCtx, wgCancel := context.WithCancel(context.Background())
+			defer wgCancel()
+			_ = handlerCfg.WireGuardEngine.Start(wgCtx)
+		}
+	}
+
 	scheme := "http"
 	tlsStatus := "Inactive (Plain HTTP)"
 
@@ -730,6 +773,14 @@ func main() {
 		raftStatusDesc = fmt.Sprintf("Active (Role: %s · Term: %d · Quorum: %d/%d)", strings.ToUpper(st.State), st.Term, st.QuorumSize, st.PeerCount+1)
 	}
 
+	wireguardStatusDesc := "Disabled"
+	if handlerCfg != nil && handlerCfg.WireGuardEngine != nil {
+		st := handlerCfg.WireGuardEngine.Status()
+		if st.Enabled {
+			wireguardStatusDesc = fmt.Sprintf("Active (Interface: %s · %s · Port: %d · %d active peers)", st.InterfaceName, st.VirtualCIDR, st.ListenPort, st.ActivePeers)
+		}
+	}
+
 	fmt.Println("=========================================================")
 	fmt.Printf(" 🚀 Dock-Radar v%s · Single-Binary Container & System Monitor\n", AppVersion)
 	fmt.Printf(" 📡 Web Dashboard Live at %s://localhost:%s\n", scheme, port)
@@ -750,6 +801,7 @@ func main() {
 	fmt.Printf(" 🧱 Micro-Firewall     : %s\n", firewallStatusDesc)
 	fmt.Printf(" 🚀 GitOps Deployer    : %s\n", gitopsStatusDesc)
 	fmt.Printf(" 🗳️ Raft Consensus     : %s\n", raftStatusDesc)
+	fmt.Printf(" 🛡️ WireGuard Mesh     : %s\n", wireguardStatusDesc)
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")
 	fmt.Println("=========================================================")
 

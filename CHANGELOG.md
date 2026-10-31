@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-10-31
+
+### Added
+- Zero-Trust WireGuard Mesh Tunneling & Peer Gateway (`internal/wireguard/`):
+  - Pure standard-library userspace WireGuard overlay protocol engine with RFC 7748 Curve25519 (X25519) Diffie-Hellman key exchange (`crypto/ecdh`) and symmetric AEAD encryption (`internal/wireguard/crypto.go`, `internal/wireguard/crypto_test.go`).
+  - Dynamic overlay IP address leasing (`IPPool`) managing virtual CIDR subnets with collision detection, address reclamation, and DHCP-like address pool allocation (`internal/wireguard/ippool.go`, `internal/wireguard/ippool_test.go`).
+  - Zero-trust cryptokey routing table (`Router`) validating packet source IPs against peer AllowedIPs prefixes and performing dynamic NAT hole punching with endpoint roaming (`internal/wireguard/router.go`, `internal/wireguard/router_test.go`).
+  - Central `Engine` orchestrating peer provisioning, cryptographic handshake initiation/response, 64-packet bitmap anti-replay window protection, packet routing, and background lease reclamation (`internal/wireguard/engine.go`, `internal/wireguard/engine_test.go`).
+  - Core domain data models, configuration validator, and key masking (`internal/wireguard/types.go`, `internal/wireguard/types_test.go`).
+- WireGuard REST APIs (`internal/api/wireguard.go`, `internal/api/wireguard_test.go`):
+  - `GET /api/wireguard/status`: Queries WireGuard tunnel status, virtual IP, active peers, and telemetry (requires `RoleViewer`).
+  - `GET /api/wireguard/peers`: Lists registered mesh peers with public keys, endpoints, and traffic metrics (requires `RoleViewer`).
+  - `POST /api/wireguard/peers`: Provisions a new mesh peer or updates existing peer configuration (requires `RoleAdmin`).
+  - `DELETE /api/wireguard/peers`: Removes a mesh peer and frees its IP lease (requires `RoleAdmin`).
+  - `POST /api/wireguard/handshake`: Manually initiates cryptographic re-keying handshake with a peer (requires `RoleAdmin`).
+  - `GET /api/wireguard/leases`: Lists dynamic overlay IP leases (requires `RoleViewer`).
+  - `POST /api/wireguard/leases/reclaim`: Reclaims expired dynamic IP leases (requires `RoleAdmin`).
+  - `GET /api/wireguard/routes`: Queries userspace routing table entries (requires `RoleViewer`).
+  - `POST /api/wireguard/keygen`: Generates fresh X25519 keypair and symmetric preshared key (requires `RoleAdmin`).
+  - `GET /api/wireguard/config`: Retrieves gateway configuration with masked private key (requires `RoleViewer`).
+- Prometheus Metrics Exporter Extension (`internal/metrics/wireguard.go`, `internal/metrics/prometheus.go`):
+  - Exposes `dock_radar_wireguard_enabled`, `dock_radar_wireguard_listen_port`, `dock_radar_wireguard_peers_count`, `dock_radar_wireguard_peers_connected`, `dock_radar_wireguard_rx_bytes_total`, `dock_radar_wireguard_tx_bytes_total`, `dock_radar_wireguard_active_leases`, and `dock_radar_wireguard_routing_rules_count`.
+- Embedded Glassmorphism Web Console (`web/dist/index.html`):
+  - Header WireGuard status badge (`#wireguard-badge`) displaying connected peer count with direct modal launch.
+  - Zero-Trust WireGuard Mesh Tunneling dashboard section with 6 live KPI cards (Tunnel Gateway, Virtual Subnet & IP, Mesh Peers, Dynamic IP Leases, Encrypted RX, Encrypted TX).
+  - Interactive tabs for Mesh Peers, Dynamic Overlay IP Pool, and Zero-Trust Routing & NAT Topology.
+  - Interactive WireGuard Modal (`#wireguard-modal`) featuring Provision Mesh Peer form, X25519 Keypair Generator, and Tunnel Diagnostics.
+- Command-Line Flags & Environment Variables (`main.go`):
+  - Added `--wireguard`, `--wireguard-port`, `--wireguard-cidr`, and `--wireguard-keepalive` flags with environment variable bindings (`DOCK_RADAR_WIREGUARD_ENABLED`, `DOCK_RADAR_WIREGUARD_PORT`, `DOCK_RADAR_WIREGUARD_CIDR`, `DOCK_RADAR_WIREGUARD_KEEPALIVE`).
+
 ## [2.6.0] - 2026-10-30
 
 ### Added

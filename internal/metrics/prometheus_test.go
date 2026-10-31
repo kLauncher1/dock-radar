@@ -22,6 +22,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/scanner"
 	"github.com/kLauncher1/dock-radar/internal/storage"
 	"github.com/kLauncher1/dock-radar/internal/system"
+	"github.com/kLauncher1/dock-radar/internal/wireguard"
 )
 
 func TestFormatMetrics_FullPayload(t *testing.T) {
@@ -441,7 +442,7 @@ func TestFormatMetrics_RollingRestarts(t *testing.T) {
 		TotalRollbacks:           1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, rollingStats, nil, nil, nil, nil, nil, nil, nil, nil, "1.8.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, rollingStats, nil, nil, nil, nil, nil, nil, nil, nil, nil, "1.8.0")
 
 	expectedMetrics := []string{
 		"dock_radar_rolling_operations_total 5",
@@ -471,7 +472,7 @@ func TestFormatMetrics_Storage(t *testing.T) {
 		S3Enabled:       true,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, storageStatus, nil, nil, nil, nil, nil, nil, nil, "1.9.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, storageStatus, nil, nil, nil, nil, nil, nil, nil, nil, "1.9.0")
 
 	expectedMetrics := []string{
 		"dock_radar_log_storage_chunks_total 20",
@@ -505,7 +506,7 @@ func TestFormatMetrics_EBPF(t *testing.T) {
 		CPUOverheadPercent:  0.04,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, ebpfStatus, nil, nil, nil, nil, nil, nil, "2.0.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, ebpfStatus, nil, nil, nil, nil, nil, nil, nil, "2.0.0")
 
 	expectedMetrics := []string{
 		"dock_radar_ebpf_flows_active 15",
@@ -540,7 +541,7 @@ func TestFormatMetrics_Federation(t *testing.T) {
 		FailoverCount:   1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fedStatus, nil, nil, nil, nil, nil, "2.1.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fedStatus, nil, nil, nil, nil, nil, nil, "2.1.0")
 
 	expectedMetrics := []string{
 		"dock_radar_federation_regions_total 3",
@@ -577,7 +578,7 @@ func TestFormatMetrics_Scanner(t *testing.T) {
 		GatingBlockedCount:   1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, scannerStatus, nil, nil, nil, nil, "2.2.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, scannerStatus, nil, nil, nil, nil, nil, "2.2.0")
 
 	expectedMetrics := []string{
 		"dock_radar_scanner_enabled 1",
@@ -611,7 +612,7 @@ func TestFormatMetrics_RateLimit(t *testing.T) {
 		SyncedPeersCount:        4,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, limiterStatus, nil, nil, nil, "2.3.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, limiterStatus, nil, nil, nil, nil, "2.3.0")
 
 	expectedMetrics := []string{
 		"dock_radar_ratelimit_enabled 1",
@@ -651,7 +652,7 @@ func TestFormatMetrics_Firewall(t *testing.T) {
 		ActiveDDoSAlerts:      1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, firewallStatus, nil, nil, "2.4.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, firewallStatus, nil, nil, nil, "2.4.0")
 
 	expectedMetrics := []string{
 		"dock_radar_firewall_enabled 1",
@@ -691,7 +692,7 @@ func TestFormatMetrics_GitOps(t *testing.T) {
 		LastSyncTime:           time.Unix(1710000000, 0),
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, gitopsStatus, nil, "2.5.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, gitopsStatus, nil, nil, "2.5.0")
 
 	expectedMetrics := []string{
 		"dock_radar_gitops_enabled 1",
@@ -733,7 +734,7 @@ func TestFormatMetrics_Raft(t *testing.T) {
 		UptimeSeconds:        120,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, raftStatus, "2.6.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, raftStatus, nil, "2.6.0")
 
 	expectedMetrics := []string{
 		`dock_radar_raft_is_leader{node_id="raft-node-1"} 1`,
@@ -745,6 +746,42 @@ func TestFormatMetrics_Raft(t *testing.T) {
 		`dock_radar_raft_quorum_size{node_id="raft-node-1"} 2`,
 		`dock_radar_raft_fsm_applied_total{node_id="raft-node-1"} 5`,
 		`dock_radar_raft_state{node_id="raft-node-1",state="leader"} 1`,
+	}
+
+	for _, m := range expectedMetrics {
+		if !strings.Contains(output, m) {
+			t.Errorf("expected output to contain %q, but was missing:\n%s", m, output)
+		}
+	}
+}
+
+func TestFormatMetrics_WireGuard(t *testing.T) {
+	sys := system.Metrics{OS: "linux", Arch: "amd64", Hostname: "node-wireguard"}
+	dock := docker.DaemonStatus{Available: true}
+
+	wgStatus := &wireguard.WireGuardStatus{
+		Enabled:           true,
+		InterfaceName:     "wg-radar0",
+		ListenPort:        51820,
+		ActivePeers:       4,
+		TotalPeers:        6,
+		TotalRxBytes:      5242880,
+		TotalTxBytes:      10485760,
+		ActiveLeases:      4,
+		RoutingRulesCount: 8,
+	}
+
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, wgStatus, "2.7.0")
+
+	expectedMetrics := []string{
+		`dock_radar_wireguard_enabled{interface="wg-radar0"} 1`,
+		`dock_radar_wireguard_listen_port{interface="wg-radar0"} 51820`,
+		`dock_radar_wireguard_peers_count{interface="wg-radar0"} 6`,
+		`dock_radar_wireguard_peers_connected{interface="wg-radar0"} 4`,
+		`dock_radar_wireguard_rx_bytes_total{interface="wg-radar0"} 5242880`,
+		`dock_radar_wireguard_tx_bytes_total{interface="wg-radar0"} 10485760`,
+		`dock_radar_wireguard_active_leases{interface="wg-radar0"} 4`,
+		`dock_radar_wireguard_routing_rules_count{interface="wg-radar0"} 8`,
 	}
 
 	for _, m := range expectedMetrics {
