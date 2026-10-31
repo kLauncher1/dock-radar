@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/kLauncher1/dock-radar/internal/api"
+	"github.com/kLauncher1/dock-radar/internal/canary"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/ebpf"
 	"github.com/kLauncher1/dock-radar/internal/federation"
@@ -30,7 +31,7 @@ import (
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "2.7.0"
+const AppVersion = "2.8.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -88,6 +89,10 @@ func main() {
 	wireguardPortFlag := flag.Int("wireguard-port", 51820, "UDP port for WireGuard tunnel listening (env: DOCK_RADAR_WIREGUARD_PORT)")
 	wireguardCidrFlag := flag.String("wireguard-cidr", "10.42.0.0/24", "Virtual overlay CIDR subnet (env: DOCK_RADAR_WIREGUARD_CIDR)")
 	wireguardKeepaliveFlag := flag.Int("wireguard-keepalive", 25, "Persistent keepalive interval in seconds (env: DOCK_RADAR_WIREGUARD_KEEPALIVE)")
+	canaryFlag := flag.Bool("canary", true, "Enable Autonomous Canary Deployment & Traffic Mirroring (env: DOCK_RADAR_CANARY_ENABLED)")
+	canaryEvalIntervalFlag := flag.Duration("canary-eval-interval", 5*time.Second, "Canary divergence evaluation interval (env: DOCK_RADAR_CANARY_EVAL_INTERVAL)")
+	canaryAutoRollbackFlag := flag.Bool("canary-auto-rollback", true, "Enable automated rollback on divergence (env: DOCK_RADAR_CANARY_AUTO_ROLLBACK)")
+	canaryShadowMirrorFlag := flag.Bool("canary-shadow-mirror", true, "Enable shadow traffic mirroring by default (env: DOCK_RADAR_CANARY_SHADOW_MIRROR)")
 	versionFlag := flag.Bool("version", false, "Print dock-radar version and exit")
 	flag.Parse()
 
@@ -587,6 +592,39 @@ func main() {
 			defer wgCancel()
 			_ = handlerCfg.WireGuardEngine.Start(wgCtx)
 		}
+
+		// Launch Autonomous Canary Deployment & Traffic Mirroring Engine
+		canaryEnabled := *canaryFlag
+		if envCanary := os.Getenv("DOCK_RADAR_CANARY_ENABLED"); envCanary != "" {
+			canaryEnabled = strings.EqualFold(envCanary, "true") || envCanary == "1"
+		}
+		canaryEvalInterval := *canaryEvalIntervalFlag
+		if envInterval := os.Getenv("DOCK_RADAR_CANARY_EVAL_INTERVAL"); envInterval != "" {
+			if d, err := time.ParseDuration(envInterval); err == nil && d > 0 {
+				canaryEvalInterval = d
+			}
+		}
+		canaryAutoRollback := *canaryAutoRollbackFlag
+		if envAutoRollback := os.Getenv("DOCK_RADAR_CANARY_AUTO_ROLLBACK"); envAutoRollback != "" {
+			canaryAutoRollback = strings.EqualFold(envAutoRollback, "true") || envAutoRollback == "1"
+		}
+		canaryShadowMirror := *canaryShadowMirrorFlag
+		if envShadow := os.Getenv("DOCK_RADAR_CANARY_SHADOW_MIRROR"); envShadow != "" {
+			canaryShadowMirror = strings.EqualFold(envShadow, "true") || envShadow == "1"
+		}
+
+		canaryCfg := canary.DefaultCanaryConfig()
+		canaryCfg.Enabled = canaryEnabled
+		canaryCfg.EvaluationInterval = canaryEvalInterval
+		canaryCfg.DefaultAutoRollback = canaryAutoRollback
+		canaryCfg.DefaultShadowMirror = canaryShadowMirror
+		handlerCfg.CanaryEngine.UpdateConfig(canaryCfg)
+
+		if canaryEnabled && handlerCfg.CanaryEngine != nil {
+			canaryCtx, canaryCancel := context.WithCancel(context.Background())
+			defer canaryCancel()
+			handlerCfg.CanaryEngine.Start(canaryCtx)
+		}
 	}
 
 	scheme := "http"
@@ -781,6 +819,14 @@ func main() {
 		}
 	}
 
+	canaryStatusDesc := "Disabled"
+	if handlerCfg != nil && handlerCfg.CanaryEngine != nil {
+		st := handlerCfg.CanaryEngine.Status()
+		if st.Enabled {
+			canaryStatusDesc = fmt.Sprintf("Active (%d active / %d total rollouts · %d routed · %d rollbacks)", st.ActiveDeployments, st.TotalDeployments, st.TotalRoutedReqs, st.TotalRollbacks)
+		}
+	}
+
 	fmt.Println("=========================================================")
 	fmt.Printf(" 🚀 Dock-Radar v%s · Single-Binary Container & System Monitor\n", AppVersion)
 	fmt.Printf(" 📡 Web Dashboard Live at %s://localhost:%s\n", scheme, port)
@@ -802,6 +848,7 @@ func main() {
 	fmt.Printf(" 🚀 GitOps Deployer    : %s\n", gitopsStatusDesc)
 	fmt.Printf(" 🗳️ Raft Consensus     : %s\n", raftStatusDesc)
 	fmt.Printf(" 🛡️ WireGuard Mesh     : %s\n", wireguardStatusDesc)
+	fmt.Printf(" 🐤 Canary Rollouts    : %s\n", canaryStatusDesc)
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")
 	fmt.Println("=========================================================")
 

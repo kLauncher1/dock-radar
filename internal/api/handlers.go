@@ -13,6 +13,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/alert"
 	"github.com/kLauncher1/dock-radar/internal/anomaly"
 	"github.com/kLauncher1/dock-radar/internal/audit"
+	"github.com/kLauncher1/dock-radar/internal/canary"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/ebpf"
 	"github.com/kLauncher1/dock-radar/internal/federation"
@@ -71,6 +72,7 @@ type HandlerConfig struct {
 	GitOpsEngine     *gitops.Engine
 	RaftEngine       *raft.Engine
 	WireGuardEngine  *wireguard.Engine
+	CanaryEngine     *canary.Engine
 	AppVersion       string
 	TokenAuth        *security.TokenAuth
 	AllowRemote      bool
@@ -116,6 +118,7 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	gitopsEngine := gitops.NewEngine(gitops.DefaultGitOpsConfig(), dockerClient, alertDispatcher, auditLogger)
 	raftEngine, _ := raft.NewEngine(raft.DefaultRaftConfig(), raft.NewStateMachine(), nil, auditLogger, alertDispatcher)
 	wireguardEngine, _ := wireguard.NewEngine(wireguard.DefaultWireGuardConfig(), auditLogger, alertDispatcher)
+	canaryEngine := canary.NewEngine(canary.DefaultCanaryConfig(), auditLogger, alertDispatcher)
 
 	cfg := &HandlerConfig{
 		DockerClient:     dockerClient,
@@ -135,7 +138,8 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 		GitOpsEngine:     gitopsEngine,
 		RaftEngine:       raftEngine,
 		WireGuardEngine:  wireguardEngine,
-		AppVersion:       "2.7.0",
+		CanaryEngine:     canaryEngine,
+		AppVersion:       "2.8.0",
 		TokenAuth:        tokenAuth,
 		AllowRemote:      allowRemote,
 	}
@@ -286,6 +290,17 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	mux.HandleFunc("/api/wireguard/routes", cfg.handleWireGuardRoutes)
 	mux.HandleFunc("/api/wireguard/keygen", cfg.handleWireGuardKeygen)
 	mux.HandleFunc("/api/wireguard/config", cfg.handleWireGuardConfig)
+
+	// Autonomous Canary Deployment & Traffic Mirroring
+	mux.HandleFunc("/api/canary/status", cfg.handleCanaryStatus)
+	mux.HandleFunc("/api/canary/deployments", cfg.handleCanaryDeployments)
+	mux.HandleFunc("/api/canary/deployments/detail", cfg.handleCanaryDeploymentDetail)
+	mux.HandleFunc("/api/canary/deployments/weight", cfg.handleCanaryWeight)
+	mux.HandleFunc("/api/canary/deployments/promote", cfg.handleCanaryPromote)
+	mux.HandleFunc("/api/canary/deployments/rollback", cfg.handleCanaryRollback)
+	mux.HandleFunc("/api/canary/deployments/route", cfg.handleCanaryRoute)
+	mux.HandleFunc("/api/canary/deployments/sample", cfg.handleCanarySample)
+	mux.HandleFunc("/api/canary/config", cfg.handleCanaryConfig)
 
 	// Embedded Static UI
 	if staticFS != nil {

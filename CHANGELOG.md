@@ -5,6 +5,39 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2026-10-31
+
+### Added
+- Autonomous Canary Deployment & Traffic Mirroring Engine (`internal/canary/`):
+  - Dynamic traffic percentage splitting with zero packet loss between container revisions using thread-safe atomic weight adjustment (`internal/canary/router.go`, `internal/canary/router_test.go`).
+  - Sticky session header affinity routing via deterministic FNV-1a 32-bit hashing across configurable request headers (`HeaderAffinity`).
+  - Explicit canary routing override via test headers (`CanaryHeaderOverride`, e.g. `X-Canary-Force: true`).
+  - Asynchronous, non-blocking shadow traffic mirroring duplicating ingress request payloads to canary containers via an isolated, bounded worker pool with queue overflow protection (`ShadowMirror`).
+  - Real-time divergence detection tracking error rates and P95 latency ratios between baseline and canary targets with rolling percentile calculation and consecutive violation threshold guards (`internal/canary/analyzer.go`, `internal/canary/analyzer_test.go`).
+  - Central `Engine` managing canary lifecycle, automatic evaluation loops, autonomous rollback triggers on divergence violation, and automated step-wise traffic promotion (`internal/canary/engine.go`, `internal/canary/engine_test.go`).
+  - Core domain data models, configuration validator, and threshold bounds checking (`internal/canary/types.go`, `internal/canary/types_test.go`).
+- Canary REST APIs (`internal/api/canary.go`, `internal/api/canary_test.go`):
+  - `GET /api/canary/status`: Retrieves high-level canary engine summary, active deployments, and routed requests (requires `RoleViewer`).
+  - `GET /api/canary/deployments`: Lists all registered canary deployments (requires `RoleViewer`).
+  - `POST /api/canary/deployments`: Provisions a new canary rollout with baseline, canary, weights, and rollback policy (requires `RoleAdmin`).
+  - `GET /api/canary/deployments/detail`: Queries single deployment state with real-time divergence telemetry report (requires `RoleViewer`).
+  - `DELETE /api/canary/deployments/detail`: Deletes a canary deployment and terminates associated shadow worker routines (requires `RoleAdmin`).
+  - `POST /api/canary/deployments/weight`: Dynamically updates traffic split weights with zero packet loss (requires `RoleAdmin`).
+  - `POST /api/canary/deployments/promote`: Promotes canary deployment to 100% production traffic (requires `RoleAdmin`).
+  - `POST /api/canary/deployments/rollback`: Manually or automatically rolls back canary traffic to 0% baseline (requires `RoleAdmin`).
+  - `POST /api/canary/deployments/route`: Simulates or resolves container target routing for an incoming request (requires `RoleViewer`).
+  - `POST /api/canary/deployments/sample`: Ingests request sample metrics into the divergence analyzer (requires `RoleAdmin`).
+  - `GET /api/canary/config` & `POST /api/canary/config`: Reads and updates canary subsystem configuration (requires `RoleViewer` / `RoleAdmin`).
+- Prometheus Metrics Exporter Extension (`internal/metrics/canary.go`, `internal/metrics/prometheus.go`):
+  - Exposes `dock_radar_canary_enabled`, `dock_radar_canary_active_deployments`, `dock_radar_canary_total_deployments`, `dock_radar_canary_requests_routed_total`, `dock_radar_canary_requests_mirrored_total`, `dock_radar_canary_rollbacks_total`, and per-deployment `dock_radar_canary_traffic_weight`.
+- Embedded Glassmorphism Web Console (`web/dist/index.html`):
+  - Header Canary status badge (`#canary-badge`) displaying active rollout count with direct modal launch.
+  - Autonomous Canary Deployment dashboard section with 6 live KPI cards (Active Canaries, Routed Requests, Shadow Mirrored, Autonomous Rollbacks, Divergence Guard, Evaluation Loop).
+  - Interactive tabs for Active Rollouts, Traffic Split & Shadow Mirror Topology, and Divergence & Rollback Audit Logs.
+  - Interactive Canary Modal (`#canary-modal`) featuring Provision Canary form, real-time Traffic Simulator / Profiler, and Engine Configuration.
+- Command-Line Flags & Environment Variables (`main.go`):
+  - Added `--canary`, `--canary-eval-interval`, `--canary-auto-rollback`, and `--canary-shadow-mirror` flags with environment variable bindings (`DOCK_RADAR_CANARY_ENABLED`, `DOCK_RADAR_CANARY_EVAL_INTERVAL`, `DOCK_RADAR_CANARY_AUTO_ROLLBACK`, `DOCK_RADAR_CANARY_SHADOW_MIRROR`).
+
 ## [2.7.0] - 2026-10-31
 
 ### Added
