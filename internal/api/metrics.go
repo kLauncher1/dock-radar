@@ -19,6 +19,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/security"
 	"github.com/kLauncher1/dock-radar/internal/storage"
 	"github.com/kLauncher1/dock-radar/internal/system"
+	"github.com/kLauncher1/dock-radar/internal/wireguard"
 )
 
 func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.Request) {
@@ -135,6 +136,12 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		raftStatus = &st
 	}
 
+	var wgStatus *wireguard.WireGuardStatus
+	if h.WireGuardEngine != nil {
+		st := h.WireGuardEngine.Status()
+		wgStatus = &st
+	}
+
 	text := metrics.FormatMetricsAll(
 		sysMetrics,
 		dockerStatus,
@@ -158,6 +165,7 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		firewallStatus,
 		gitopsStatus,
 		raftStatus,
+		wgStatus,
 		version,
 	)
 

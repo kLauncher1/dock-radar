@@ -142,9 +142,9 @@ This document outlines the architectural milestones and engineering priorities f
 ---
 
 ## Milestone 22: v2.7.0 (Zero-Trust WireGuard Mesh Tunneling & Peer Gateway)
-- [ ] Userspace WireGuard encryption overlay for secure cross-cloud and edge-to-edge agent tunneling.
-- [ ] Automatic cryptographic peer key exchange and dynamic IP address leasing.
-- [ ] Low-overhead packet routing bypassing public firewall and NAT restrictions.
+- [x] Userspace WireGuard encryption overlay for secure cross-cloud and edge-to-edge agent tunneling.
+- [x] Automatic cryptographic peer key exchange and dynamic IP address leasing.
+- [x] Low-overhead packet routing bypassing public firewall and NAT restrictions.
 
 ---
 
@@ -264,6 +264,13 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Kernel eBPF socket pacing and micro-burst packet queue depth telemetry.
 - [ ] Per-cgroup fair-queue scheduling preventing aggressive container noisy-neighbor network starvation.
 - [ ] Dynamic token bucket rate limiting on flow top-talkers with real-time TCP RTT jitter tracking.
+
+---
+
+## Milestone 40: v4.5.0 (Zero-Trust Hardware TPM 2.0 Security Enclave & Remote Attestation Daemon)
+- [ ] Hardware-rooted TPM 2.0 PCR quote generation and crypto-sealed secret unsealing.
+- [ ] Remote attestation verification gating dock-radar coordinator cluster join requests.
+- [ ] Hardware-backed key derivation for WireGuard mesh tunnel master secrets.
 
 
 

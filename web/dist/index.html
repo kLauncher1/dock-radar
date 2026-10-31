@@ -654,6 +654,7 @@
       <button id="firewall-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.15); color: #ef4444; display: inline-flex; align-items: center; gap: 4px;" onclick="openFirewallModal()" title="eBPF Micro-Firewall & Container Network Isolator">🧱 Firewall: <span id="firewall-badge-text">3 Rules</span></button>
       <button id="gitops-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(139, 92, 246, 0.4); background: rgba(139, 92, 246, 0.15); color: #a78bfa; display: inline-flex; align-items: center; gap: 4px;" onclick="openGitOpsModal()" title="GitOps Continuous Sync & Webhook Auto-Deployer">🚀 GitOps: <span id="gitops-badge-text">0 Repos</span></button>
       <button id="raft-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.15); color: #fbbf24; display: inline-flex; align-items: center; gap: 4px;" onclick="openRaftModal()" title="High-Availability Raft Cluster Consensus Engine">🗳️ Raft: <span id="raft-badge-text">Follower (Term 0)</span></button>
+      <button id="wireguard-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.15); color: #34d399; display: inline-flex; align-items: center; gap: 4px;" onclick="openWireGuardModal()" title="Zero-Trust WireGuard Mesh Tunneling & Peer Gateway">🛡️ WireGuard: <span id="wireguard-badge-text">0 Peers</span></button>
       <button id="btn-export-audit" class="status-pill" style="font-size: 11px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;" onclick="exportAuditTrail()" title="Export Audit Trail in NDJSON format">📋 Export Audit</button>
       <span>•</span>
       <span id="host-badge">Loading...</span>
@@ -2234,6 +2235,151 @@
         </div>
       </div>
     </div>
+
+    <!-- Zero-Trust WireGuard Mesh Tunneling & Peer Gateway Section -->
+    <div class="card" id="wireguard-section" style="margin-top: 24px;">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="card-title" style="margin: 0;">
+            <span>🛡️ Zero-Trust WireGuard Mesh Tunneling &amp; Peer Gateway</span>
+          </div>
+          <span id="wireguard-status-pill" class="status-pill status-running" style="font-size: 11px;">Active</span>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn btn-secondary" onclick="openWireGuardModal('add-peer')" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">+ Add Peer</button>
+          <button class="btn btn-secondary" onclick="openWireGuardModal('keygen')" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">⚡ Keypair Generator</button>
+          <button class="btn btn-secondary" onclick="triggerWireGuardReclaimLeases()" style="padding: 6px 12px; font-size: 11px; font-weight: 600;" title="Reclaim expired dynamic IP leases">🔄 Reclaim Leases</button>
+          <button class="btn btn-secondary" onclick="pollWireGuardAll()" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">🔄 Refresh</button>
+        </div>
+      </div>
+
+      <!-- WireGuard Metric KPI Cards -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 16px 0;">
+        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #10b981; font-weight: 600; text-transform: uppercase;">Tunnel Gateway</div>
+          <div id="wg-kpi-status" style="font-size: 18px; font-weight: 700; color: #34d399; margin-top: 4px;">ONLINE</div>
+          <div id="wg-kpi-iface" style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Interface: wg-radar0 · Port: 51820</div>
+        </div>
+
+        <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #38bdf8; font-weight: 600; text-transform: uppercase;">Virtual Subnet &amp; IP</div>
+          <div id="wg-kpi-virtual-ip" style="font-size: 18px; font-weight: 700; color: #7dd3fc; margin-top: 4px;">10.42.0.1</div>
+          <div id="wg-kpi-subnet" style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">CIDR: 10.42.0.0/24 (MTU: 1420)</div>
+        </div>
+
+        <div style="background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #a78bfa; font-weight: 600; text-transform: uppercase;">Mesh Peers</div>
+          <div id="wg-kpi-peers" style="font-size: 18px; font-weight: 700; color: #c4b5fd; margin-top: 4px;">0 Connected</div>
+          <div id="wg-kpi-peers-total" style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">0 configured peers</div>
+        </div>
+
+        <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #f59e0b; font-weight: 600; text-transform: uppercase;">Dynamic IP Leases</div>
+          <div id="wg-kpi-leases" style="font-size: 18px; font-weight: 700; color: #fbbf24; margin-top: 4px;">0 Active</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">DHCP-style overlay address pool</div>
+        </div>
+
+        <div style="background: rgba(236, 72, 153, 0.08); border: 1px solid rgba(236, 72, 153, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #ec4899; font-weight: 600; text-transform: uppercase;">Encrypted RX</div>
+          <div id="wg-kpi-rx" style="font-size: 18px; font-weight: 700; color: #f472b6; margin-top: 4px;">0 B</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Authenticated packets decrypted</div>
+        </div>
+
+        <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #818cf8; font-weight: 600; text-transform: uppercase;">Encrypted TX</div>
+          <div id="wg-kpi-tx" style="font-size: 18px; font-weight: 700; color: #a5b4fc; margin-top: 4px;">0 B</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Overlay packets forwarded</div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; margin-bottom: 14px;">
+        <button id="btn-wg-tab-peers" class="btn-action btn-restart" onclick="switchWireGuardMainTab('peers')" style="font-size: 11px; padding: 4px 12px;">Mesh Peers (0)</button>
+        <button id="btn-wg-tab-leases" class="btn-action" onclick="switchWireGuardMainTab('leases')" style="font-size: 11px; padding: 4px 12px;">Dynamic IP Leases (0)</button>
+        <button id="btn-wg-tab-routes" class="btn-action" onclick="switchWireGuardMainTab('routes')" style="font-size: 11px; padding: 4px 12px;">Routing &amp; NAT Topology</button>
+      </div>
+
+      <!-- Tab 1: Mesh Peers -->
+      <div id="wg-peers-container">
+        <div style="overflow-x: auto;">
+          <table class="alert-events-table" style="width: 100%; font-size: 11px;">
+            <thead>
+              <tr>
+                <th>Peer ID / Name</th>
+                <th>Public Key</th>
+                <th>Overlay IP</th>
+                <th>Allowed IPs</th>
+                <th>Endpoint</th>
+                <th>Last Handshake</th>
+                <th>Traffic (RX / TX)</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="wg-peers-tbody">
+              <tr>
+                <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 16px;">No WireGuard mesh peers configured. Click "+ Add Peer" to register a remote node.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 2: Dynamic IP Leases -->
+      <div id="wg-leases-container" style="display: none;">
+        <div style="overflow-x: auto;">
+          <table class="alert-events-table" style="width: 100%; font-size: 11px;">
+            <thead>
+              <tr>
+                <th>Allocated IP</th>
+                <th>Assigned Peer ID</th>
+                <th>Allocated At</th>
+                <th>Expires At</th>
+                <th>State</th>
+              </tr>
+            </thead>
+            <tbody id="wg-leases-tbody">
+              <tr>
+                <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 16px;">No active dynamic IP leases in overlay subnet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 3: Routing & NAT Topology -->
+      <div id="wg-routes-container" style="display: none;">
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div style="font-weight: 600; color: #34d399; margin-bottom: 6px;">Zero-Trust Cryptokey Routing &amp; NAT Invariants</div>
+            <ul style="margin: 0; padding-left: 20px; color: var(--text-muted); line-height: 1.6; font-size: 11px;">
+              <li><strong>Zero-Trust Ingress Filtering:</strong> Inbound packets are decrypted and inspected. If the decrypted inner packet source IP does not match the sender peer's AllowedIPs list, the packet is instantly dropped.</li>
+              <li><strong>Cryptokey Routing Table:</strong> Outgoing overlay packets look up the longest prefix match in the route table to find the target peer's public key for symmetric AEAD encryption.</li>
+              <li><strong>Dynamic NAT Hole Punching &amp; Endpoint Roaming:</strong> When an authentic packet is received from a peer whose public IP/port has changed due to NAT re-binding, the gateway dynamically updates the peer's active endpoint.</li>
+              <li><strong>Anti-Replay Protection:</strong> A 64-packet bitmap sliding window strictly rejects replayed packets or out-of-order stale packets.</li>
+            </ul>
+          </div>
+          <div style="overflow-x: auto;">
+            <table class="alert-events-table" style="width: 100%; font-size: 11px;">
+              <thead>
+                <tr>
+                  <th>Destination Network</th>
+                  <th>Peer Target</th>
+                  <th>Via Endpoint</th>
+                  <th>Metric</th>
+                  <th>Last Updated</th>
+                </tr>
+              </thead>
+              <tbody id="wg-routes-tbody">
+                <tr>
+                  <td colspan="5" style="text-align: center; color: var(--text-muted); padding: 16px;">No routing rules registered.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- Lifecycle Action Confirmation Modal -->
@@ -3608,6 +3754,148 @@
 
       <div class="modal-actions" style="display: flex; justify-content: flex-end; margin-top: 16px;">
         <button class="btn btn-secondary" onclick="closeRaftModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- WireGuard Management Modal -->
+  <div class="modal-backdrop" id="wireguard-modal">
+    <div class="modal-card" style="max-width: 720px; width: 90%;">
+      <div class="modal-title" style="color: #34d399; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+        <span>🛡️ WireGuard Mesh Tunneling &amp; Key Management</span>
+      </div>
+
+      <!-- Modal Tabs -->
+      <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
+        <button id="btn-wg-mtab-peer" class="btn-action btn-restart" onclick="switchWireGuardModalTab('peer')" style="font-size: 11px; padding: 4px 12px;">Provision Mesh Peer</button>
+        <button id="btn-wg-mtab-keygen" class="btn-action" onclick="switchWireGuardModalTab('keygen')" style="font-size: 11px; padding: 4px 12px;">Keypair Generator</button>
+        <button id="btn-wg-mtab-diag" class="btn-action" onclick="switchWireGuardModalTab('diag')" style="font-size: 11px; padding: 4px 12px;">Tunnel Diagnostics</button>
+      </div>
+
+      <!-- Tab 1: Provision Mesh Peer Form -->
+      <div id="wg-mtab-peer-content">
+        <form onsubmit="submitWireGuardPeerForm(event)">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div class="form-row">
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="wg-form-peer-id">Peer ID *</label>
+                <input type="text" class="form-input" id="wg-form-peer-id" placeholder="node-tokyo-edge" required />
+              </div>
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="wg-form-name">Friendly Name</label>
+                <input type="text" class="form-input" id="wg-form-name" placeholder="Tokyo Edge Node 1" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-col" style="flex: 2;">
+                <label class="form-label" for="wg-form-pubkey">Curve25519 Public Key (Base64) *</label>
+                <input type="text" class="form-input" id="wg-form-pubkey" placeholder="32-byte Base64 WireGuard public key..." required style="font-family: monospace; font-size: 12px;" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-col" style="flex: 2;">
+                <label class="form-label" for="wg-form-psk">Optional Preshared Key (PSK)</label>
+                <input type="text" class="form-input" id="wg-form-psk" placeholder="Optional 32-byte Base64 symmetric PSK..." style="font-family: monospace; font-size: 12px;" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="wg-form-leased-ip">Overlay IP (Optional)</label>
+                <input type="text" class="form-input" id="wg-form-leased-ip" placeholder="Leave empty for dynamic lease" />
+              </div>
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="wg-form-endpoint">UDP Endpoint (Host:Port)</label>
+                <input type="text" class="form-input" id="wg-form-endpoint" placeholder="203.0.113.50:51820" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-col" style="flex: 2;">
+                <label class="form-label" for="wg-form-allowed-ips">Allowed IPs (Comma-separated CIDRs)</label>
+                <input type="text" class="form-input" id="wg-form-allowed-ips" placeholder="10.42.0.2/32, 192.168.100.0/24" />
+              </div>
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="wg-form-keepalive">Keepalive (sec)</label>
+                <input type="number" class="form-input" id="wg-form-keepalive" value="25" min="5" max="300" />
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px;">
+              <button type="button" class="btn btn-secondary" onclick="closeWireGuardModal()">Cancel</button>
+              <button type="submit" class="btn btn-primary-restart" style="padding: 6px 16px; font-weight: 600;">Save &amp; Connect Peer</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tab 2: Keypair Generator -->
+      <div id="wg-mtab-keygen-content" style="display: none;">
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div style="font-weight: 600; color: #34d399; margin-bottom: 6px;">RFC 7748 X25519 Keypair &amp; Symmetric PSK Generator</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">
+              Generate cryptographically strong Curve25519 private/public keys and preshared keys for newly provisioned remote edge peers.
+            </div>
+            <button class="btn btn-primary-restart" onclick="generateWireGuardKeypair()" style="padding: 6px 14px; font-size: 12px; font-weight: 600;">⚡ Generate Fresh Keypair &amp; PSK</button>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 10px;">
+            <div>
+              <label class="form-label">Generated Private Key (Keep Secret!)</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="wg-keygen-priv" readonly class="form-input" style="font-family: monospace; font-size: 12px; background: #070b14;" placeholder="Click Generate above..." />
+                <button class="btn btn-secondary" onclick="copyElementText('wg-keygen-priv')">Copy</button>
+              </div>
+            </div>
+
+            <div>
+              <label class="form-label">Generated Public Key (WireGuard Identity)</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="wg-keygen-pub" readonly class="form-input" style="font-family: monospace; font-size: 12px; background: #070b14;" placeholder="Click Generate above..." />
+                <button class="btn btn-secondary" onclick="copyElementText('wg-keygen-pub')">Copy</button>
+              </div>
+            </div>
+
+            <div>
+              <label class="form-label">Generated Symmetric Preshared Key (PSK)</label>
+              <div style="display: flex; gap: 8px;">
+                <input type="text" id="wg-keygen-psk" readonly class="form-input" style="font-family: monospace; font-size: 12px; background: #070b14;" placeholder="Click Generate above..." />
+                <button class="btn btn-secondary" onclick="copyElementText('wg-keygen-psk')">Copy</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Tunnel Diagnostics -->
+      <div id="wg-mtab-diag-content" style="display: none;">
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div style="font-weight: 600; color: #38bdf8; margin-bottom: 6px;">Initiate Cryptographic Handshake</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">
+              Forces an immediate re-keying handshake and session establishment with a specific mesh peer.
+            </div>
+            <div style="display: flex; gap: 8px;">
+              <input type="text" id="wg-diag-peer-id" class="form-input" placeholder="Enter target Peer ID (e.g. node-tokyo-edge)" style="flex: 1;" />
+              <button class="btn btn-secondary" onclick="triggerWireGuardManualHandshake()" style="padding: 6px 14px; font-size: 11px; font-weight: 600;">⚡ Handshake</button>
+            </div>
+          </div>
+
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div style="font-weight: 600; color: #fbbf24; margin-bottom: 6px;">Dynamic IP Lease Pool Maintenance</div>
+            <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px;">
+              Scans overlay IP leases and immediately releases expired addresses back into the available pool.
+            </div>
+            <button class="btn btn-secondary" onclick="triggerWireGuardReclaimLeases()" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">🔄 Reclaim Expired Leases</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; margin-top: 16px;">
+        <button class="btn btn-secondary" onclick="closeWireGuardModal()">Close</button>
       </div>
     </div>
   </div>
@@ -9226,6 +9514,339 @@
     pollRaftAll();
     setInterval(pollRaftStatus, 2500);
     setInterval(pollRaftFSM, 5000);
+
+    // ==========================================
+    // WireGuard Mesh Tunneling & Peer Gateway Functions
+    // ==========================================
+    function openWireGuardModal(tab = 'peer') {
+      const modal = document.getElementById('wireguard-modal');
+      if (modal) modal.style.display = 'flex';
+      switchWireGuardModalTab(tab);
+    }
+
+    function closeWireGuardModal() {
+      const modal = document.getElementById('wireguard-modal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function switchWireGuardMainTab(tab) {
+      const pCont = document.getElementById('wg-peers-container');
+      const lCont = document.getElementById('wg-leases-container');
+      const rCont = document.getElementById('wg-routes-container');
+      const btnP = document.getElementById('btn-wg-tab-peers');
+      const btnL = document.getElementById('btn-wg-tab-leases');
+      const btnR = document.getElementById('btn-wg-tab-routes');
+
+      if (pCont) pCont.style.display = tab === 'peers' ? 'block' : 'none';
+      if (lCont) lCont.style.display = tab === 'leases' ? 'block' : 'none';
+      if (rCont) rCont.style.display = tab === 'routes' ? 'block' : 'none';
+
+      if (btnP) btnP.className = tab === 'peers' ? 'btn-action btn-restart' : 'btn-action';
+      if (btnL) btnL.className = tab === 'leases' ? 'btn-action btn-restart' : 'btn-action';
+      if (btnR) btnR.className = tab === 'routes' ? 'btn-action btn-restart' : 'btn-action';
+
+      if (tab === 'peers') pollWireGuardPeers();
+      else if (tab === 'leases') pollWireGuardLeases();
+      else if (tab === 'routes') pollWireGuardRoutes();
+    }
+
+    function switchWireGuardModalTab(tab) {
+      const pTab = document.getElementById('wg-mtab-peer-content');
+      const kTab = document.getElementById('wg-mtab-keygen-content');
+      const dTab = document.getElementById('wg-mtab-diag-content');
+      const btnP = document.getElementById('btn-wg-mtab-peer');
+      const btnK = document.getElementById('btn-wg-mtab-keygen');
+      const btnD = document.getElementById('btn-wg-mtab-diag');
+
+      if (pTab) pTab.style.display = tab === 'peer' ? 'block' : 'none';
+      if (kTab) kTab.style.display = tab === 'keygen' ? 'block' : 'none';
+      if (dTab) dTab.style.display = tab === 'diag' ? 'block' : 'none';
+
+      if (btnP) btnP.className = tab === 'peer' ? 'btn-action btn-restart' : 'btn-action';
+      if (btnK) btnK.className = tab === 'keygen' ? 'btn-action btn-restart' : 'btn-action';
+      if (btnD) btnD.className = tab === 'diag' ? 'btn-action btn-restart' : 'btn-action';
+    }
+
+    async function pollWireGuardStatus() {
+      try {
+        const res = await authFetch('/api/wireguard/status');
+        if (!res.ok) return;
+        const st = await res.json();
+
+        const badgeText = document.getElementById('wireguard-badge-text');
+        if (badgeText) badgeText.textContent = `${st.active_peers || 0} Peers`;
+
+        const pill = document.getElementById('wireguard-status-pill');
+        if (pill) {
+          pill.className = st.enabled ? 'status-pill status-running' : 'status-pill status-stopped';
+          pill.textContent = st.enabled ? 'Active' : 'Disabled';
+        }
+
+        const kpiStatus = document.getElementById('wg-kpi-status');
+        if (kpiStatus) kpiStatus.textContent = st.enabled ? 'ONLINE' : 'OFFLINE';
+
+        const kpiIface = document.getElementById('wg-kpi-iface');
+        if (kpiIface) kpiIface.textContent = `Interface: ${st.interface_name || 'wg0'} · Port: ${st.listen_port || 51820}`;
+
+        const kpiVip = document.getElementById('wg-kpi-virtual-ip');
+        if (kpiVip) kpiVip.textContent = st.virtual_ip || '10.42.0.1';
+
+        const kpiSubnet = document.getElementById('wg-kpi-subnet');
+        if (kpiSubnet) kpiSubnet.textContent = `CIDR: ${st.virtual_cidr || '10.42.0.0/24'} (MTU: 1420)`;
+
+        const kpiPeers = document.getElementById('wg-kpi-peers');
+        if (kpiPeers) kpiPeers.textContent = `${st.active_peers || 0} Connected`;
+
+        const kpiPeersTotal = document.getElementById('wg-kpi-peers-total');
+        if (kpiPeersTotal) kpiPeersTotal.textContent = `${st.total_peers || 0} configured peers`;
+
+        const kpiLeases = document.getElementById('wg-kpi-leases');
+        if (kpiLeases) kpiLeases.textContent = `${st.active_leases || 0} Active`;
+
+        const kpiRx = document.getElementById('wg-kpi-rx');
+        if (kpiRx) kpiRx.textContent = formatBytes(st.total_rx_bytes || 0);
+
+        const kpiTx = document.getElementById('wg-kpi-tx');
+        if (kpiTx) kpiTx.textContent = formatBytes(st.total_tx_bytes || 0);
+      } catch (err) {
+        console.error('pollWireGuardStatus failed:', err);
+      }
+    }
+
+    async function pollWireGuardPeers() {
+      try {
+        const res = await authFetch('/api/wireguard/peers');
+        if (!res.ok) return;
+        const peers = await res.json();
+
+        const btnTab = document.getElementById('btn-wg-tab-peers');
+        if (btnTab) btnTab.textContent = `Mesh Peers (${peers.length})`;
+
+        const tbody = document.getElementById('wg-peers-tbody');
+        if (!tbody) return;
+
+        if (peers.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 16px;">No WireGuard mesh peers configured. Click "+ Add Peer" to register a remote node.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = peers.map(p => {
+          const isConn = p.status === 'connected';
+          const statusPill = isConn
+            ? '<span class="status-pill status-running" style="font-size:10px;">Connected</span>'
+            : '<span class="status-pill status-restarting" style="font-size:10px;">Pending</span>';
+          const handshakeAge = p.last_handshake ? new Date(p.last_handshake).toLocaleTimeString() : 'Never';
+          const allowedStr = (p.allowed_ips || []).join(', ') || 'None';
+
+          return `
+            <tr>
+              <td>
+                <div style="font-weight: 600; color: #34d399;">${escapeHtml(p.id)}</div>
+                <div style="font-size: 10px; color: var(--text-muted);">${escapeHtml(p.name || '')}</div>
+              </td>
+              <td><code style="font-size: 10px; color: #a78bfa;">${escapeHtml(p.public_key ? p.public_key.slice(0, 10) + '...' : '')}</code></td>
+              <td><span style="font-weight: 600; color: #38bdf8;">${escapeHtml(p.leased_ip || '-')}</span></td>
+              <td><span style="font-size: 10px; color: var(--text-muted);">${escapeHtml(allowedStr)}</span></td>
+              <td><span style="font-size: 10px;">${escapeHtml(p.endpoint || 'Dynamic')}</span></td>
+              <td><span style="font-size: 10px; color: var(--text-muted);">${handshakeAge}</span></td>
+              <td><span style="font-size: 10px;">↓ ${formatBytes(p.rx_bytes || 0)} / ↑ ${formatBytes(p.tx_bytes || 0)}</span></td>
+              <td>${statusPill}</td>
+              <td>
+                <div style="display: flex; gap: 4px;">
+                  <button class="btn btn-secondary" onclick="initiateWireGuardHandshake('${escapeHtml(p.id)}')" style="padding: 2px 6px; font-size: 10px;" title="Initiate handshake">⚡</button>
+                  <button class="btn btn-secondary" onclick="removeWireGuardPeer('${escapeHtml(p.id)}')" style="padding: 2px 6px; font-size: 10px; color: #ef4444;" title="Delete peer">✕</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch (err) {
+        console.error('pollWireGuardPeers failed:', err);
+      }
+    }
+
+    async function pollWireGuardLeases() {
+      try {
+        const res = await authFetch('/api/wireguard/leases');
+        if (!res.ok) return;
+        const leases = await res.json();
+
+        const btnTab = document.getElementById('btn-wg-tab-leases');
+        if (btnTab) btnTab.textContent = `Dynamic IP Leases (${leases.length})`;
+
+        const tbody = document.getElementById('wg-leases-tbody');
+        if (!tbody) return;
+
+        if (leases.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 16px;">No active dynamic IP leases in overlay subnet.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = leases.map(l => `
+          <tr>
+            <td><strong style="color: #38bdf8;">${escapeHtml(l.ip)}</strong></td>
+            <td><code>${escapeHtml(l.peer_id)}</code></td>
+            <td><span style="color: var(--text-muted);">${new Date(l.allocated_at).toLocaleTimeString()}</span></td>
+            <td><span style="color: var(--text-muted);">${new Date(l.expires_at).toLocaleTimeString()}</span></td>
+            <td><span class="status-pill ${l.active ? 'status-running' : 'status-stopped'}" style="font-size:10px;">${l.active ? 'Active' : 'Expired'}</span></td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('pollWireGuardLeases failed:', err);
+      }
+    }
+
+    async function pollWireGuardRoutes() {
+      try {
+        const res = await authFetch('/api/wireguard/routes');
+        if (!res.ok) return;
+        const routes = await res.json();
+
+        const tbody = document.getElementById('wg-routes-tbody');
+        if (!tbody) return;
+
+        if (routes.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-muted); padding: 16px;">No routing rules registered.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = routes.map(r => `
+          <tr>
+            <td><strong style="color: #34d399;">${escapeHtml(r.destination)}</strong></td>
+            <td><span style="color: #a78bfa;">${escapeHtml(r.peer_id)}</span></td>
+            <td><span style="color: var(--text-muted);">${escapeHtml(r.via_endpoint || 'Dynamic')}</span></td>
+            <td><span>${r.metric}</span></td>
+            <td><span style="color: var(--text-muted);">${new Date(r.updated_at).toLocaleTimeString()}</span></td>
+          </tr>
+        `).join('');
+      } catch (err) {
+        console.error('pollWireGuardRoutes failed:', err);
+      }
+    }
+
+    async function pollWireGuardAll() {
+      await pollWireGuardStatus();
+      await pollWireGuardPeers();
+    }
+
+    async function submitWireGuardPeerForm(e) {
+      if (e) e.preventDefault();
+      const peerID = (document.getElementById('wg-form-peer-id').value || '').trim();
+      const name = (document.getElementById('wg-form-name').value || '').trim();
+      const pubkey = (document.getElementById('wg-form-pubkey').value || '').trim();
+      const psk = (document.getElementById('wg-form-psk').value || '').trim();
+      const leasedIP = (document.getElementById('wg-form-leased-ip').value || '').trim();
+      const endpoint = (document.getElementById('wg-form-endpoint').value || '').trim();
+      const allowedStr = (document.getElementById('wg-form-allowed-ips').value || '').trim();
+      const keepalive = parseInt(document.getElementById('wg-form-keepalive').value || '25', 10);
+
+      const allowedIPs = allowedStr ? allowedStr.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+      try {
+        const res = await authFetch('/api/wireguard/peers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: peerID,
+            name: name,
+            public_key: pubkey,
+            preshared_key: psk,
+            leased_ip: leasedIP,
+            endpoint: endpoint,
+            allowed_ips: allowedIPs,
+            persistent_keepalive: keepalive
+          })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ Mesh peer ${peerID} provisioned`);
+        closeWireGuardModal();
+        pollWireGuardAll();
+      } catch (err) {
+        showToast(`Failed to add peer: ${err.message}`);
+      }
+    }
+
+    async function removeWireGuardPeer(peerID) {
+      if (!confirm(`Are you sure you want to remove WireGuard peer ${peerID}?`)) return;
+      try {
+        const res = await authFetch(`/api/wireguard/peers?id=${encodeURIComponent(peerID)}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ Peer ${peerID} removed`);
+        pollWireGuardAll();
+      } catch (err) {
+        showToast(`Failed to remove peer: ${err.message}`);
+      }
+    }
+
+    async function initiateWireGuardHandshake(peerID) {
+      try {
+        const res = await authFetch('/api/wireguard/handshake', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ peer_id: peerID })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`⚡ Handshake initiated with ${peerID}`);
+        pollWireGuardAll();
+      } catch (err) {
+        showToast(`Handshake failed: ${err.message}`);
+      }
+    }
+
+    async function triggerWireGuardManualHandshake() {
+      const peerID = (document.getElementById('wg-diag-peer-id').value || '').trim();
+      if (!peerID) {
+        showToast('Please enter a target Peer ID');
+        return;
+      }
+      await initiateWireGuardHandshake(peerID);
+    }
+
+    async function generateWireGuardKeypair() {
+      try {
+        const res = await authFetch('/api/wireguard/keygen', { method: 'POST' });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+
+        const privInput = document.getElementById('wg-keygen-priv');
+        const pubInput = document.getElementById('wg-keygen-pub');
+        const pskInput = document.getElementById('wg-keygen-psk');
+
+        if (privInput) privInput.value = data.private_key || '';
+        if (pubInput) pubInput.value = data.public_key || '';
+        if (pskInput) pskInput.value = data.preshared_key || '';
+
+        showToast('✓ Fresh X25519 keypair and symmetric PSK generated');
+      } catch (err) {
+        showToast(`Keygen failed: ${err.message}`);
+      }
+    }
+
+    async function triggerWireGuardReclaimLeases() {
+      try {
+        const res = await authFetch('/api/wireguard/leases/reclaim', { method: 'POST' });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        showToast(`✓ Reclaimed ${data.reclaimed || 0} expired IP leases`);
+        pollWireGuardAll();
+      } catch (err) {
+        showToast(`Lease reclaim failed: ${err.message}`);
+      }
+    }
+
+    function copyElementText(id) {
+      const el = document.getElementById(id);
+      if (el && el.value) {
+        navigator.clipboard.writeText(el.value).then(() => {
+          showToast('✓ Copied to clipboard');
+        }).catch(() => {
+          showToast('Failed to copy');
+        });
+      }
+    }
+
+    pollWireGuardAll();
+    setInterval(pollWireGuardAll, 3000);
   </script>
 </body>
 </html>
