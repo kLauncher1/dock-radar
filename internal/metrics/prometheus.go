@@ -7,6 +7,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/alert"
 	"github.com/kLauncher1/dock-radar/internal/anomaly"
 	"github.com/kLauncher1/dock-radar/internal/audit"
+	"github.com/kLauncher1/dock-radar/internal/canary"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/ebpf"
 	"github.com/kLauncher1/dock-radar/internal/federation"
@@ -102,7 +103,7 @@ func FormatMetricsFull(
 	return FormatMetricsAll(
 		sys, dock, ringBuffer, alertDispatcher, auditLogger,
 		meshSummary, meshNodes, healingStats, anomalySummary, anomalyPreds,
-		discStatus, gossipSummary, gossipMembers, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, appVersion,
+		discStatus, gossipSummary, gossipMembers, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, appVersion,
 	)
 }
 
@@ -131,6 +132,8 @@ func FormatMetricsAll(
 	gitopsStatus *gitops.GitOpsStatus,
 	raftStatus *raft.RaftStatus,
 	wgStatus *wireguard.WireGuardStatus,
+	canaryStatus *canary.CanaryStatus,
+	canaryDeployments []*canary.CanaryDeployment,
 	appVersion string,
 ) string {
 	var b strings.Builder
@@ -485,6 +488,9 @@ func FormatMetricsAll(
 
 	// 22. Zero-Trust WireGuard Mesh Tunneling & Peer Gateway Telemetry
 	AppendWireGuardMetrics(&b, wgStatus)
+
+	// 23. Autonomous Canary Deployment & Traffic Mirroring Telemetry
+	AppendCanaryMetrics(&b, canaryStatus, canaryDeployments)
 
 	return b.String()
 }

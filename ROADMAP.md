@@ -149,9 +149,9 @@ This document outlines the architectural milestones and engineering priorities f
 ---
 
 ## Milestone 23: v2.8.0 (Autonomous Canary Deployment & Traffic Mirroring)
-- [ ] Dynamic traffic percentage splitting with zero packet loss between container versions.
-- [ ] Real-time error rate and latency divergence detection triggering automated rollback.
-- [ ] Shadow traffic mirroring for risk-free pre-release performance profiling.
+- [x] Dynamic traffic percentage splitting with zero packet loss between container versions.
+- [x] Real-time error rate and latency divergence detection triggering automated rollback.
+- [x] Shadow traffic mirroring for risk-free pre-release performance profiling.
 
 ---
 
@@ -271,6 +271,13 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Hardware-rooted TPM 2.0 PCR quote generation and crypto-sealed secret unsealing.
 - [ ] Remote attestation verification gating dock-radar coordinator cluster join requests.
 - [ ] Hardware-backed key derivation for WireGuard mesh tunnel master secrets.
+
+---
+
+## Milestone 41: v4.6.0 (Autonomous Service Mesh Sidecar & Transparent TCP Envoy Proxy)
+- [ ] Dynamic iptables and eBPF socket redirection transparently routing inter-container TCP traffic through local proxy.
+- [ ] Mutual TLS (mTLS) zero-trust encryption with dynamic SPIFFE identity certificate validation.
+- [ ] In-flight distributed request tracing with W3C Trace Context and OpenTelemetry exporter.
 
 
 

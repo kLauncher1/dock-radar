@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/kLauncher1/dock-radar/internal/anomaly"
+	"github.com/kLauncher1/dock-radar/internal/canary"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/ebpf"
 	"github.com/kLauncher1/dock-radar/internal/federation"
@@ -142,6 +143,14 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		wgStatus = &st
 	}
 
+	var canaryStatus *canary.CanaryStatus
+	var canaryDeployments []*canary.CanaryDeployment
+	if h.CanaryEngine != nil {
+		st := h.CanaryEngine.Status()
+		canaryStatus = &st
+		canaryDeployments = h.CanaryEngine.ListDeployments()
+	}
+
 	text := metrics.FormatMetricsAll(
 		sysMetrics,
 		dockerStatus,
@@ -166,6 +175,8 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		gitopsStatus,
 		raftStatus,
 		wgStatus,
+		canaryStatus,
+		canaryDeployments,
 		version,
 	)
 

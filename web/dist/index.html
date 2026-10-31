@@ -655,6 +655,7 @@
       <button id="gitops-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(139, 92, 246, 0.4); background: rgba(139, 92, 246, 0.15); color: #a78bfa; display: inline-flex; align-items: center; gap: 4px;" onclick="openGitOpsModal()" title="GitOps Continuous Sync & Webhook Auto-Deployer">🚀 GitOps: <span id="gitops-badge-text">0 Repos</span></button>
       <button id="raft-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.15); color: #fbbf24; display: inline-flex; align-items: center; gap: 4px;" onclick="openRaftModal()" title="High-Availability Raft Cluster Consensus Engine">🗳️ Raft: <span id="raft-badge-text">Follower (Term 0)</span></button>
       <button id="wireguard-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.15); color: #34d399; display: inline-flex; align-items: center; gap: 4px;" onclick="openWireGuardModal()" title="Zero-Trust WireGuard Mesh Tunneling & Peer Gateway">🛡️ WireGuard: <span id="wireguard-badge-text">0 Peers</span></button>
+      <button id="canary-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.15); color: #fbbf24; display: inline-flex; align-items: center; gap: 4px;" onclick="openCanaryModal()" title="Autonomous Canary Deployment & Traffic Mirroring">🐤 Canary: <span id="canary-badge-text">0 Active</span></button>
       <button id="btn-export-audit" class="status-pill" style="font-size: 11px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;" onclick="exportAuditTrail()" title="Export Audit Trail in NDJSON format">📋 Export Audit</button>
       <span>•</span>
       <span id="host-badge">Loading...</span>
@@ -2380,6 +2381,147 @@
         </div>
       </div>
     </div>
+
+    <!-- Autonomous Canary Deployment & Traffic Mirroring Section -->
+    <div class="card" id="canary-section" style="margin-top: 24px;">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div class="card-title" style="margin: 0;">
+            <span>🐤 Autonomous Canary Deployment &amp; Traffic Mirroring</span>
+          </div>
+          <span id="canary-status-pill" class="status-pill status-running" style="font-size: 11px;">Active</span>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn btn-secondary" onclick="openCanaryModal('deploy')" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">+ New Canary</button>
+          <button class="btn btn-secondary" onclick="openCanaryModal('simulate')" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">⚡ Traffic Simulator</button>
+          <button class="btn btn-secondary" onclick="openCanaryModal('config')" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">⚙️ Config</button>
+          <button class="btn btn-secondary" onclick="pollCanaryAll()" style="padding: 6px 12px; font-size: 11px; font-weight: 600;">🔄 Refresh</button>
+        </div>
+      </div>
+
+      <!-- Canary Metric KPI Cards -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 12px; margin: 16px 0;">
+        <div style="background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #f59e0b; font-weight: 600; text-transform: uppercase;">Active Canaries</div>
+          <div id="canary-kpi-active" style="font-size: 18px; font-weight: 700; color: #fbbf24; margin-top: 4px;">0 Active</div>
+          <div id="canary-kpi-total" style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">0 total registered</div>
+        </div>
+
+        <div style="background: rgba(56, 189, 248, 0.08); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #38bdf8; font-weight: 600; text-transform: uppercase;">Routed Requests</div>
+          <div id="canary-kpi-routed" style="font-size: 18px; font-weight: 700; color: #7dd3fc; margin-top: 4px;">0</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Split with zero packet loss</div>
+        </div>
+
+        <div style="background: rgba(139, 92, 246, 0.08); border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #a78bfa; font-weight: 600; text-transform: uppercase;">Shadow Mirrored</div>
+          <div id="canary-kpi-mirrored" style="font-size: 18px; font-weight: 700; color: #c4b5fd; margin-top: 4px;">0</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Non-blocking async profiling</div>
+        </div>
+
+        <div style="background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #ef4444; font-weight: 600; text-transform: uppercase;">Autonomous Rollbacks</div>
+          <div id="canary-kpi-rollbacks" style="font-size: 18px; font-weight: 700; color: #f87171; margin-top: 4px;">0 Tripped</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Auto-tripped on divergence</div>
+        </div>
+
+        <div style="background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #10b981; font-weight: 600; text-transform: uppercase;">Divergence Guard</div>
+          <div id="canary-kpi-guard" style="font-size: 18px; font-weight: 700; color: #34d399; margin-top: 4px;">ARMED</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Error rate &amp; latency tracking</div>
+        </div>
+
+        <div style="background: rgba(99, 102, 241, 0.08); border: 1px solid rgba(99, 102, 241, 0.25); border-radius: 8px; padding: 12px 14px;">
+          <div style="font-size: 11px; color: #818cf8; font-weight: 600; text-transform: uppercase;">Evaluation Loop</div>
+          <div id="canary-kpi-eval" style="font-size: 18px; font-weight: 700; color: #a5b4fc; margin-top: 4px;">5s Interval</div>
+          <div id="canary-kpi-last-eval" style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Ready</div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; margin-bottom: 14px;">
+        <button id="btn-canary-tab-rollouts" class="btn-action btn-restart" onclick="switchCanaryMainTab('rollouts')" style="font-size: 11px; padding: 4px 12px;">Active Rollouts (0)</button>
+        <button id="btn-canary-tab-topology" class="btn-action" onclick="switchCanaryMainTab('topology')" style="font-size: 11px; padding: 4px 12px;">Traffic Split &amp; Shadow Topology</button>
+        <button id="btn-canary-tab-logs" class="btn-action" onclick="switchCanaryMainTab('logs')" style="font-size: 11px; padding: 4px 12px;">Divergence &amp; Rollback Logs</button>
+      </div>
+
+      <!-- Tab 1: Active Rollouts -->
+      <div id="canary-tab-rollouts">
+        <div style="overflow-x: auto;">
+          <table class="alert-events-table" style="width: 100%; font-size: 11px;">
+            <thead>
+              <tr>
+                <th>Deployment</th>
+                <th>Service &amp; Containers</th>
+                <th>Phase</th>
+                <th style="min-width: 180px;">Traffic Distribution</th>
+                <th>Error Delta</th>
+                <th>Latency Ratio</th>
+                <th>Health</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="canary-deployments-tbody">
+              <tr>
+                <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 16px;">No canary deployments configured. Click <strong>+ New Canary</strong> to create one.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 2: Traffic Split & Shadow Mirror Topology -->
+      <div id="canary-tab-topology" style="display: none;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div style="font-weight: 600; color: #38bdf8; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+              <span>🔀 Dynamic Percentage Split Pipeline</span>
+            </div>
+            <ul style="margin: 0; padding-left: 20px; color: var(--text-muted); line-height: 1.6; font-size: 11px;">
+              <li><strong>Zero Packet Loss Handoff:</strong> Thread-safe atomic weight adjustment without socket resets or dropped HTTP connections.</li>
+              <li><strong>Sticky Session Affinity:</strong> Deterministic FNV-1a hash routing on <code>HeaderAffinity</code> (e.g. <code>X-User-ID</code>) ensures returning users consistently hit the same version.</li>
+              <li><strong>Canary Header Force:</strong> Dedicated override header (e.g. <code>X-Canary-Force: true</code>) allows QA engineers to route internal test requests to canary 100%.</li>
+              <li><strong>Automated Step Promotion:</strong> If enabled, periodically increments canary weight in steps (e.g. +10%) when health score remains above threshold.</li>
+            </ul>
+          </div>
+          <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px;">
+            <div style="font-weight: 600; color: #c4b5fd; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+              <span>👥 Asynchronous Shadow Traffic Mirroring</span>
+            </div>
+            <ul style="margin: 0; padding-left: 20px; color: var(--text-muted); line-height: 1.6; font-size: 11px;">
+              <li><strong>Non-Blocking Duplication:</strong> Clones real production ingress payloads into an isolated bounded worker pool channel.</li>
+              <li><strong>Zero User Latency Impact:</strong> Shadow requests execute in background goroutines; client responses return exclusively from the primary baseline container.</li>
+              <li><strong>Queue Overflow Protection:</strong> Fixed-capacity ring queue drops shadow copies if canary slows down, strictly defending primary memory and throughput.</li>
+              <li><strong>Pre-Release Profiling:</strong> Evaluates new releases against 100% production workloads without risking user transaction errors.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Divergence & Rollback Audit Logs -->
+      <div id="canary-tab-logs" style="display: none;">
+        <div style="overflow-x: auto;">
+          <table class="alert-events-table" style="width: 100%; font-size: 11px;">
+            <thead>
+              <tr>
+                <th>Deployment</th>
+                <th>Baseline (Err / P95)</th>
+                <th>Canary (Err / P95)</th>
+                <th>Delta / Ratio</th>
+                <th>Status</th>
+                <th>Trip Reason &amp; Diagnostics</th>
+                <th>Timestamp</th>
+              </tr>
+            </thead>
+            <tbody id="canary-divergence-tbody">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 16px;">No divergence incidents recorded. All canaries running within safe statistical bounds.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- Lifecycle Action Confirmation Modal -->
@@ -3896,6 +4038,196 @@
 
       <div class="modal-actions" style="display: flex; justify-content: flex-end; margin-top: 16px;">
         <button class="btn btn-secondary" onclick="closeWireGuardModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Canary Management Modal -->
+  <div class="modal-backdrop" id="canary-modal">
+    <div class="modal-card" style="max-width: 760px; width: 90%;">
+      <div class="modal-title" style="color: #fbbf24; margin-bottom: 12px; display: flex; align-items: center; gap: 8px;">
+        <span>🐤 Autonomous Canary Deployment &amp; Traffic Mirroring</span>
+      </div>
+
+      <!-- Modal Tabs -->
+      <div style="display: flex; gap: 8px; margin-bottom: 16px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px;">
+        <button id="btn-canary-mtab-deploy" class="btn-action btn-restart" onclick="switchCanaryModalTab('deploy')" style="font-size: 11px; padding: 4px 12px;">Provision Canary</button>
+        <button id="btn-canary-mtab-simulate" class="btn-action" onclick="switchCanaryModalTab('simulate')" style="font-size: 11px; padding: 4px 12px;">Traffic Simulator</button>
+        <button id="btn-canary-mtab-config" class="btn-action" onclick="switchCanaryModalTab('config')" style="font-size: 11px; padding: 4px 12px;">Engine Config</button>
+      </div>
+
+      <!-- Tab 1: Provision Canary Form -->
+      <div id="canary-mtab-deploy-content">
+        <form onsubmit="submitCanaryForm(event)">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div class="form-row">
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="canary-form-id">Deployment ID *</label>
+                <input type="text" class="form-input" id="canary-form-id" placeholder="web-api-v2-canary" required />
+              </div>
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="canary-form-name">Deployment Name</label>
+                <input type="text" class="form-input" id="canary-form-name" placeholder="Web API v2.0 Canary" />
+              </div>
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="canary-form-service">Service Name</label>
+                <input type="text" class="form-input" id="canary-form-service" placeholder="web-api" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="canary-form-baseline-id">Baseline Container ID *</label>
+                <input type="text" class="form-input" id="canary-form-baseline-id" placeholder="e.g. c_nginx_stable or ID" required />
+              </div>
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="canary-form-canary-id">Canary Container ID *</label>
+                <input type="text" class="form-input" id="canary-form-canary-id" placeholder="e.g. c_nginx_canary or ID" required />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="canary-form-weight">Initial Canary Traffic Weight (%) *</label>
+                <input type="number" class="form-input" id="canary-form-weight" min="0" max="100" value="10" required />
+              </div>
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="canary-form-affinity">Sticky Affinity Header (Optional)</label>
+                <input type="text" class="form-input" id="canary-form-affinity" placeholder="X-User-ID or X-Session-ID" />
+              </div>
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="canary-form-override">Canary Override Header</label>
+                <input type="text" class="form-input" id="canary-form-override" placeholder="X-Canary-Force" value="X-Canary-Force" />
+              </div>
+            </div>
+
+            <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px;">
+              <div style="font-weight: 600; color: #ef4444; font-size: 11px; margin-bottom: 8px; text-transform: uppercase;">Automated Rollback Criteria</div>
+              <div class="form-row">
+                <div class="form-col" style="flex: 1;">
+                  <label class="form-label" for="canary-form-err-delta">Max Error Rate Delta (%)</label>
+                  <input type="number" step="0.1" class="form-input" id="canary-form-err-delta" value="5.0" />
+                </div>
+                <div class="form-col" style="flex: 1;">
+                  <label class="form-label" for="canary-form-lat-ratio">Max P95 Latency Ratio (x)</label>
+                  <input type="number" step="0.1" class="form-input" id="canary-form-lat-ratio" value="1.5" />
+                </div>
+                <div class="form-col" style="flex: 1;">
+                  <label class="form-label" for="canary-form-min-samples">Min Sample Size</label>
+                  <input type="number" class="form-input" id="canary-form-min-samples" value="20" />
+                </div>
+                <div class="form-col" style="flex: 1;">
+                  <label class="form-label" for="canary-form-consecutive">Consecutive Violations</label>
+                  <input type="number" class="form-input" id="canary-form-consecutive" value="1" />
+                </div>
+              </div>
+            </div>
+
+            <div style="background: rgba(0, 0, 0, 0.25); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 12px;">
+              <div style="font-weight: 600; color: #38bdf8; font-size: 11px; margin-bottom: 8px; text-transform: uppercase;">Shadow Traffic Mirroring &amp; Auto-Promotion</div>
+              <div class="form-row">
+                <div class="form-col" style="flex: 1; display: flex; align-items: center; gap: 8px; margin-top: 18px;">
+                  <input type="checkbox" id="canary-form-shadow-enabled" checked />
+                  <label class="form-label" for="canary-form-shadow-enabled" style="margin: 0; cursor: pointer;">Enable Shadow Mirror</label>
+                </div>
+                <div class="form-col" style="flex: 1;">
+                  <label class="form-label" for="canary-form-sample-rate">Mirror Sample Rate (0.0 - 1.0)</label>
+                  <input type="number" step="0.1" class="form-input" id="canary-form-sample-rate" min="0.0" max="1.0" value="1.0" />
+                </div>
+                <div class="form-col" style="flex: 1; display: flex; align-items: center; gap: 8px; margin-top: 18px;">
+                  <input type="checkbox" id="canary-form-auto-promote" />
+                  <label class="form-label" for="canary-form-auto-promote" style="margin: 0; cursor: pointer;">Enable Step Promotion</label>
+                </div>
+                <div class="form-col" style="flex: 1;">
+                  <label class="form-label" for="canary-form-weight-inc">Step Increment (%)</label>
+                  <input type="number" class="form-input" id="canary-form-weight-inc" min="1" max="50" value="10" />
+                </div>
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+              <button type="button" class="btn btn-secondary" onclick="closeCanaryModal()">Cancel</button>
+              <button type="submit" class="btn btn-primary-restart" style="background: #f59e0b; border-color: #d97706;">Create Canary Rollout</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tab 2: Traffic Simulator -->
+      <div id="canary-mtab-simulate-content" style="display: none;">
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div style="font-size: 12px; color: var(--text-muted);">
+            Generate simulated request traffic to verify percentage splitting, latency divergence detection, and autonomous rollback triggers in real time.
+          </div>
+          <div class="form-row">
+            <div class="form-col" style="flex: 2;">
+              <label class="form-label" for="canary-sim-dep-id">Target Deployment *</label>
+              <select class="form-input" id="canary-sim-dep-id">
+                <option value="">Select an active canary...</option>
+              </select>
+            </div>
+            <div class="form-col" style="flex: 1;">
+              <label class="form-label" for="canary-sim-count">Request Count</label>
+              <input type="number" class="form-input" id="canary-sim-count" value="50" min="5" max="500" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-col" style="flex: 1;">
+              <label class="form-label" for="canary-sim-canary-err">Canary Injected Error Rate (%)</label>
+              <input type="number" class="form-input" id="canary-sim-canary-err" value="30" min="0" max="100" />
+            </div>
+            <div class="form-col" style="flex: 1;">
+              <label class="form-label" for="canary-sim-canary-lat">Canary Latency (ms)</label>
+              <input type="number" class="form-input" id="canary-sim-canary-lat" value="85" min="1" max="2000" />
+            </div>
+            <div class="form-col" style="flex: 1;">
+              <label class="form-label" for="canary-sim-base-lat">Baseline Latency (ms)</label>
+              <input type="number" class="form-input" id="canary-sim-base-lat" value="12" min="1" max="2000" />
+            </div>
+          </div>
+
+          <div style="display: flex; justify-content: flex-end; gap: 8px;">
+            <button class="btn btn-secondary" onclick="runCanarySimulation()" style="padding: 8px 16px; font-weight: 600; color: #fbbf24; border-color: rgba(245, 158, 11, 0.4);">⚡ Inject &amp; Simulate Traffic</button>
+          </div>
+          <div id="canary-sim-results" style="font-size: 11px; color: var(--text-muted); background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; font-family: monospace; display: none;"></div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Engine Config -->
+      <div id="canary-mtab-config-content" style="display: none;">
+        <form onsubmit="saveCanaryConfig(event)">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div class="form-row">
+              <div class="form-col" style="flex: 1; display: flex; align-items: center; gap: 8px; margin-top: 14px;">
+                <input type="checkbox" id="canary-cfg-enabled" checked />
+                <label class="form-label" for="canary-cfg-enabled" style="margin: 0; cursor: pointer;">Enable Canary Subsystem</label>
+              </div>
+              <div class="form-col" style="flex: 1; display: flex; align-items: center; gap: 8px; margin-top: 14px;">
+                <input type="checkbox" id="canary-cfg-auto-rollback" checked />
+                <label class="form-label" for="canary-cfg-auto-rollback" style="margin: 0; cursor: pointer;">Default Auto-Rollback</label>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="canary-cfg-interval">Evaluation Interval (s)</label>
+                <input type="number" class="form-input" id="canary-cfg-interval" value="5" min="1" max="60" />
+              </div>
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="canary-cfg-max-dep">Max Concurrent Deployments</label>
+                <input type="number" class="form-input" id="canary-cfg-max-dep" value="32" min="1" max="128" />
+              </div>
+            </div>
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+              <button type="button" class="btn btn-secondary" onclick="closeCanaryModal()">Cancel</button>
+              <button type="submit" class="btn btn-primary-restart">Save Settings</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; margin-top: 16px;">
+        <button class="btn btn-secondary" onclick="closeCanaryModal()">Close</button>
       </div>
     </div>
   </div>
@@ -9844,6 +10176,466 @@
         });
       }
     }
+
+    // ==========================================
+    // Autonomous Canary Deployment & Traffic Mirroring Client Logic
+    // ==========================================
+    let cachedCanaryDeployments = [];
+
+    function openCanaryModal(tab = 'deploy') {
+      const modal = document.getElementById('canary-modal');
+      if (modal) {
+        modal.classList.add('active');
+        switchCanaryModalTab(tab);
+      }
+    }
+
+    function closeCanaryModal() {
+      const modal = document.getElementById('canary-modal');
+      if (modal) modal.classList.remove('active');
+    }
+
+    function switchCanaryMainTab(tab) {
+      const tabs = ['rollouts', 'topology', 'logs'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`btn-canary-tab-${t}`);
+        const content = document.getElementById(`canary-tab-${t}`);
+        if (btn) {
+          if (t === tab) {
+            btn.classList.add('btn-restart');
+          } else {
+            btn.classList.remove('btn-restart');
+          }
+        }
+        if (content) {
+          content.style.display = (t === tab) ? 'block' : 'none';
+        }
+      });
+    }
+
+    function switchCanaryModalTab(tab) {
+      const tabs = ['deploy', 'simulate', 'config'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`btn-canary-mtab-${t}`);
+        const content = document.getElementById(`canary-mtab-${t}-content`);
+        if (btn) {
+          if (t === tab) {
+            btn.classList.add('btn-restart');
+          } else {
+            btn.classList.remove('btn-restart');
+          }
+        }
+        if (content) {
+          content.style.display = (t === tab) ? 'block' : 'none';
+        }
+      });
+    }
+
+    async function pollCanaryStatus() {
+      try {
+        const res = await authFetch('/api/canary/status');
+        if (!res.ok) return;
+        const st = await res.json();
+
+        const badgeText = document.getElementById('canary-badge-text');
+        if (badgeText) badgeText.textContent = `${st.active_deployments} Active`;
+
+        const pill = document.getElementById('canary-status-pill');
+        if (pill) {
+          pill.textContent = st.enabled ? 'Active' : 'Disabled';
+          pill.className = `status-pill ${st.enabled ? 'status-running' : 'status-stopped'}`;
+        }
+
+        const elActive = document.getElementById('canary-kpi-active');
+        if (elActive) elActive.textContent = `${st.active_deployments} Active`;
+
+        const elTotal = document.getElementById('canary-kpi-total');
+        if (elTotal) elTotal.textContent = `${st.total_deployments} total registered`;
+
+        const elRouted = document.getElementById('canary-kpi-routed');
+        if (elRouted) elRouted.textContent = st.total_routed_reqs.toLocaleString();
+
+        const elMirrored = document.getElementById('canary-kpi-mirrored');
+        if (elMirrored) elMirrored.textContent = st.total_mirrored_reqs.toLocaleString();
+
+        const elRollbacks = document.getElementById('canary-kpi-rollbacks');
+        if (elRollbacks) elRollbacks.textContent = `${st.total_rollbacks} Tripped`;
+
+        const elLastEval = document.getElementById('canary-kpi-last-eval');
+        if (elLastEval && st.last_evaluation_at) {
+          elLastEval.textContent = `Last: ${new Date(st.last_evaluation_at).toLocaleTimeString()}`;
+        }
+      } catch (err) {
+        console.error('pollCanaryStatus failed:', err);
+      }
+    }
+
+    async function pollCanaryDeployments() {
+      try {
+        const res = await authFetch('/api/canary/deployments');
+        if (!res.ok) return;
+        const deployments = await res.json();
+        cachedCanaryDeployments = deployments;
+
+        const btnTab = document.getElementById('btn-canary-tab-rollouts');
+        if (btnTab) btnTab.textContent = `Active Rollouts (${deployments.length})`;
+
+        // Populate Simulation select
+        const simSelect = document.getElementById('canary-sim-dep-id');
+        if (simSelect) {
+          const currentVal = simSelect.value;
+          simSelect.innerHTML = '<option value="">Select an active canary...</option>' +
+            deployments.map(d => `<option value="${escapeHtml(d.id)}">${escapeHtml(d.name || d.id)} (${d.service_name})</option>`).join('');
+          if (currentVal) simSelect.value = currentVal;
+        }
+
+        const tbody = document.getElementById('canary-deployments-tbody');
+        const logsTbody = document.getElementById('canary-divergence-tbody');
+
+        if (!tbody) return;
+
+        if (deployments.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 16px;">No canary deployments configured. Click <strong>+ New Canary</strong> to create one.</td></tr>';
+          if (logsTbody) {
+            logsTbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 16px;">No divergence incidents recorded. All canaries running within safe statistical bounds.</td></tr>';
+          }
+          return;
+        }
+
+        // Fetch reports for all deployments in parallel
+        const details = await Promise.all(
+          deployments.map(async d => {
+            try {
+              const r = await authFetch(`/api/canary/deployments/detail?id=${encodeURIComponent(d.id)}`);
+              if (r.ok) return await r.json();
+            } catch {}
+            return { deployment: d, report: null };
+          })
+        );
+
+        tbody.innerHTML = details.map(item => {
+          const d = item.deployment;
+          const rep = item.report;
+
+          const baseWeight = d.traffic.baseline_weight;
+          const canWeight = d.traffic.canary_weight;
+          const isRolledBack = (d.phase === 'rolled_back');
+          const isCompleted = (d.phase === 'completed');
+
+          let phaseColor = '#38bdf8';
+          if (d.phase === 'active' || d.phase === 'evaluating') phaseColor = '#fbbf24';
+          else if (d.phase === 'promoting') phaseColor = '#10b981';
+          else if (isRolledBack) phaseColor = '#ef4444';
+          else if (isCompleted) phaseColor = '#34d399';
+
+          const errDelta = rep ? `${rep.error_rate_delta > 0 ? '+' : ''}${rep.error_rate_delta.toFixed(1)}%` : '0.0%';
+          const latRatio = rep ? `${rep.latency_p95_ratio.toFixed(2)}x` : '1.00x';
+          const healthScore = rep ? rep.health_score : 100;
+          let healthColor = '#10b981';
+          if (healthScore < 70) healthColor = '#f59e0b';
+          if (healthScore < 50) healthColor = '#ef4444';
+
+          return `
+            <tr>
+              <td>
+                <strong style="color: #fbbf24;">${escapeHtml(d.name || d.id)}</strong><br>
+                <code style="font-size: 10px; color: var(--text-muted);">${escapeHtml(d.id)}</code>
+              </td>
+              <td>
+                <span style="color: #38bdf8; font-weight: 600;">${escapeHtml(d.service_name || 'default')}</span><br>
+                <span style="font-size: 10px; color: var(--text-muted);">Base: <code>${escapeHtml(d.baseline_container_id)}</code></span><br>
+                <span style="font-size: 10px; color: var(--text-muted);">Canary: <code>${escapeHtml(d.canary_container_id)}</code></span>
+              </td>
+              <td>
+                <span class="status-pill" style="font-size: 10px; color: ${phaseColor}; border-color: ${phaseColor}40; background: ${phaseColor}15;">${escapeHtml(d.phase)}</span>
+                ${d.rollback_reason ? `<div style="font-size: 9px; color: #ef4444; margin-top: 2px;">${escapeHtml(d.rollback_reason)}</div>` : ''}
+              </td>
+              <td>
+                <div style="display: flex; justify-content: space-between; font-size: 10px; margin-bottom: 2px;">
+                  <span style="color: #38bdf8;">Base: ${baseWeight}%</span>
+                  <span style="color: #fbbf24;">Canary: ${canWeight}%</span>
+                </div>
+                <div style="background: rgba(0,0,0,0.4); border-radius: 4px; height: 8px; overflow: hidden; display: flex;">
+                  <div style="width: ${baseWeight}%; background: #38bdf8; height: 100%;"></div>
+                  <div style="width: ${canWeight}%; background: #fbbf24; height: 100%;"></div>
+                </div>
+                <div style="display: flex; gap: 4px; margin-top: 6px; align-items: center;">
+                  <input type="range" min="0" max="100" value="${canWeight}" style="width: 100px; accent-color: #fbbf24;" onchange="updateCanaryWeight('${escapeHtml(d.id)}', parseInt(this.value))" ${isRolledBack || isCompleted ? 'disabled' : ''} />
+                  <span style="font-size: 10px; color: var(--text-muted);">${canWeight}%</span>
+                </div>
+              </td>
+              <td><span style="color: ${rep && rep.error_rate_delta > d.rollback.max_error_rate_delta ? '#ef4444' : 'var(--text-main)'}; font-weight: 600;">${errDelta}</span></td>
+              <td><span style="color: ${rep && rep.latency_p95_ratio > d.rollback.max_latency_p95_ratio ? '#ef4444' : 'var(--text-main)'}; font-weight: 600;">${latRatio}</span></td>
+              <td><span style="color: ${healthColor}; font-weight: 700;">${healthScore}</span>/100</td>
+              <td style="text-align: right;">
+                <div style="display: inline-flex; gap: 4px;">
+                  <button class="btn btn-secondary" onclick="promoteCanary('${escapeHtml(d.id)}')" style="padding: 2px 8px; font-size: 10px; color: #10b981;" title="Promote to 100% Canary" ${isCompleted ? 'disabled' : ''}>Promote</button>
+                  <button class="btn btn-secondary" onclick="rollbackCanary('${escapeHtml(d.id)}')" style="padding: 2px 8px; font-size: 10px; color: #ef4444;" title="Rollback to 0% Canary" ${isRolledBack ? 'disabled' : ''}>Rollback</button>
+                  <button class="btn btn-secondary" onclick="deleteCanary('${escapeHtml(d.id)}')" style="padding: 2px 8px; font-size: 10px; color: var(--text-muted);" title="Delete Canary Deployment">✕</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+
+        if (logsTbody) {
+          logsTbody.innerHTML = details.map(item => {
+            const d = item.deployment;
+            const rep = item.report;
+            if (!rep) return '';
+
+            const statusPill = rep.diverged
+              ? '<span class="status-pill status-stopped" style="font-size:10px;">DIVERGED</span>'
+              : '<span class="status-pill status-running" style="font-size:10px;">STABLE</span>';
+
+            return `
+              <tr>
+                <td><strong>${escapeHtml(d.name || d.id)}</strong></td>
+                <td>${rep.baseline_samples} reqs · ${rep.baseline_error_rate.toFixed(1)}% err · ${rep.baseline_p95_latency_ms.toFixed(1)}ms</td>
+                <td>${rep.canary_samples} reqs · ${rep.canary_error_rate.toFixed(1)}% err · ${rep.canary_p95_latency_ms.toFixed(1)}ms</td>
+                <td>Delta: <strong>${rep.error_rate_delta > 0 ? '+' : ''}${rep.error_rate_delta.toFixed(1)}%</strong> · Ratio: <strong>${rep.latency_p95_ratio.toFixed(2)}x</strong></td>
+                <td>${statusPill}</td>
+                <td style="color: ${rep.diverged ? '#ef4444' : 'var(--text-muted)'}; font-size: 10px;">${escapeHtml(rep.trip_reason || 'Operating within threshold bounds')}</td>
+                <td><span style="color: var(--text-muted); font-size: 10px;">${new Date(rep.evaluated_at).toLocaleTimeString()}</span></td>
+              </tr>
+            `;
+          }).join('') || '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 16px;">No divergence incidents recorded.</td></tr>';
+        }
+
+      } catch (err) {
+        console.error('pollCanaryDeployments failed:', err);
+      }
+    }
+
+    async function submitCanaryForm(event) {
+      event.preventDefault();
+      try {
+        const id = document.getElementById('canary-form-id').value.trim();
+        const name = document.getElementById('canary-form-name').value.trim();
+        const service = document.getElementById('canary-form-service').value.trim();
+        const baseline = document.getElementById('canary-form-baseline-id').value.trim();
+        const canaryId = document.getElementById('canary-form-canary-id').value.trim();
+        const weight = parseInt(document.getElementById('canary-form-weight').value, 10);
+        const affinity = document.getElementById('canary-form-affinity').value.trim();
+        const override = document.getElementById('canary-form-override').value.trim();
+
+        const maxErrDelta = parseFloat(document.getElementById('canary-form-err-delta').value) || 5.0;
+        const maxLatRatio = parseFloat(document.getElementById('canary-form-lat-ratio').value) || 1.5;
+        const minSamples = parseInt(document.getElementById('canary-form-min-samples').value, 10) || 20;
+        const consecutive = parseInt(document.getElementById('canary-form-consecutive').value, 10) || 1;
+
+        const shadowEnabled = document.getElementById('canary-form-shadow-enabled').checked;
+        const sampleRate = parseFloat(document.getElementById('canary-form-sample-rate').value) || 1.0;
+        const autoPromote = document.getElementById('canary-form-auto-promote').checked;
+        const weightInc = parseInt(document.getElementById('canary-form-weight-inc').value, 10) || 10;
+
+        const payload = {
+          id: id,
+          name: name,
+          service_name: service,
+          baseline_container_id: baseline,
+          canary_container_id: canaryId,
+          traffic: {
+            baseline_weight: 100 - weight,
+            canary_weight: weight,
+            header_affinity: affinity,
+            canary_header_override: override
+          },
+          rollback: {
+            auto_rollback: true,
+            max_error_rate_delta: maxErrDelta,
+            max_latency_p95_ratio: maxLatRatio,
+            min_sample_size: minSamples,
+            consecutive_violations: consecutive
+          },
+          shadow: {
+            enabled: shadowEnabled,
+            sample_rate: sampleRate,
+            max_queue_size: 1000,
+            worker_concurrency: 4,
+            timeout_ms: 2000
+          },
+          promotion: {
+            auto_promote: autoPromote,
+            step_interval: 30000000000, // 30s
+            weight_increment: weightInc,
+            target_weight: 100
+          }
+        };
+
+        const res = await authFetch('/api/canary/deployments', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ Canary deployment ${id} created`);
+        closeCanaryModal();
+        pollCanaryAll();
+      } catch (err) {
+        showToast(`Failed to create canary: ${err.message}`);
+      }
+    }
+
+    async function updateCanaryWeight(id, canaryWeight) {
+      try {
+        const res = await authFetch('/api/canary/deployments/weight', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: id, canary_weight: canaryWeight })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ Weight updated to ${canaryWeight}% Canary`);
+        pollCanaryAll();
+      } catch (err) {
+        showToast(`Failed to update weight: ${err.message}`);
+      }
+    }
+
+    async function promoteCanary(id) {
+      if (!confirm(`Promote canary ${id} to 100% production traffic?`)) return;
+      try {
+        const res = await authFetch('/api/canary/deployments/promote', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: id })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ Canary ${id} promoted to 100%`);
+        pollCanaryAll();
+      } catch (err) {
+        showToast(`Promotion failed: ${err.message}`);
+      }
+    }
+
+    async function rollbackCanary(id) {
+      if (!confirm(`Rollback canary ${id} to 0% traffic immediately?`)) return;
+      try {
+        const res = await authFetch('/api/canary/deployments/rollback', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ id: id, reason: 'manual operator rollback' })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ Canary ${id} rolled back to 0%`);
+        pollCanaryAll();
+      } catch (err) {
+        showToast(`Rollback failed: ${err.message}`);
+      }
+    }
+
+    async function deleteCanary(id) {
+      if (!confirm(`Delete canary deployment ${id}?`)) return;
+      try {
+        const res = await authFetch(`/api/canary/deployments/detail?id=${encodeURIComponent(id)}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ Canary ${id} deleted`);
+        pollCanaryAll();
+      } catch (err) {
+        showToast(`Delete failed: ${err.message}`);
+      }
+    }
+
+    async function runCanarySimulation() {
+      const depID = document.getElementById('canary-sim-dep-id').value;
+      if (!depID) {
+        showToast('Please select a target deployment');
+        return;
+      }
+      const count = parseInt(document.getElementById('canary-sim-count').value, 10) || 50;
+      const canaryErrRate = parseFloat(document.getElementById('canary-sim-canary-err').value) || 0;
+      const canaryLat = parseFloat(document.getElementById('canary-sim-canary-lat').value) || 50;
+      const baseLat = parseFloat(document.getElementById('canary-sim-base-lat').value) || 10;
+
+      const resDiv = document.getElementById('canary-sim-results');
+      if (resDiv) {
+        resDiv.style.display = 'block';
+        resDiv.innerHTML = `Simulating ${count} requests across baseline and canary...`;
+      }
+
+      try {
+        let baselineReqs = 0;
+        let canaryReqs = 0;
+        let shadowMirrored = 0;
+
+        for (let i = 0; i < count; i++) {
+          const reqID = `sim-req-${i}`;
+          // 1. Route decision
+          const routeRes = await authFetch('/api/canary/deployments/route', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: depID, request_id: reqID })
+          });
+          if (!routeRes.ok) continue;
+          const decision = await routeRes.json();
+
+          if (decision.is_canary) {
+            canaryReqs++;
+            // Ingest sample
+            const isErr = (Math.random() * 100 < canaryErrRate);
+            const status = isErr ? 500 : 200;
+            await authFetch('/api/canary/deployments/sample', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: depID, target: 'canary', status_code: status, duration_ms: canaryLat })
+            });
+          } else {
+            baselineReqs++;
+            await authFetch('/api/canary/deployments/sample', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: depID, target: 'baseline', status_code: 200, duration_ms: baseLat })
+            });
+            if (decision.should_mirror) shadowMirrored++;
+          }
+        }
+
+        if (resDiv) {
+          resDiv.innerHTML = `✓ Simulation complete!\n• Total: ${count}\n• Baseline: ${baselineReqs}\n• Canary: ${canaryReqs}\n• Shadow Mirrored: ${shadowMirrored}\nEvaluating real-time divergence...`;
+        }
+        showToast('✓ Simulation telemetry ingested');
+        pollCanaryAll();
+      } catch (err) {
+        showToast(`Simulation failed: ${err.message}`);
+      }
+    }
+
+    async function saveCanaryConfig(event) {
+      event.preventDefault();
+      try {
+        const enabled = document.getElementById('canary-cfg-enabled').checked;
+        const autoRollback = document.getElementById('canary-cfg-auto-rollback').checked;
+        const interval = (parseInt(document.getElementById('canary-cfg-interval').value, 10) || 5) * 1000000000;
+        const maxDep = parseInt(document.getElementById('canary-cfg-max-dep').value, 10) || 32;
+
+        const res = await authFetch('/api/canary/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            enabled: enabled,
+            evaluation_interval: interval,
+            default_auto_rollback: autoRollback,
+            default_shadow_mirror: true,
+            max_deployments: maxDep
+          })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast('✓ Canary configuration saved');
+        closeCanaryModal();
+        pollCanaryAll();
+      } catch (err) {
+        showToast(`Failed to save config: ${err.message}`);
+      }
+    }
+
+    function pollCanaryAll() {
+      pollCanaryStatus();
+      pollCanaryDeployments();
+    }
+
+    pollCanaryAll();
+    setInterval(pollCanaryAll, 3000);
 
     pollWireGuardAll();
     setInterval(pollWireGuardAll, 3000);
