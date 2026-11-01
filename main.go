@@ -31,7 +31,7 @@ import (
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "2.9.0"
+const AppVersion = "3.0.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -97,6 +97,13 @@ func main() {
 	crashDirFlag := flag.String("crash-dir", "data/cores", "Directory path for core dump ingestion (env: DOCK_RADAR_CRASH_DIR)")
 	crashDedupWindowFlag := flag.Duration("crash-dedup-window", 15*time.Minute, "Sliding window for crash signature deduplication (env: DOCK_RADAR_CRASH_DEDUP_WINDOW)")
 	crashMaxReportsFlag := flag.Int("crash-max-reports", 200, "Maximum retained in-memory crash reports (env: DOCK_RADAR_CRASH_MAX_REPORTS)")
+	queryCacheFlag := flag.Bool("query-cache", true, "Enable self-optimizing in-memory query cache (env: DOCK_RADAR_QUERY_CACHE_ENABLED)")
+	queryCacheTTLFlag := flag.Duration("query-cache-ttl", 2*time.Second, "Default TTL for cached queries (env: DOCK_RADAR_QUERY_CACHE_TTL)")
+	queryCacheMaxItemsFlag := flag.Int("query-cache-max-items", 5000, "Maximum number of cached items in memory (env: DOCK_RADAR_QUERY_CACHE_MAX_ITEMS)")
+	queryCacheMaxMBFlag := flag.Int("query-cache-max-mb", 64, "Maximum memory threshold in megabytes for query cache (env: DOCK_RADAR_QUERY_CACHE_MAX_MB)")
+	eventMuxFlag := flag.Bool("event-multiplexer", true, "Enable non-blocking event multiplexer (env: DOCK_RADAR_EVENT_MULTIPLEXER_ENABLED)")
+	eventBufSizeFlag := flag.Int("event-buffer-size", 1024, "Buffer capacity for event subscribers (env: DOCK_RADAR_EVENT_BUFFER_SIZE)")
+	eventDedupWindowFlag := flag.Duration("event-dedup-window", 30*time.Second, "Sliding window for event deduplication (env: DOCK_RADAR_EVENT_DEDUP_WINDOW)")
 	versionFlag := flag.Bool("version", false, "Print dock-radar version and exit")
 	flag.Parse()
 
@@ -666,6 +673,71 @@ func main() {
 				handlerCfg.CrashEngine.Start(crashCtx)
 			}
 		}
+
+		// Launch Self-Optimizing Query Cache & Event Multiplexer Pipeline
+		qcEnabled := *queryCacheFlag
+		if envQC := os.Getenv("DOCK_RADAR_QUERY_CACHE_ENABLED"); envQC != "" {
+			qcEnabled = strings.EqualFold(envQC, "true") || envQC == "1"
+		}
+		qcTTL := *queryCacheTTLFlag
+		if envTTL := os.Getenv("DOCK_RADAR_QUERY_CACHE_TTL"); envTTL != "" {
+			if d, err := time.ParseDuration(envTTL); err == nil && d > 0 {
+				qcTTL = d
+			}
+		}
+		qcMaxItems := *queryCacheMaxItemsFlag
+		if envItems := os.Getenv("DOCK_RADAR_QUERY_CACHE_MAX_ITEMS"); envItems != "" {
+			if items, err := strconv.Atoi(envItems); err == nil && items > 0 {
+				qcMaxItems = items
+			}
+		}
+		qcMaxMB := *queryCacheMaxMBFlag
+		if envMB := os.Getenv("DOCK_RADAR_QUERY_CACHE_MAX_MB"); envMB != "" {
+			if mb, err := strconv.Atoi(envMB); err == nil && mb > 0 {
+				qcMaxMB = mb
+			}
+		}
+
+		muxEnabled := *eventMuxFlag
+		if envMux := os.Getenv("DOCK_RADAR_EVENT_MULTIPLEXER_ENABLED"); envMux != "" {
+			muxEnabled = strings.EqualFold(envMux, "true") || envMux == "1"
+		}
+		muxBufSize := *eventBufSizeFlag
+		if envBuf := os.Getenv("DOCK_RADAR_EVENT_BUFFER_SIZE"); envBuf != "" {
+			if b, err := strconv.Atoi(envBuf); err == nil && b > 0 {
+				muxBufSize = b
+			}
+		}
+		dedupWindow := *eventDedupWindowFlag
+		if envDedup := os.Getenv("DOCK_RADAR_EVENT_DEDUP_WINDOW"); envDedup != "" {
+			if d, err := time.ParseDuration(envDedup); err == nil && d > 0 {
+				dedupWindow = d
+			}
+		}
+
+		if handlerCfg.QueryCacheEngine != nil {
+			cCfg := handlerCfg.QueryCacheEngine.Cache().Config()
+			cCfg.Enabled = qcEnabled
+			cCfg.DefaultTTL = qcTTL
+			cCfg.MaxItems = qcMaxItems
+			cCfg.MaxMemoryBytes = int64(qcMaxMB) * 1024 * 1024
+			_ = handlerCfg.QueryCacheEngine.Cache().UpdateConfig(cCfg)
+
+			mCfg := handlerCfg.QueryCacheEngine.Multiplexer().Config()
+			mCfg.Enabled = muxEnabled
+			mCfg.BufferSize = muxBufSize
+			_ = handlerCfg.QueryCacheEngine.Multiplexer().UpdateConfig(mCfg)
+
+			dCfg := handlerCfg.QueryCacheEngine.Deduplicator().Config()
+			dCfg.Window = dedupWindow
+			_ = handlerCfg.QueryCacheEngine.Deduplicator().UpdateConfig(dCfg)
+
+			if qcEnabled || muxEnabled {
+				qcCtx, qcCancel := context.WithCancel(context.Background())
+				defer qcCancel()
+				handlerCfg.QueryCacheEngine.Start(qcCtx)
+			}
+		}
 	}
 
 	scheme := "http"
@@ -876,6 +948,15 @@ func main() {
 		}
 	}
 
+	queryCacheStatusDesc := "Disabled"
+	if handlerCfg != nil && handlerCfg.QueryCacheEngine != nil {
+		st := handlerCfg.QueryCacheEngine.Status()
+		if st.Enabled {
+			queryCacheStatusDesc = fmt.Sprintf("Active (%.1f%% hit ratio · %d cached items · %d events ingested · %d deduped)",
+				st.Cache.HitRatio, st.Cache.ItemCount, st.Multiplexer.TotalIngested, st.Deduplicator.TotalDeduped)
+		}
+	}
+
 	fmt.Println("=========================================================")
 	fmt.Printf(" 🚀 Dock-Radar v%s · Single-Binary Container & System Monitor\n", AppVersion)
 	fmt.Printf(" 📡 Web Dashboard Live at %s://localhost:%s\n", scheme, port)
@@ -899,6 +980,7 @@ func main() {
 	fmt.Printf(" 🛡️ WireGuard Mesh     : %s\n", wireguardStatusDesc)
 	fmt.Printf(" 🐤 Canary Rollouts    : %s\n", canaryStatusDesc)
 	fmt.Printf(" 💥 Crash Analysis     : %s\n", crashStatusDesc)
+	fmt.Printf(" ⚡ Query Cache/Events : %s\n", queryCacheStatusDesc)
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")
 	fmt.Println("=========================================================")
 

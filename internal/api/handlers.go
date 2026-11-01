@@ -23,6 +23,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
+	"github.com/kLauncher1/dock-radar/internal/querycache"
 	"github.com/kLauncher1/dock-radar/internal/raft"
 	"github.com/kLauncher1/dock-radar/internal/ratelimit"
 	"github.com/kLauncher1/dock-radar/internal/rolling"
@@ -75,6 +76,7 @@ type HandlerConfig struct {
 	WireGuardEngine  *wireguard.Engine
 	CanaryEngine     *canary.Engine
 	CrashEngine      *crash.Engine
+	QueryCacheEngine *querycache.Engine
 	AppVersion       string
 	TokenAuth        *security.TokenAuth
 	AllowRemote      bool
@@ -122,6 +124,7 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	wireguardEngine, _ := wireguard.NewEngine(wireguard.DefaultWireGuardConfig(), auditLogger, alertDispatcher)
 	canaryEngine := canary.NewEngine(canary.DefaultCanaryConfig(), auditLogger, alertDispatcher)
 	crashEngine := crash.NewEngine(crash.DefaultCrashConfig(), alertDispatcher, auditLogger, dockerClient)
+	queryCacheEngine := querycache.NewEngine(querycache.DefaultCacheConfig(), querycache.DefaultMultiplexerConfig(), querycache.DefaultDedupConfig(), auditLogger, alertDispatcher, dockerClient, "local-node")
 
 	cfg := &HandlerConfig{
 		DockerClient:     dockerClient,
@@ -143,7 +146,8 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 		WireGuardEngine:  wireguardEngine,
 		CanaryEngine:     canaryEngine,
 		CrashEngine:      crashEngine,
-		AppVersion:       "2.9.0",
+		QueryCacheEngine: queryCacheEngine,
+		AppVersion:       "3.0.0",
 		TokenAuth:        tokenAuth,
 		AllowRemote:      allowRemote,
 	}
@@ -313,6 +317,16 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	mux.HandleFunc("/api/crash/ingest", cfg.handleCrashIngest)
 	mux.HandleFunc("/api/crash/test", cfg.handleCrashTest)
 	mux.HandleFunc("/api/crash/config", cfg.handleCrashConfig)
+
+	// Self-Optimizing Query Cache & Event Ingestion Pipeline
+	mux.HandleFunc("/api/cache/status", cfg.handleCacheStatus)
+	mux.HandleFunc("/api/cache/keys", cfg.handleCacheKeys)
+	mux.HandleFunc("/api/cache/purge", cfg.handleCachePurge)
+	mux.HandleFunc("/api/cache/config", cfg.handleCacheConfig)
+	mux.HandleFunc("/api/events/status", cfg.handleEventsStatus)
+	mux.HandleFunc("/api/events/stream", cfg.handleEventsStream)
+	mux.HandleFunc("/api/events/publish", cfg.handleEventsPublish)
+	mux.HandleFunc("/api/events/test", cfg.handleEventsTest)
 
 	// Embedded Static UI
 	if staticFS != nil {
