@@ -14,6 +14,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/anomaly"
 	"github.com/kLauncher1/dock-radar/internal/audit"
 	"github.com/kLauncher1/dock-radar/internal/canary"
+	"github.com/kLauncher1/dock-radar/internal/crash"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/ebpf"
 	"github.com/kLauncher1/dock-radar/internal/federation"
@@ -73,6 +74,7 @@ type HandlerConfig struct {
 	RaftEngine       *raft.Engine
 	WireGuardEngine  *wireguard.Engine
 	CanaryEngine     *canary.Engine
+	CrashEngine      *crash.Engine
 	AppVersion       string
 	TokenAuth        *security.TokenAuth
 	AllowRemote      bool
@@ -119,6 +121,7 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	raftEngine, _ := raft.NewEngine(raft.DefaultRaftConfig(), raft.NewStateMachine(), nil, auditLogger, alertDispatcher)
 	wireguardEngine, _ := wireguard.NewEngine(wireguard.DefaultWireGuardConfig(), auditLogger, alertDispatcher)
 	canaryEngine := canary.NewEngine(canary.DefaultCanaryConfig(), auditLogger, alertDispatcher)
+	crashEngine := crash.NewEngine(crash.DefaultCrashConfig(), alertDispatcher, auditLogger, dockerClient)
 
 	cfg := &HandlerConfig{
 		DockerClient:     dockerClient,
@@ -139,7 +142,8 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 		RaftEngine:       raftEngine,
 		WireGuardEngine:  wireguardEngine,
 		CanaryEngine:     canaryEngine,
-		AppVersion:       "2.8.0",
+		CrashEngine:      crashEngine,
+		AppVersion:       "2.9.0",
 		TokenAuth:        tokenAuth,
 		AllowRemote:      allowRemote,
 	}
@@ -301,6 +305,14 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	mux.HandleFunc("/api/canary/deployments/route", cfg.handleCanaryRoute)
 	mux.HandleFunc("/api/canary/deployments/sample", cfg.handleCanarySample)
 	mux.HandleFunc("/api/canary/config", cfg.handleCanaryConfig)
+
+	// Distributed Core Dump & Crash Analysis Pipeline
+	mux.HandleFunc("/api/crash/status", cfg.handleCrashStatus)
+	mux.HandleFunc("/api/crash/reports", cfg.handleCrashReports)
+	mux.HandleFunc("/api/crash/reports/detail", cfg.handleCrashReportDetail)
+	mux.HandleFunc("/api/crash/ingest", cfg.handleCrashIngest)
+	mux.HandleFunc("/api/crash/test", cfg.handleCrashTest)
+	mux.HandleFunc("/api/crash/config", cfg.handleCrashConfig)
 
 	// Embedded Static UI
 	if staticFS != nil {

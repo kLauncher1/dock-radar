@@ -156,9 +156,9 @@ This document outlines the architectural milestones and engineering priorities f
 ---
 
 ## Milestone 24: v2.9.0 (Distributed Core Dump & Crash Analysis Pipeline)
-- [ ] Automatic container crash kernel core dump interception and ELF stack backtrace extraction.
-- [ ] Symbolicated crash telemetry aggregation and root-cause classification.
-- [ ] Crash signature deduplication and instant alert dispatch.
+- [x] Automatic container crash kernel core dump interception and ELF stack backtrace extraction.
+- [x] Symbolicated crash telemetry aggregation and root-cause classification.
+- [x] Crash signature deduplication and instant alert dispatch.
 
 ---
 
@@ -278,6 +278,13 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Dynamic iptables and eBPF socket redirection transparently routing inter-container TCP traffic through local proxy.
 - [ ] Mutual TLS (mTLS) zero-trust encryption with dynamic SPIFFE identity certificate validation.
 - [ ] In-flight distributed request tracing with W3C Trace Context and OpenTelemetry exporter.
+
+---
+
+## Milestone 42: v4.7.0 (Autonomous Kernel Memory Leak Tracer & Page Cache Profiler)
+- [ ] Low-overhead kernel slab allocator tracking and unreclaimed dentry/inode cache prober.
+- [ ] Userspace memory leak forecasting via allocation call-site stack backtrace sampling.
+- [ ] Automated container dirty page cache throttling and drop-caches kernel trigger.
 
 
 

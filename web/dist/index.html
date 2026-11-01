@@ -656,6 +656,7 @@
       <button id="raft-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.15); color: #fbbf24; display: inline-flex; align-items: center; gap: 4px;" onclick="openRaftModal()" title="High-Availability Raft Cluster Consensus Engine">🗳️ Raft: <span id="raft-badge-text">Follower (Term 0)</span></button>
       <button id="wireguard-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.15); color: #34d399; display: inline-flex; align-items: center; gap: 4px;" onclick="openWireGuardModal()" title="Zero-Trust WireGuard Mesh Tunneling & Peer Gateway">🛡️ WireGuard: <span id="wireguard-badge-text">0 Peers</span></button>
       <button id="canary-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.15); color: #fbbf24; display: inline-flex; align-items: center; gap: 4px;" onclick="openCanaryModal()" title="Autonomous Canary Deployment & Traffic Mirroring">🐤 Canary: <span id="canary-badge-text">0 Active</span></button>
+      <button id="crash-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.15); color: #f87171; display: inline-flex; align-items: center; gap: 4px;" onclick="openCrashModal()" title="Distributed Core Dump & Crash Analysis Pipeline">💥 Crash: <span id="crash-badge-text">0 Crashes</span></button>
       <button id="btn-export-audit" class="status-pill" style="font-size: 11px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;" onclick="exportAuditTrail()" title="Export Audit Trail in NDJSON format">📋 Export Audit</button>
       <span>•</span>
       <span id="host-badge">Loading...</span>
@@ -2522,6 +2523,148 @@
         </div>
       </div>
     </div>
+
+    <!-- Distributed Core Dump & Crash Analysis Pipeline Section -->
+    <div class="card" id="crash-section" style="margin-top: 24px;">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div>
+            <div class="card-title">Distributed Core Dump &amp; Crash Analysis Pipeline</div>
+            <div class="card-subtitle">Automated kernel core dump interception, ELF backtrace extraction, symbolication &amp; signature deduplication</div>
+          </div>
+          <span id="crash-status-pill" class="status-pill status-running" style="font-size: 11px;">Active</span>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn-action btn-logs" onclick="openCrashModal(); switchCrashModalTab('ingest');" style="color: #f87171; border-color: rgba(239, 68, 68, 0.4);">+ Ingest Dump</button>
+          <button class="btn-action btn-logs" onclick="triggerCrashDrill()" style="color: #fbbf24; border-color: rgba(245, 158, 11, 0.4);">⚡ Trigger Drill</button>
+          <button class="btn-action btn-logs" onclick="clearCrashReports()" style="color: var(--text-muted); border-color: var(--border-subtle);">🗑️ Clear Reports</button>
+          <button class="btn-action btn-logs" onclick="openCrashModal(); switchCrashModalTab('config');" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">⚙️ Configure</button>
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px;">
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #ef4444;">
+          <div style="font-size: 11px; color: #ef4444; font-weight: 600; text-transform: uppercase;">Total Crashes</div>
+          <div id="crash-kpi-total" style="font-size: 18px; font-weight: 700; color: #f87171; margin-top: 4px;">0 Crashes</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Intercepted process failures</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #f59e0b;">
+          <div style="font-size: 11px; color: #f59e0b; font-weight: 600; text-transform: uppercase;">Unique Signatures</div>
+          <div id="crash-kpi-signatures" style="font-size: 18px; font-weight: 700; color: #fbbf24; margin-top: 4px;">0 Distinct</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Deterministic SHA-256 fingerprints</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #38bdf8;">
+          <div style="font-size: 11px; color: #38bdf8; font-weight: 600; text-transform: uppercase;">Deduplicated Crashes</div>
+          <div id="crash-kpi-deduped" style="font-size: 18px; font-weight: 700; color: #7dd3fc; margin-top: 4px;">0 Suppressed</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Alert storm protection</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #a78bfa;">
+          <div style="font-size: 11px; color: #a78bfa; font-weight: 600; text-transform: uppercase;">Diagnostic Dumps</div>
+          <div id="crash-kpi-stored" style="font-size: 18px; font-weight: 700; color: #c4b5fd; margin-top: 4px;">0 Retained</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">In-memory ring buffer</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #ec4899;">
+          <div style="font-size: 11px; color: #ec4899; font-weight: 600; text-transform: uppercase;">Leading Root Cause</div>
+          <div id="crash-kpi-rootcause" style="font-size: 16px; font-weight: 700; color: #f472b6; margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">None Detected</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Automated heuristic triage</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #10b981;">
+          <div style="font-size: 11px; color: #10b981; font-weight: 600; text-transform: uppercase;">Interceptor Status</div>
+          <div id="crash-kpi-interceptor" style="font-size: 18px; font-weight: 700; color: #34d399; margin-top: 4px;">ARMED</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">ELF &amp; text trace parser active</div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; margin-bottom: 16px;">
+        <button class="btn-action active" id="btn-crash-tab-reports" onclick="switchCrashMainTab('reports')" style="font-size: 12px;">💥 Crash Reports &amp; Backtraces</button>
+        <button class="btn-action" id="btn-crash-tab-causes" onclick="switchCrashMainTab('causes')" style="font-size: 12px;">📊 Root Cause &amp; Signal Breakdown</button>
+        <button class="btn-action" id="btn-crash-tab-dedup" onclick="switchCrashMainTab('dedup')" style="font-size: 12px;">🔍 Signatures &amp; Deduplication Window</button>
+      </div>
+
+      <!-- Tab 1: Crash Reports Table -->
+      <div id="crash-tab-reports">
+        <div style="display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
+          <input type="text" id="crash-search-container" class="form-input" placeholder="Filter by container..." style="max-width: 200px; font-size: 11px;" oninput="pollCrashReports()" />
+          <select id="crash-filter-severity" class="form-input" style="max-width: 160px; font-size: 11px;" onchange="pollCrashReports()">
+            <option value="">All Severities</option>
+            <option value="critical">Critical</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <select id="crash-filter-cause" class="form-input" style="max-width: 220px; font-size: 11px;" onchange="pollCrashReports()">
+            <option value="">All Root Causes</option>
+            <option value="null_pointer_dereference">Null Pointer Dereference</option>
+            <option value="memory_corruption">Memory Corruption</option>
+            <option value="out_of_bounds_access">Out of Bounds Access</option>
+            <option value="assertion_failure">Assertion Failure</option>
+            <option value="oom_killed">OOM Killed</option>
+            <option value="stack_overflow">Stack Overflow</option>
+            <option value="arithmetic_exception">Arithmetic Exception</option>
+            <option value="illegal_instruction">Illegal Instruction</option>
+          </select>
+        </div>
+        <div style="overflow-x: auto;">
+          <table class="alert-events-table" style="width: 100%; font-size: 11px;">
+            <thead>
+              <tr>
+                <th>Report ID</th>
+                <th>Container</th>
+                <th>Signal</th>
+                <th>Root Cause</th>
+                <th>Severity</th>
+                <th>Dedup Count</th>
+                <th>Fault Address</th>
+                <th>Timestamp</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="crash-reports-tbody">
+              <tr>
+                <td colspan="9" style="text-align: center; color: var(--text-muted); padding: 16px;">No container crashes intercepted. All monitored processes are operating normally.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 2: Root Cause & Signal Breakdown -->
+      <div id="crash-tab-causes" style="display: none;">
+        <div id="crash-causes-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+          <!-- Populated dynamically via JS -->
+        </div>
+      </div>
+
+      <!-- Tab 3: Deduplication & Signatures -->
+      <div id="crash-tab-dedup" style="display: none;">
+        <div style="overflow-x: auto;">
+          <table class="alert-events-table" style="width: 100%; font-size: 11px;">
+            <thead>
+              <tr>
+                <th>Crash Signature Fingerprint</th>
+                <th>Sample Report</th>
+                <th>Total Occurrences</th>
+                <th>First Intercepted</th>
+                <th>Last Intercepted</th>
+                <th>Alert Status</th>
+              </tr>
+            </thead>
+            <tbody id="crash-dedup-tbody">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 16px;">No crash signatures indexed yet.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- Lifecycle Action Confirmation Modal -->
@@ -4228,6 +4371,136 @@
 
       <div class="modal-actions" style="display: flex; justify-content: flex-end; margin-top: 16px;">
         <button class="btn btn-secondary" onclick="closeCanaryModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Distributed Core Dump & Crash Analysis Modal -->
+  <div class="modal-backdrop" id="crash-modal">
+    <div class="modal-card" style="max-width: 760px; width: 95%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div class="modal-title" style="color: #f87171; margin-bottom: 0;">Distributed Core Dump &amp; Crash Analysis Management</div>
+        <button class="btn-action" onclick="closeCrashModal()" style="padding: 4px 10px;">✕</button>
+      </div>
+
+      <!-- Modal Tabs -->
+      <div style="display: flex; gap: 8px; border-bottom: 1px solid var(--border-subtle); padding-bottom: 8px; margin-bottom: 16px;">
+        <button class="btn-action active" id="btn-crash-mtab-ingest" onclick="switchCrashModalTab('ingest')" style="font-size: 11px;">+ Ingest Dump</button>
+        <button class="btn-action" id="btn-crash-mtab-drill" onclick="switchCrashModalTab('drill')" style="font-size: 11px;">⚡ Simulation Drill</button>
+        <button class="btn-action" id="btn-crash-mtab-config" onclick="switchCrashModalTab('config')" style="font-size: 11px;">⚙️ Pipeline Settings</button>
+      </div>
+
+      <!-- Tab 1: Ingest Dump Form -->
+      <div id="crash-mtab-ingest-content">
+        <form onsubmit="submitCrashIngestForm(event)">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div class="form-row">
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="crash-form-cid">Container ID *</label>
+                <input type="text" class="form-input" id="crash-form-cid" placeholder="e.g. c-backend-01" required />
+              </div>
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="crash-form-cname">Container Name</label>
+                <input type="text" class="form-input" id="crash-form-cname" placeholder="e.g. backend-prod" />
+              </div>
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="crash-form-image">Image Tag</label>
+                <input type="text" class="form-input" id="crash-form-image" placeholder="e.g. app/server:v2.1" />
+              </div>
+            </div>
+
+            <div class="form-col">
+              <label class="form-label" for="crash-form-raw">Core Dump / Stack Trace Payload * (Raw text or Base64 binary)</label>
+              <textarea class="form-input" id="crash-form-raw" rows="7" placeholder="#0  0x0000000000401142 in execute_query () at db.c:89&#10;#1  0x0000000000401280 in main () at server.c:42" style="font-family: monospace; font-size: 11px;" required></textarea>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+              <button type="button" class="btn btn-secondary" onclick="closeCrashModal()">Cancel</button>
+              <button type="submit" class="btn btn-primary-restart" style="background: #ef4444; border-color: #ef4444;">Ingest &amp; Analyze</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <!-- Tab 2: Simulation Drill -->
+      <div id="crash-mtab-drill-content" style="display: none;">
+        <div style="display: flex; flex-direction: column; gap: 14px;">
+          <div style="font-size: 12px; color: var(--text-muted);">
+            Trigger a synthetic kernel crash drill to verify end-to-end telemetry extraction, backtrace reconstruction, automated root-cause classification, and alert delivery.
+          </div>
+          <div class="form-row">
+            <div class="form-col" style="flex: 2;">
+              <label class="form-label" for="crash-drill-cid">Simulated Target Container ID</label>
+              <input type="text" class="form-input" id="crash-drill-cid" value="drill-worker-01" />
+            </div>
+            <div class="form-col" style="flex: 1; display: flex; align-items: flex-end;">
+              <button type="button" class="btn btn-primary-restart" style="width: 100%; background: #f59e0b; border-color: #f59e0b;" onclick="triggerCrashDrillFromModal()">⚡ Launch Drill</button>
+            </div>
+          </div>
+          <div id="crash-drill-results" style="font-size: 11px; color: var(--text-muted); background: rgba(0,0,0,0.3); padding: 10px; border-radius: 6px; font-family: monospace; display: none;"></div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Pipeline Settings -->
+      <div id="crash-mtab-config-content" style="display: none;">
+        <form onsubmit="saveCrashConfig(event)">
+          <div style="display: flex; flex-direction: column; gap: 12px;">
+            <div class="form-row">
+              <div class="form-col" style="flex: 1; display: flex; align-items: center; gap: 8px; margin-top: 14px;">
+                <input type="checkbox" id="crash-cfg-enabled" checked />
+                <label class="form-label" for="crash-cfg-enabled" style="margin: 0; cursor: pointer;">Enable Crash Pipeline</label>
+              </div>
+              <div class="form-col" style="flex: 1; display: flex; align-items: center; gap: 8px; margin-top: 14px;">
+                <input type="checkbox" id="crash-cfg-autosymbol" checked />
+                <label class="form-label" for="crash-cfg-autosymbol" style="margin: 0; cursor: pointer;">Auto-Symbolicate Backtraces</label>
+              </div>
+              <div class="form-col" style="flex: 1; display: flex; align-items: center; gap: 8px; margin-top: 14px;">
+                <input type="checkbox" id="crash-cfg-alerts" checked />
+                <label class="form-label" for="crash-cfg-alerts" style="margin: 0; cursor: pointer;">Dispatch Instant Webhooks</label>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-col" style="flex: 2;">
+                <label class="form-label" for="crash-cfg-watchdir">Watch Directory</label>
+                <input type="text" class="form-input" id="crash-cfg-watchdir" value="data/cores" />
+              </div>
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="crash-cfg-dedup-min">Dedup Window (min)</label>
+                <input type="number" class="form-input" id="crash-cfg-dedup-min" value="15" min="1" max="1440" />
+              </div>
+              <div class="form-col" style="flex: 1;">
+                <label class="form-label" for="crash-cfg-max-reports">Max Reports Retained</label>
+                <input type="number" class="form-input" id="crash-cfg-max-reports" value="200" min="10" max="2000" />
+              </div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 8px;">
+              <button type="button" class="btn btn-secondary" onclick="closeCrashModal()">Cancel</button>
+              <button type="submit" class="btn btn-primary-restart">Save Settings</button>
+            </div>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; margin-top: 16px;">
+        <button class="btn btn-secondary" onclick="closeCrashModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Detailed Stack Trace Inspection Modal -->
+  <div class="modal-backdrop" id="crash-detail-modal">
+    <div class="modal-card" style="max-width: 820px; width: 95%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <div class="modal-title" id="crash-detail-title" style="color: #f87171; margin-bottom: 0;">Crash Diagnostic Backtrace</div>
+        <button class="btn-action" onclick="closeCrashDetailModal()" style="padding: 4px 10px;">✕</button>
+      </div>
+      <div id="crash-detail-body" style="font-size: 12px; color: var(--text-main);">
+        <!-- Loaded dynamically -->
+      </div>
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; margin-top: 16px;">
+        <button class="btn btn-secondary" onclick="closeCrashDetailModal()">Close</button>
       </div>
     </div>
   </div>
@@ -10634,8 +10907,392 @@
       pollCanaryDeployments();
     }
 
+    // ------------------------------------------------------------------------
+    // Distributed Core Dump & Crash Analysis Pipeline
+    // ------------------------------------------------------------------------
+    function openCrashModal() {
+      const el = document.getElementById('crash-modal');
+      if (el) el.classList.add('active');
+    }
+
+    function closeCrashModal() {
+      const el = document.getElementById('crash-modal');
+      if (el) el.classList.remove('active');
+    }
+
+    function switchCrashModalTab(tab) {
+      const tabs = ['ingest', 'drill', 'config'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`btn-crash-mtab-${t}`);
+        const content = document.getElementById(`crash-mtab-${t}-content`);
+        if (btn) btn.classList.toggle('active', t === tab);
+        if (content) content.style.display = (t === tab) ? 'block' : 'none';
+      });
+    }
+
+    function switchCrashMainTab(tab) {
+      const tabs = ['reports', 'causes', 'dedup'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`btn-crash-tab-${t}`);
+        const content = document.getElementById(`crash-tab-${t}`);
+        if (btn) btn.classList.toggle('active', t === tab);
+        if (content) content.style.display = (t === tab) ? 'block' : 'none';
+      });
+    }
+
+    function closeCrashDetailModal() {
+      const el = document.getElementById('crash-detail-modal');
+      if (el) el.classList.remove('active');
+    }
+
+    async function openCrashDetailModal(reportID) {
+      try {
+        const res = await authFetch(`/api/crash/reports/detail?id=${encodeURIComponent(reportID)}`);
+        if (!res.ok) throw new Error(await res.text());
+        const rep = await res.json();
+
+        const titleEl = document.getElementById('crash-detail-title');
+        if (titleEl) titleEl.textContent = `Crash Diagnostic Backtrace: ${rep.id} (${rep.signal})`;
+
+        const bodyEl = document.getElementById('crash-detail-body');
+        if (bodyEl) {
+          let framesHtml = '<div style="color: var(--text-muted); padding: 8px;">No frames extracted</div>';
+          if (rep.backtrace && rep.backtrace.frames && rep.backtrace.frames.length > 0) {
+            framesHtml = rep.backtrace.frames.map(f => `
+              <div style="padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.06); display: flex; justify-content: space-between; align-items: center; font-family: monospace; font-size: 11px;">
+                <div>
+                  <span style="color: #f59e0b; font-weight: 600;">#${f.frame_index}</span>
+                  <span style="color: #38bdf8; margin-left: 8px;">0x${(f.ip || 0).toString(16)}</span>
+                  <span style="color: var(--text-main); font-weight: 600; margin-left: 8px;">${escapeHtml(f.function || 'unknown')}</span>
+                  ${f.source_file ? `<span style="color: var(--text-muted); margin-left: 8px;">at ${escapeHtml(f.source_file)}:${f.line || 0}</span>` : ''}
+                </div>
+                <span style="color: #a78bfa; font-size: 10px;">[${escapeHtml(f.module || 'app')}]</span>
+              </div>
+            `).join('');
+          }
+
+          let regHtml = '';
+          if (rep.backtrace && rep.backtrace.registers) {
+            const keys = Object.keys(rep.backtrace.registers);
+            if (keys.length > 0) {
+              regHtml = `
+                <div style="margin-top: 14px;">
+                  <div style="font-size: 11px; font-weight: 700; color: #a78bfa; text-transform: uppercase; margin-bottom: 6px;">CPU Registers at Fault</div>
+                  <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 6px; background: rgba(0,0,0,0.4); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 10px;">
+                    ${keys.map(k => `<div><span style="color: var(--text-muted);">${k}:</span> <span style="color: #38bdf8;">0x${(rep.backtrace.registers[k] || 0).toString(16)}</span></div>`).join('')}
+                  </div>
+                </div>
+              `;
+            }
+          }
+
+          bodyEl.innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; background: rgba(0,0,0,0.3); padding: 12px; border-radius: 6px; margin-bottom: 14px; font-size: 11px;">
+              <div><span style="color: var(--text-muted);">Container:</span> <strong>${escapeHtml(rep.container_name || rep.container_id)}</strong></div>
+              <div><span style="color: var(--text-muted);">Signal:</span> <strong style="color: #f87171;">${escapeHtml(rep.signal)} (#${rep.signal_num})</strong></div>
+              <div><span style="color: var(--text-muted);">Root Cause:</span> <strong style="color: #f59e0b;">${escapeHtml(rep.root_cause)}</strong></div>
+              <div><span style="color: var(--text-muted);">Severity:</span> <strong style="color: #ef4444; text-transform: uppercase;">${escapeHtml(rep.severity)}</strong></div>
+              <div><span style="color: var(--text-muted);">Fault Address:</span> <strong style="color: #38bdf8; font-family: monospace;">0x${((rep.backtrace && rep.backtrace.fault_address) || 0).toString(16)}</strong></div>
+              <div><span style="color: var(--text-muted);">Deduplicated:</span> <strong>${rep.deduplicated_count} times</strong></div>
+              <div><span style="color: var(--text-muted);">Signature:</span> <strong style="font-family: monospace; font-size: 10px;">${escapeHtml(rep.signature)}</strong></div>
+              <div><span style="color: var(--text-muted);">Timestamp:</span> <span>${new Date(rep.timestamp).toLocaleString()}</span></div>
+            </div>
+
+            <div>
+              <div style="font-size: 11px; font-weight: 700; color: #f87171; text-transform: uppercase; margin-bottom: 6px;">Execution Call Stack Backtrace</div>
+              <div style="background: rgba(0,0,0,0.5); border: 1px solid var(--border-subtle); border-radius: 6px; max-height: 280px; overflow-y: auto;">
+                ${framesHtml}
+              </div>
+            </div>
+            ${regHtml}
+          `;
+        }
+
+        const modalEl = document.getElementById('crash-detail-modal');
+        if (modalEl) modalEl.classList.add('active');
+      } catch (err) {
+        showToast(`Failed to load crash detail: ${err.message}`);
+      }
+    }
+
+    async function pollCrashStatus() {
+      try {
+        const res = await authFetch('/api/crash/status');
+        if (!res.ok) return;
+        const st = await res.json();
+
+        const badgeText = document.getElementById('crash-badge-text');
+        if (badgeText) badgeText.textContent = `${st.total_crashes} Crashes`;
+
+        const pill = document.getElementById('crash-status-pill');
+        if (pill) {
+          pill.className = `status-pill ${st.enabled ? 'status-running' : 'status-stopped'}`;
+          pill.textContent = st.enabled ? 'Active' : 'Disabled';
+        }
+
+        const kpiTotal = document.getElementById('crash-kpi-total');
+        if (kpiTotal) kpiTotal.textContent = `${st.total_crashes} Crashes`;
+
+        const kpiSig = document.getElementById('crash-kpi-signatures');
+        if (kpiSig) kpiSig.textContent = `${st.unique_signatures} Distinct`;
+
+        const kpiDedup = document.getElementById('crash-kpi-deduped');
+        if (kpiDedup) kpiDedup.textContent = `${st.deduped_count} Suppressed`;
+
+        const kpiStored = document.getElementById('crash-kpi-stored');
+        if (kpiStored) kpiStored.textContent = `${st.reports_stored} Retained`;
+
+        // Leading root cause
+        let topCause = 'None Detected';
+        let topCount = 0;
+        if (st.root_cause_counts) {
+          for (const [cause, cnt] of Object.entries(st.root_cause_counts)) {
+            if (cnt > topCount) {
+              topCount = cnt;
+              topCause = cause;
+            }
+          }
+        }
+        const kpiRoot = document.getElementById('crash-kpi-rootcause');
+        if (kpiRoot) kpiRoot.textContent = topCause.replace(/_/g, ' ');
+
+        // Update Tab 2: Root cause breakdown grid
+        const causesGrid = document.getElementById('crash-causes-grid');
+        if (causesGrid && st.root_cause_counts) {
+          const allCauses = [
+            { key: 'null_pointer_dereference', label: 'Null Pointer Dereference', color: '#ef4444', icon: '⚡' },
+            { key: 'memory_corruption', label: 'Memory / Heap Corruption', color: '#f43f5e', icon: '💥' },
+            { key: 'assertion_failure', label: 'Assertion Failure / Abort', color: '#f59e0b', icon: '⚠️' },
+            { key: 'oom_killed', label: 'OOM Killed (Out of Memory)', color: '#ec4899', icon: '🚨' },
+            { key: 'stack_overflow', label: 'Stack Overflow / Recursion', color: '#8b5cf6', icon: '📚' },
+            { key: 'arithmetic_exception', label: 'Arithmetic / Divide-by-Zero', color: '#38bdf8', icon: '➗' },
+            { key: 'illegal_instruction', label: 'Illegal Instruction (SIGILL)', color: '#eab308', icon: '🛑' },
+            { key: 'out_of_bounds_access', label: 'Out of Bounds Access', color: '#10b981', icon: '📏' }
+          ];
+
+          causesGrid.innerHTML = allCauses.map(c => {
+            const count = st.root_cause_counts[c.key] || 0;
+            return `
+              <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid ${c.color};">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span style="font-size: 11px; font-weight: 600; color: ${c.color}; text-transform: uppercase;">${c.icon} ${c.label}</span>
+                  <span style="font-size: 16px; font-weight: 700; color: var(--text-main);">${count}</span>
+                </div>
+                <div style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">Classification telemetry count</div>
+              </div>
+            `;
+          }).join('');
+        }
+      } catch (err) {
+        // silent polling error
+      }
+    }
+
+    async function pollCrashReports() {
+      try {
+        const cSearch = (document.getElementById('crash-search-container')?.value || '').trim();
+        const sevFilter = (document.getElementById('crash-filter-severity')?.value || '').trim();
+        const causeFilter = (document.getElementById('crash-filter-cause')?.value || '').trim();
+
+        let url = '/api/crash/reports?limit=50';
+        if (cSearch) url += `&container_id=${encodeURIComponent(cSearch)}`;
+        if (sevFilter) url += `&severity=${encodeURIComponent(sevFilter)}`;
+        if (causeFilter) url += `&root_cause=${encodeURIComponent(causeFilter)}`;
+
+        const res = await authFetch(url);
+        if (!res.ok) return;
+        const data = await res.json();
+        const reports = data.reports || [];
+
+        const tbody = document.getElementById('crash-reports-tbody');
+        if (tbody) {
+          if (reports.length === 0) {
+            tbody.innerHTML = `<tr><td colspan="9" style="text-align: center; color: var(--text-muted); padding: 16px;">No container crashes match criteria. All processes normal.</td></tr>`;
+          } else {
+            tbody.innerHTML = reports.map(r => {
+              const sevBadge = r.severity === 'critical'
+                ? '<span style="color:#ef4444; font-weight:700;">CRITICAL</span>'
+                : r.severity === 'high'
+                ? '<span style="color:#f59e0b; font-weight:600;">HIGH</span>'
+                : '<span style="color:#38bdf8;">MEDIUM</span>';
+
+              const faultHex = r.backtrace && r.backtrace.fault_address !== undefined
+                ? `0x${r.backtrace.fault_address.toString(16)}`
+                : 'N/A';
+
+              return `
+                <tr>
+                  <td><code style="color:#38bdf8;">${escapeHtml(r.id)}</code></td>
+                  <td><strong>${escapeHtml(r.container_name || r.container_id)}</strong></td>
+                  <td><span class="status-pill status-stopped" style="font-size:10px;">${escapeHtml(r.signal)}</span></td>
+                  <td><span style="color:#fbbf24;">${escapeHtml((r.root_cause || '').replace(/_/g, ' '))}</span></td>
+                  <td>${sevBadge}</td>
+                  <td><span class="status-pill" style="font-size:10px; border:1px solid rgba(56,189,248,0.3);">${r.deduplicated_count}x</span></td>
+                  <td><code style="font-size:10px;">${faultHex}</code></td>
+                  <td style="color:var(--text-muted); font-size:10px;">${new Date(r.timestamp).toLocaleTimeString()}</td>
+                  <td>
+                    <button class="btn-action btn-logs" onclick="openCrashDetailModal('${escapeHtml(r.id)}')" style="font-size:10px; padding:2px 8px; color:#f87171; border-color:rgba(239,68,68,0.3);">View Trace</button>
+                  </td>
+                </tr>
+              `;
+            }).join('');
+          }
+        }
+
+        // Tab 3: deduplication signatures
+        const dedupTbody = document.getElementById('crash-dedup-tbody');
+        if (dedupTbody) {
+          if (reports.length === 0) {
+            dedupTbody.innerHTML = `<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 16px;">No active crash signatures recorded.</td></tr>`;
+          } else {
+            const sigMap = new Map();
+            reports.forEach(r => {
+              if (!sigMap.has(r.signature)) {
+                sigMap.set(r.signature, r);
+              }
+            });
+
+            dedupTbody.innerHTML = Array.from(sigMap.values()).map(r => `
+              <tr>
+                <td><code style="color:#fbbf24; font-size:11px;">${escapeHtml(r.signature)}</code></td>
+                <td><code style="color:#38bdf8;">${escapeHtml(r.id)}</code></td>
+                <td><strong>${r.deduplicated_count}</strong> occurrences</td>
+                <td style="color:var(--text-muted); font-size:10px;">${new Date(r.first_seen || r.timestamp).toLocaleString()}</td>
+                <td style="color:var(--text-muted); font-size:10px;">${new Date(r.last_seen || r.timestamp).toLocaleString()}</td>
+                <td><span class="status-pill status-running" style="font-size:10px; color:#34d399;">Throttled / Armed</span></td>
+              </tr>
+            `).join('');
+          }
+        }
+      } catch (err) {
+        // silent polling error
+      }
+    }
+
+    function pollCrashAll() {
+      pollCrashStatus();
+      pollCrashReports();
+    }
+
+    async function submitCrashIngestForm(event) {
+      event.preventDefault();
+      try {
+        const cid = document.getElementById('crash-form-cid').value.trim();
+        const cname = document.getElementById('crash-form-cname').value.trim();
+        const image = document.getElementById('crash-form-image').value.trim();
+        const raw = document.getElementById('crash-form-raw').value.trim();
+
+        const res = await authFetch('/api/crash/ingest', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            container_id: cid,
+            container_name: cname,
+            image: image,
+            raw_dump: raw
+          })
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        showToast(`✓ Ingested crash report: ${data.report.id}`);
+        closeCrashModal();
+        pollCrashAll();
+      } catch (err) {
+        showToast(`Failed to ingest crash: ${err.message}`);
+      }
+    }
+
+    async function triggerCrashDrill() {
+      try {
+        const res = await authFetch('/api/crash/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ container_id: 'drill-sim-01' })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        showToast(`⚡ Crash drill successful: ${data.report.id} (${data.report.signal})`);
+        pollCrashAll();
+      } catch (err) {
+        showToast(`Crash drill failed: ${err.message}`);
+      }
+    }
+
+    async function triggerCrashDrillFromModal() {
+      try {
+        const cid = (document.getElementById('crash-drill-cid')?.value || 'drill-worker-01').trim();
+        const res = await authFetch('/api/crash/test', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ container_id: cid })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+
+        const resDiv = document.getElementById('crash-drill-results');
+        if (resDiv) {
+          resDiv.style.display = 'block';
+          resDiv.textContent = `✓ Simulation Completed:\nID: ${data.report.id}\nContainer: ${data.report.container_id}\nSignal: ${data.report.signal}\nRoot Cause: ${data.report.root_cause}\nSeverity: ${data.report.severity}\nDedup Signature: ${data.report.signature}`;
+        }
+        showToast('✓ Simulation drill completed');
+        pollCrashAll();
+      } catch (err) {
+        showToast(`Drill failed: ${err.message}`);
+      }
+    }
+
+    async function clearCrashReports() {
+      if (!confirm('Clear all stored crash reports from memory?')) return;
+      try {
+        const res = await authFetch('/api/crash/reports', { method: 'DELETE' });
+        if (!res.ok) throw new Error(await res.text());
+        showToast('✓ Crash reports buffer cleared');
+        pollCrashAll();
+      } catch (err) {
+        showToast(`Failed to clear reports: ${err.message}`);
+      }
+    }
+
+    async function saveCrashConfig(event) {
+      event.preventDefault();
+      try {
+        const enabled = document.getElementById('crash-cfg-enabled').checked;
+        const autoSymbol = document.getElementById('crash-cfg-autosymbol').checked;
+        const alerts = document.getElementById('crash-cfg-alerts').checked;
+        const watchDir = document.getElementById('crash-cfg-watchdir').value.trim();
+        const dedupMin = parseInt(document.getElementById('crash-cfg-dedup-min').value, 10) || 15;
+        const maxRep = parseInt(document.getElementById('crash-cfg-max-reports').value, 10) || 200;
+
+        const res = await authFetch('/api/crash/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            enabled: enabled,
+            watch_directory: watchDir,
+            max_reports: maxRep,
+            retention_duration: 72 * 3600 * 1000000000,
+            dedup_window: dedupMin * 60 * 1000000000,
+            auto_symbolicate: autoSymbol,
+            dispatch_alerts: alerts,
+            max_core_size_bytes: 50 * 1024 * 1024
+          })
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+        showToast('✓ Crash pipeline settings saved');
+        closeCrashModal();
+        pollCrashAll();
+      } catch (err) {
+        showToast(`Failed to save settings: ${err.message}`);
+      }
+    }
+
     pollCanaryAll();
     setInterval(pollCanaryAll, 3000);
+
+    pollCrashAll();
+    setInterval(pollCrashAll, 3000);
 
     pollWireGuardAll();
     setInterval(pollWireGuardAll, 3000);

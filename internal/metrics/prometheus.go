@@ -8,6 +8,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/anomaly"
 	"github.com/kLauncher1/dock-radar/internal/audit"
 	"github.com/kLauncher1/dock-radar/internal/canary"
+	"github.com/kLauncher1/dock-radar/internal/crash"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/ebpf"
 	"github.com/kLauncher1/dock-radar/internal/federation"
@@ -103,7 +104,7 @@ func FormatMetricsFull(
 	return FormatMetricsAll(
 		sys, dock, ringBuffer, alertDispatcher, auditLogger,
 		meshSummary, meshNodes, healingStats, anomalySummary, anomalyPreds,
-		discStatus, gossipSummary, gossipMembers, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, appVersion,
+		discStatus, gossipSummary, gossipMembers, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, appVersion,
 	)
 }
 
@@ -134,6 +135,7 @@ func FormatMetricsAll(
 	wgStatus *wireguard.WireGuardStatus,
 	canaryStatus *canary.CanaryStatus,
 	canaryDeployments []*canary.CanaryDeployment,
+	crashStatus *crash.CrashStatus,
 	appVersion string,
 ) string {
 	var b strings.Builder
@@ -491,6 +493,9 @@ func FormatMetricsAll(
 
 	// 23. Autonomous Canary Deployment & Traffic Mirroring Telemetry
 	AppendCanaryMetrics(&b, canaryStatus, canaryDeployments)
+
+	// 24. Distributed Core Dump & Crash Analysis Telemetry
+	AppendCrashMetrics(&b, crashStatus)
 
 	return b.String()
 }

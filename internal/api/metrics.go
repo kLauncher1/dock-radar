@@ -5,6 +5,7 @@ import (
 
 	"github.com/kLauncher1/dock-radar/internal/anomaly"
 	"github.com/kLauncher1/dock-radar/internal/canary"
+	"github.com/kLauncher1/dock-radar/internal/crash"
 	"github.com/kLauncher1/dock-radar/internal/docker"
 	"github.com/kLauncher1/dock-radar/internal/ebpf"
 	"github.com/kLauncher1/dock-radar/internal/federation"
@@ -151,6 +152,12 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		canaryDeployments = h.CanaryEngine.ListDeployments()
 	}
 
+	var crashStatus *crash.CrashStatus
+	if h.CrashEngine != nil {
+		st := h.CrashEngine.Status()
+		crashStatus = &st
+	}
+
 	text := metrics.FormatMetricsAll(
 		sysMetrics,
 		dockerStatus,
@@ -177,6 +184,7 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		wgStatus,
 		canaryStatus,
 		canaryDeployments,
+		crashStatus,
 		version,
 	)
 

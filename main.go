@@ -31,7 +31,7 @@ import (
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "2.8.0"
+const AppVersion = "2.9.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -93,6 +93,10 @@ func main() {
 	canaryEvalIntervalFlag := flag.Duration("canary-eval-interval", 5*time.Second, "Canary divergence evaluation interval (env: DOCK_RADAR_CANARY_EVAL_INTERVAL)")
 	canaryAutoRollbackFlag := flag.Bool("canary-auto-rollback", true, "Enable automated rollback on divergence (env: DOCK_RADAR_CANARY_AUTO_ROLLBACK)")
 	canaryShadowMirrorFlag := flag.Bool("canary-shadow-mirror", true, "Enable shadow traffic mirroring by default (env: DOCK_RADAR_CANARY_SHADOW_MIRROR)")
+	crashFlag := flag.Bool("crash", true, "Enable distributed core dump & crash analysis pipeline (env: DOCK_RADAR_CRASH_ENABLED)")
+	crashDirFlag := flag.String("crash-dir", "data/cores", "Directory path for core dump ingestion (env: DOCK_RADAR_CRASH_DIR)")
+	crashDedupWindowFlag := flag.Duration("crash-dedup-window", 15*time.Minute, "Sliding window for crash signature deduplication (env: DOCK_RADAR_CRASH_DEDUP_WINDOW)")
+	crashMaxReportsFlag := flag.Int("crash-max-reports", 200, "Maximum retained in-memory crash reports (env: DOCK_RADAR_CRASH_MAX_REPORTS)")
 	versionFlag := flag.Bool("version", false, "Print dock-radar version and exit")
 	flag.Parse()
 
@@ -625,6 +629,43 @@ func main() {
 			defer canaryCancel()
 			handlerCfg.CanaryEngine.Start(canaryCtx)
 		}
+
+		// Launch Distributed Core Dump & Crash Analysis Pipeline
+		crashEnabled := *crashFlag
+		if envCrash := os.Getenv("DOCK_RADAR_CRASH_ENABLED"); envCrash != "" {
+			crashEnabled = strings.EqualFold(envCrash, "true") || envCrash == "1"
+		}
+		crashDir := *crashDirFlag
+		if envDir := os.Getenv("DOCK_RADAR_CRASH_DIR"); envDir != "" {
+			crashDir = envDir
+		}
+		crashDedupWindow := *crashDedupWindowFlag
+		if envWindow := os.Getenv("DOCK_RADAR_CRASH_DEDUP_WINDOW"); envWindow != "" {
+			if d, err := time.ParseDuration(envWindow); err == nil && d > 0 {
+				crashDedupWindow = d
+			}
+		}
+		crashMaxReports := *crashMaxReportsFlag
+		if envMax := os.Getenv("DOCK_RADAR_CRASH_MAX_REPORTS"); envMax != "" {
+			if m, err := strconv.Atoi(envMax); err == nil && m > 0 {
+				crashMaxReports = m
+			}
+		}
+
+		if handlerCfg.CrashEngine != nil {
+			crashCfg := handlerCfg.CrashEngine.Config()
+			crashCfg.Enabled = crashEnabled
+			crashCfg.WatchDirectory = crashDir
+			crashCfg.DedupWindow = crashDedupWindow
+			crashCfg.MaxReports = crashMaxReports
+			_ = handlerCfg.CrashEngine.UpdateConfig(crashCfg)
+
+			if crashEnabled {
+				crashCtx, crashCancel := context.WithCancel(context.Background())
+				defer crashCancel()
+				handlerCfg.CrashEngine.Start(crashCtx)
+			}
+		}
 	}
 
 	scheme := "http"
@@ -827,6 +868,14 @@ func main() {
 		}
 	}
 
+	crashStatusDesc := "Disabled"
+	if handlerCfg != nil && handlerCfg.CrashEngine != nil {
+		st := handlerCfg.CrashEngine.Status()
+		if st.Enabled {
+			crashStatusDesc = fmt.Sprintf("Active (%d crashes intercepted · %d deduped · %d unique signatures)", st.TotalCrashes, st.DedupedCount, st.UniqueSignatures)
+		}
+	}
+
 	fmt.Println("=========================================================")
 	fmt.Printf(" 🚀 Dock-Radar v%s · Single-Binary Container & System Monitor\n", AppVersion)
 	fmt.Printf(" 📡 Web Dashboard Live at %s://localhost:%s\n", scheme, port)
@@ -849,6 +898,7 @@ func main() {
 	fmt.Printf(" 🗳️ Raft Consensus     : %s\n", raftStatusDesc)
 	fmt.Printf(" 🛡️ WireGuard Mesh     : %s\n", wireguardStatusDesc)
 	fmt.Printf(" 🐤 Canary Rollouts    : %s\n", canaryStatusDesc)
+	fmt.Printf(" 💥 Crash Analysis     : %s\n", crashStatusDesc)
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")
 	fmt.Println("=========================================================")
 
