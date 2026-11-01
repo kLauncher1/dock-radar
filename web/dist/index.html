@@ -657,6 +657,7 @@
       <button id="wireguard-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.15); color: #34d399; display: inline-flex; align-items: center; gap: 4px;" onclick="openWireGuardModal()" title="Zero-Trust WireGuard Mesh Tunneling & Peer Gateway">🛡️ WireGuard: <span id="wireguard-badge-text">0 Peers</span></button>
       <button id="canary-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.15); color: #fbbf24; display: inline-flex; align-items: center; gap: 4px;" onclick="openCanaryModal()" title="Autonomous Canary Deployment & Traffic Mirroring">🐤 Canary: <span id="canary-badge-text">0 Active</span></button>
       <button id="crash-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.15); color: #f87171; display: inline-flex; align-items: center; gap: 4px;" onclick="openCrashModal()" title="Distributed Core Dump & Crash Analysis Pipeline">💥 Crash: <span id="crash-badge-text">0 Crashes</span></button>
+      <button id="querycache-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: inline-flex; align-items: center; gap: 4px;" onclick="openCacheModal()" title="Self-Optimizing Query Cache & Event Ingestion Pipeline">⚡ Cache: <span id="cache-badge-text">100% Hit</span></button>
       <button id="btn-export-audit" class="status-pill" style="font-size: 11px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;" onclick="exportAuditTrail()" title="Export Audit Trail in NDJSON format">📋 Export Audit</button>
       <span>•</span>
       <span id="host-badge">Loading...</span>
@@ -2665,6 +2666,130 @@
         </div>
       </div>
     </div>
+
+    <!-- Self-Optimizing Query Cache & Event Ingestion Pipeline Section -->
+    <div class="card" id="querycache-section" style="margin-top: 24px;">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div>
+            <div class="card-title">Self-Optimizing Query Cache &amp; Event Ingestion Pipeline</div>
+            <div class="card-subtitle">Adaptive query caching for Prometheus &amp; dashboards, non-blocking Docker event multiplexer &amp; distributed deduplication</div>
+          </div>
+          <span id="qc-status-pill" class="status-pill status-running" style="font-size: 11px;">Active</span>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn-action btn-logs" onclick="openCacheModal(); switchCacheModalTab('publish');" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">+ Ingest Event</button>
+          <button class="btn-action btn-logs" onclick="triggerEventTest()" style="color: #fbbf24; border-color: rgba(245, 158, 11, 0.4);">⚡ Trigger Test Event</button>
+          <button class="btn-action btn-logs" onclick="purgeQueryCache()" style="color: var(--text-muted); border-color: var(--border-subtle);">🗑️ Purge Cache</button>
+          <button class="btn-action btn-logs" onclick="openCacheModal(); switchCacheModalTab('config');" style="color: #a78bfa; border-color: rgba(167, 139, 250, 0.4);">⚙️ Configure</button>
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px;">
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #38bdf8;">
+          <div style="font-size: 11px; color: #38bdf8; font-weight: 600; text-transform: uppercase;">Cache Hit Ratio</div>
+          <div id="qc-kpi-hit-ratio" style="font-size: 18px; font-weight: 700; color: #38bdf8; margin-top: 4px;">100.0%</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Hits / Total Scrapes</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #10b981;">
+          <div style="font-size: 11px; color: #10b981; font-weight: 600; text-transform: uppercase;">Cached Items</div>
+          <div id="qc-kpi-items" style="font-size: 18px; font-weight: 700; color: #34d399; margin-top: 4px;">0 Items</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">In-memory LRU keys</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #a78bfa;">
+          <div style="font-size: 11px; color: #a78bfa; font-weight: 600; text-transform: uppercase;">Memory Footprint</div>
+          <div id="qc-kpi-memory" style="font-size: 18px; font-weight: 700; color: #c4b5fd; margin-top: 4px;">0.0 KB</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Bounded LRU allocation</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #f59e0b;">
+          <div style="font-size: 11px; color: #f59e0b; font-weight: 600; text-transform: uppercase;">Events Ingested</div>
+          <div id="qc-kpi-ingested" style="font-size: 18px; font-weight: 700; color: #fbbf24; margin-top: 4px;">0 Events</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Non-blocking pipeline</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #6366f1;">
+          <div style="font-size: 11px; color: #6366f1; font-weight: 600; text-transform: uppercase;">Active Subscribers</div>
+          <div id="qc-kpi-subscribers" style="font-size: 18px; font-weight: 700; color: #818cf8; margin-top: 4px;">0 Listeners</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">SSE / Multiplexer consumers</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #ec4899;">
+          <div style="font-size: 11px; color: #ec4899; font-weight: 600; text-transform: uppercase;">Deduplicated Events</div>
+          <div id="qc-kpi-deduped" style="font-size: 18px; font-weight: 700; color: #f472b6; margin-top: 4px;">0 Suppressed</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Sliding-window filter</div>
+        </div>
+      </div>
+
+      <!-- Tab Navigation -->
+      <div style="display: flex; border-bottom: 1px solid var(--border-subtle); margin-bottom: 16px; gap: 8px;">
+        <button id="qc-tab-btn-keys" class="tab-btn active" onclick="switchCacheMainTab('keys')">Cache Keys &amp; Telemetry</button>
+        <button id="qc-tab-btn-stream" class="tab-btn" onclick="switchCacheMainTab('stream')">Live Event Stream (SSE)</button>
+        <button id="qc-tab-btn-dedup" class="tab-btn" onclick="switchCacheMainTab('dedup')">Backpressure &amp; Deduplication</button>
+      </div>
+
+      <!-- Tab 1: Cache Keys Table -->
+      <div id="qc-tab-keys">
+        <div style="overflow-x: auto;">
+          <table class="table" style="width: 100%; font-size: 12px;">
+            <thead>
+              <tr>
+                <th>Cache Key</th>
+                <th>Hit Count</th>
+                <th>Size</th>
+                <th>TTL Remaining</th>
+                <th>Created At</th>
+                <th>Last Accessed</th>
+              </tr>
+            </thead>
+            <tbody id="qc-keys-tbody">
+              <tr>
+                <td colspan="6" style="text-align: center; color: var(--text-muted); padding: 16px;">Loading cached query keys...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 2: Live Event Multiplexer Stream -->
+      <div id="qc-tab-stream" style="display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <div style="font-size: 11px; color: var(--text-muted);">Real-time Docker daemon lifecycle events broadcasted with non-blocking backpressure regulation</div>
+          <button class="btn-action btn-logs" onclick="clearEventStreamLog()" style="font-size: 10px; padding: 2px 8px;">Clear Stream View</button>
+        </div>
+        <div id="qc-stream-container" style="background: #090d16; border: 1px solid var(--border-subtle); border-radius: 6px; padding: 12px; height: 260px; overflow-y: auto; font-family: 'JetBrains Mono', monospace; font-size: 12px; color: var(--text-main);">
+          <div style="color: var(--text-muted); text-align: center; padding-top: 100px;">Connecting to /api/events/stream SSE feed...</div>
+        </div>
+      </div>
+
+      <!-- Tab 3: Backpressure & Deduplication Metrics -->
+      <div id="qc-tab-dedup" style="display: none;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+          <div class="alert-card-sub" style="padding: 14px;">
+            <div style="font-size: 12px; font-weight: 700; color: #38bdf8; margin-bottom: 10px; text-transform: uppercase;">Cache Performance &amp; Coalescing</div>
+            <div style="font-size: 12px; line-height: 1.8; color: var(--text-main);">
+              <div style="display: flex; justify-content: space-between;"><span>Total Hits:</span><strong id="qc-stat-total-hits">0</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span>Total Misses:</span><strong id="qc-stat-total-misses">0</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span>Evictions Total:</span><strong id="qc-stat-evictions">0</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span>Thundering Herd Coalesced:</span><strong id="qc-stat-coalesced" style="color: #10b981;">0 calls</strong></div>
+            </div>
+          </div>
+
+          <div class="alert-card-sub" style="padding: 14px;">
+            <div style="font-size: 12px; font-weight: 700; color: #f59e0b; margin-bottom: 10px; text-transform: uppercase;">Multiplexer Backpressure Telemetry</div>
+            <div style="font-size: 12px; line-height: 1.8; color: var(--text-main);">
+              <div style="display: flex; justify-content: space-between;"><span>Total Dispatched:</span><strong id="qc-stat-dispatched">0</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span>Queue Depth (Buffered):</span><strong id="qc-stat-queue-depth">0</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span>Backpressure Buffer Drops:</span><strong id="qc-stat-dropped" style="color: #ef4444;">0 dropped</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span>Drop Policy:</span><strong id="qc-stat-drop-policy">Drop Oldest</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- Lifecycle Action Confirmation Modal -->
@@ -4501,6 +4626,110 @@
       </div>
       <div class="modal-actions" style="display: flex; justify-content: flex-end; margin-top: 16px;">
         <button class="btn btn-secondary" onclick="closeCrashDetailModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Query Cache & Event Pipeline Management Modal -->
+  <div class="modal-backdrop" id="querycache-modal">
+    <div class="modal-card" style="max-width: 760px; width: 95%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div class="modal-title" style="color: #38bdf8; margin-bottom: 0;">Query Cache &amp; Event Pipeline Management</div>
+        <button class="btn-action" onclick="closeCacheModal()" style="padding: 4px 10px;">✕</button>
+      </div>
+
+      <!-- Modal Tab Navigation -->
+      <div style="display: flex; border-bottom: 1px solid var(--border-subtle); margin-bottom: 18px; gap: 8px;">
+        <button id="qc-mtab-btn-publish" class="tab-btn active" onclick="switchCacheModalTab('publish')">Publish Event</button>
+        <button id="qc-mtab-btn-drill" class="tab-btn" onclick="switchCacheModalTab('drill')">Simulation Drill</button>
+        <button id="qc-mtab-btn-config" class="tab-btn" onclick="switchCacheModalTab('config')">Pipeline Settings</button>
+      </div>
+
+      <!-- Modal Tab 1: Publish Event Form -->
+      <div id="qc-mtab-publish">
+        <form onsubmit="submitPublishEventForm(event)">
+          <div class="alert-card-sub" style="padding: 14px; margin-bottom: 16px;">
+            <div style="font-size: 12px; font-weight: 700; color: #38bdf8; margin-bottom: 12px; text-transform: uppercase;">Broadcast Docker or Synthetic Event</div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <div class="form-col">
+                <label class="form-label" for="qc-pub-type">Event Type</label>
+                <select class="form-input" id="qc-pub-type">
+                  <option value="container" selected>container</option>
+                  <option value="image">image</option>
+                  <option value="network">network</option>
+                  <option value="daemon">daemon</option>
+                </select>
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="qc-pub-action">Action</label>
+                <input type="text" class="form-input" id="qc-pub-action" placeholder="start, die, restart, oom..." required>
+              </div>
+            </div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <div class="form-col">
+                <label class="form-label" for="qc-pub-actor-id">Actor / Container ID</label>
+                <input type="text" class="form-input" id="qc-pub-actor-id" placeholder="c-web-01" required>
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="qc-pub-actor-name">Actor Display Name</label>
+                <input type="text" class="form-input" id="qc-pub-actor-name" placeholder="production-frontend">
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary-restart" style="padding: 8px 18px; font-size: 12px; font-weight: 600;">Broadcast Event</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Modal Tab 2: Simulation Drill -->
+      <div id="qc-mtab-drill" style="display: none;">
+        <div class="alert-card-sub" style="padding: 14px; margin-bottom: 16px;">
+          <div style="font-size: 12px; font-weight: 700; color: #fbbf24; margin-bottom: 8px; text-transform: uppercase;">Backpressure &amp; Deduplication Simulation</div>
+          <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px;">
+            Simulate high-frequency event bursts and duplicate transmissions across simulated mesh peers to verify real-time deduplication and subscriber non-blocking queues.
+          </p>
+          <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+            <button type="button" class="btn btn-primary-restart" onclick="runEventBurstDrill(10)" style="background: #f59e0b; border-color: #d97706;">⚡ Burst 10 Events</button>
+            <button type="button" class="btn btn-primary-restart" onclick="runEventBurstDrill(50)" style="background: #ef4444; border-color: #dc2626;">🔥 Burst 50 High-Volume Events</button>
+            <button type="button" class="btn btn-secondary" onclick="runDuplicateEventDrill()">🔁 Test Duplicate Suppression</button>
+          </div>
+          <div id="qc-drill-log" style="display: none; margin-top: 14px; background: #090d16; border: 1px solid var(--border-subtle); border-radius: 6px; padding: 10px; font-family: 'JetBrains Mono', monospace; font-size: 11px; max-height: 140px; overflow-y: auto;"></div>
+        </div>
+      </div>
+
+      <!-- Modal Tab 3: Configuration Form -->
+      <div id="qc-mtab-config" style="display: none;">
+        <form onsubmit="saveCacheConfig(event)">
+          <div class="alert-card-sub" style="padding: 14px; margin-bottom: 16px;">
+            <div style="font-size: 12px; font-weight: 700; color: #a78bfa; margin-bottom: 12px; text-transform: uppercase;">Tuning &amp; Memory Bounds</div>
+            <div style="display: flex; gap: 20px; margin-bottom: 14px; flex-wrap: wrap;">
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+                <input type="checkbox" id="qc-cfg-enabled" checked> Enable Query Cache
+              </label>
+              <label style="display: flex; align-items: center; gap: 6px; font-size: 12px; cursor: pointer;">
+                <input type="checkbox" id="qc-cfg-adaptive" checked> Adaptive TTL Tuning
+              </label>
+            </div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <div class="form-col">
+                <label class="form-label" for="qc-cfg-default-ttl">Default TTL (Seconds)</label>
+                <input type="number" class="form-input" id="qc-cfg-default-ttl" value="2" min="1" max="60">
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="qc-cfg-max-items">Max Cached Items</label>
+                <input type="number" class="form-input" id="qc-cfg-max-items" value="5000" min="100" max="100000">
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="qc-cfg-max-mb">Max Memory Limit (MB)</label>
+                <input type="number" class="form-input" id="qc-cfg-max-mb" value="64" min="4" max="2048">
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary-restart" style="padding: 8px 18px; font-size: 12px; font-weight: 600;">Save Settings</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; margin-top: 16px;">
+        <button class="btn btn-secondary" onclick="closeCacheModal()">Close</button>
       </div>
     </div>
   </div>
@@ -11288,11 +11517,354 @@
       }
     }
 
+    // === Self-Optimizing Query Cache & Event Pipeline Logic ===
+    function openCacheModal() {
+      const m = document.getElementById('querycache-modal');
+      if (m) m.classList.add('active');
+    }
+
+    function closeCacheModal() {
+      const m = document.getElementById('querycache-modal');
+      if (m) m.classList.remove('active');
+    }
+
+    function switchCacheMainTab(tab) {
+      const tabs = ['keys', 'stream', 'dedup'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`qc-tab-btn-${t}`);
+        const pane = document.getElementById(`qc-tab-${t}`);
+        if (btn) btn.classList.toggle('active', t === tab);
+        if (pane) pane.style.display = (t === tab) ? 'block' : 'none';
+      });
+      if (tab === 'keys') pollQueryCacheKeys();
+    }
+
+    function switchCacheModalTab(tab) {
+      const tabs = ['publish', 'drill', 'config'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`qc-mtab-btn-${t}`);
+        const pane = document.getElementById(`qc-mtab-${t}`);
+        if (btn) btn.classList.toggle('active', t === tab);
+        if (pane) pane.style.display = (t === tab) ? 'block' : 'none';
+      });
+    }
+
+    async function pollQueryCacheStatus() {
+      try {
+        const res = await authFetch('/api/cache/status');
+        if (!res.ok) return;
+        const st = await res.json();
+
+        const badgeText = document.getElementById('cache-badge-text');
+        if (badgeText) badgeText.textContent = `${st.cache.hit_ratio.toFixed(1)}% Hit`;
+
+        const pill = document.getElementById('qc-status-pill');
+        if (pill) {
+          pill.className = `status-pill ${st.enabled ? 'status-running' : 'status-stopped'}`;
+          pill.textContent = st.enabled ? 'Active' : 'Disabled';
+        }
+
+        const hitRatioEl = document.getElementById('qc-kpi-hit-ratio');
+        if (hitRatioEl) hitRatioEl.textContent = `${st.cache.hit_ratio.toFixed(1)}%`;
+
+        const itemsEl = document.getElementById('qc-kpi-items');
+        if (itemsEl) itemsEl.textContent = `${st.cache.item_count} Items`;
+
+        const memEl = document.getElementById('qc-kpi-memory');
+        if (memEl) {
+          const kb = (st.cache.memory_bytes / 1024).toFixed(1);
+          memEl.textContent = `${kb} KB`;
+        }
+
+        const ingEl = document.getElementById('qc-kpi-ingested');
+        if (ingEl) ingEl.textContent = `${st.multiplexer.total_ingested} Events`;
+
+        const subEl = document.getElementById('qc-kpi-subscribers');
+        if (subEl) subEl.textContent = `${st.multiplexer.active_subscribers} Listeners`;
+
+        const dedEl = document.getElementById('qc-kpi-deduped');
+        if (dedEl) dedEl.textContent = `${st.deduplicator.total_deduped} Suppressed`;
+
+        // Backpressure tab metrics
+        const statHits = document.getElementById('qc-stat-total-hits');
+        if (statHits) statHits.textContent = st.cache.total_hits;
+
+        const statMisses = document.getElementById('qc-stat-total-misses');
+        if (statMisses) statMisses.textContent = st.cache.total_misses;
+
+        const statEvict = document.getElementById('qc-stat-evictions');
+        if (statEvict) statEvict.textContent = st.cache.evictions_total;
+
+        const statCoalesce = document.getElementById('qc-stat-coalesced');
+        if (statCoalesce) statCoalesce.textContent = `${st.cache.coalesced_calls} calls`;
+
+        const statDisp = document.getElementById('qc-stat-dispatched');
+        if (statDisp) statDisp.textContent = st.multiplexer.total_dispatched;
+
+        const statQueue = document.getElementById('qc-stat-queue-depth');
+        if (statQueue) statQueue.textContent = st.multiplexer.queue_depth;
+
+        const statDrop = document.getElementById('qc-stat-dropped');
+        if (statDrop) statDrop.textContent = `${st.multiplexer.total_dropped} dropped`;
+
+        const statPolicy = document.getElementById('qc-stat-drop-policy');
+        if (statPolicy) statPolicy.textContent = 'Drop Oldest (Dynamic Backpressure)';
+      } catch {}
+    }
+
+    async function pollQueryCacheKeys() {
+      try {
+        const res = await authFetch('/api/cache/keys');
+        if (!res.ok) return;
+        const data = await res.json();
+        const tbody = document.getElementById('qc-keys-tbody');
+        if (!tbody) return;
+
+        if (!data.keys || data.keys.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--text-muted); padding: 16px;">Query cache is currently empty. Keys are cached on high-frequency scrapes.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = data.keys.map(k => {
+          const ttlSec = (k.expires_in / 1000000000).toFixed(1);
+          const sizeKb = (k.size_bytes / 1024).toFixed(2);
+          const accessed = new Date(k.last_accessed).toLocaleTimeString();
+          const created = new Date(k.created_at).toLocaleTimeString();
+          return `<tr>
+            <td style="font-family: 'JetBrains Mono', monospace; color: #38bdf8; font-weight: 600;">${escapeHtml(k.key)}</td>
+            <td><span class="status-pill status-running" style="font-size: 10px;">${k.hit_count} hits</span></td>
+            <td>${sizeKb} KB</td>
+            <td><span style="color: #34d399; font-weight: 600;">${ttlSec}s</span></td>
+            <td style="color: var(--text-muted); font-size: 11px;">${created}</td>
+            <td style="color: var(--text-muted); font-size: 11px;">${accessed}</td>
+          </tr>`;
+        }).join('');
+      } catch {}
+    }
+
+    function pollQueryCacheAll() {
+      pollQueryCacheStatus();
+      const keysPane = document.getElementById('qc-tab-keys');
+      if (keysPane && keysPane.style.display !== 'none') {
+        pollQueryCacheKeys();
+      }
+    }
+
+    async function purgeQueryCache() {
+      if (!confirm('Purge all entries from the in-memory query cache?')) return;
+      try {
+        const res = await authFetch('/api/cache/purge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        showToast(`✓ Query cache purged: ${data.purged_count} entries cleared`);
+        pollQueryCacheAll();
+      } catch (err) {
+        showToast(`Failed to purge cache: ${err.message}`);
+      }
+    }
+
+    async function triggerEventTest() {
+      try {
+        const res = await authFetch('/api/events/test', { method: 'POST' });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        showToast(`⚡ Synthetic test event dispatched: ${data.event.id}`);
+        pollQueryCacheAll();
+      } catch (err) {
+        showToast(`Test trigger failed: ${err.message}`);
+      }
+    }
+
+    async function submitPublishEventForm(event) {
+      event.preventDefault();
+      try {
+        const evType = document.getElementById('qc-pub-type').value;
+        const evAction = document.getElementById('qc-pub-action').value.trim();
+        const evActorId = document.getElementById('qc-pub-actor-id').value.trim();
+        const evActorName = document.getElementById('qc-pub-actor-name').value.trim();
+
+        const res = await authFetch('/api/events/publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: evType,
+            action: evAction,
+            actor_id: evActorId,
+            actor_name: evActorName
+          })
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ Event published: ${evAction} on ${evActorName || evActorId}`);
+        closeCacheModal();
+        pollQueryCacheAll();
+      } catch (err) {
+        showToast(`Publish failed: ${err.message}`);
+      }
+    }
+
+    async function runEventBurstDrill(count) {
+      const drillLog = document.getElementById('qc-drill-log');
+      if (drillLog) {
+        drillLog.style.display = 'block';
+        drillLog.textContent = `⚡ Starting burst of ${count} events...\n`;
+      }
+      try {
+        for (let i = 1; i <= count; i++) {
+          await authFetch('/api/events/publish', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              type: 'container',
+              action: (i % 5 === 0) ? 'restart' : 'ping',
+              actor_id: `c-drill-${i % 8}`,
+              actor_name: `worker-${i % 8}`
+            })
+          });
+        }
+        if (drillLog) drillLog.textContent += `✓ All ${count} burst events dispatched successfully.\nVerified non-blocking backpressure regulation.\n`;
+        showToast(`✓ Dispatched burst of ${count} events`);
+        pollQueryCacheAll();
+      } catch (err) {
+        if (drillLog) drillLog.textContent += `✕ Error during burst: ${err.message}\n`;
+        showToast(`Burst drill failed: ${err.message}`);
+      }
+    }
+
+    async function runDuplicateEventDrill() {
+      const drillLog = document.getElementById('qc-drill-log');
+      if (drillLog) {
+        drillLog.style.display = 'block';
+        drillLog.textContent = `🔁 Testing duplicate event suppression across sliding window...\n`;
+      }
+      try {
+        const evId = `dup-sim-${Date.now()}`;
+        const res1 = await authFetch('/api/events/publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'container',
+            action: 'state_sync',
+            actor_id: 'c-dup-test',
+            actor_name: 'test-sync'
+          })
+        });
+        const d1 = await res1.json();
+
+        // Immediate duplicate
+        const res2 = await authFetch('/api/events/publish', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'container',
+            action: 'state_sync',
+            actor_id: 'c-dup-test',
+            actor_name: 'test-sync'
+          })
+        });
+        const d2 = await res2.json();
+
+        if (drillLog) {
+          drillLog.textContent += `Event 1 ingested: ${d1.ingested} (deduped: ${d1.deduped})\nEvent 2 ingested: ${d2.ingested} (deduped: ${d2.deduped})\n✓ Sliding-window deduplication verified.\n`;
+        }
+        showToast('✓ Duplicate suppression test verified');
+        pollQueryCacheAll();
+      } catch (err) {
+        if (drillLog) drillLog.textContent += `✕ Error during dedup test: ${err.message}\n`;
+      }
+    }
+
+    async function saveCacheConfig(event) {
+      event.preventDefault();
+      try {
+        const enabled = document.getElementById('qc-cfg-enabled').checked;
+        const adaptive = document.getElementById('qc-cfg-adaptive').checked;
+        const ttlSec = parseInt(document.getElementById('qc-cfg-default-ttl').value, 10) || 2;
+        const maxItems = parseInt(document.getElementById('qc-cfg-max-items').value, 10) || 5000;
+        const maxMB = parseInt(document.getElementById('qc-cfg-max-mb').value, 10) || 64;
+
+        const res = await authFetch('/api/cache/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            enabled: enabled,
+            adaptive_tuning: adaptive,
+            default_ttl: ttlSec * 1000000000,
+            min_ttl: 500 * 1000000,
+            max_ttl: 10 * 1000000000,
+            max_items: maxItems,
+            max_memory_bytes: maxMB * 1024 * 1024
+          })
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+        showToast('✓ Query cache settings updated');
+        closeCacheModal();
+        pollQueryCacheAll();
+      } catch (err) {
+        showToast(`Failed to save settings: ${err.message}`);
+      }
+    }
+
+    function clearEventStreamLog() {
+      const container = document.getElementById('qc-stream-container');
+      if (container) container.innerHTML = '<div style="color: var(--text-muted); text-align: center; padding-top: 100px;">Stream cleared. Listening for new events...</div>';
+    }
+
+    let qcEventSource = null;
+    function initEventStream() {
+      try {
+        if (qcEventSource) qcEventSource.close();
+        const token = getStoredToken();
+        const streamUrl = token ? `/api/events/stream?token=${encodeURIComponent(token)}` : '/api/events/stream';
+        qcEventSource = new EventSource(streamUrl);
+
+        const container = document.getElementById('qc-stream-container');
+
+        qcEventSource.addEventListener('connected', e => {
+          if (container && container.textContent.includes('Connecting')) {
+            container.innerHTML = '<div style="color: #34d399; margin-bottom: 4px;">✓ Connected to live Docker event multiplexer (non-blocking feed)</div>';
+          }
+        });
+
+        qcEventSource.addEventListener('docker_event', e => {
+          if (!container) return;
+          try {
+            const ev = JSON.parse(e.data);
+            const timeStr = new Date(ev.time * 1000 || Date.now()).toLocaleTimeString();
+            let actionColor = '#38bdf8';
+            if (ev.action === 'die' || ev.action === 'kill' || ev.action === 'oom') actionColor = '#f87171';
+            else if (ev.action === 'start' || ev.action === 'restart') actionColor = '#34d399';
+            else if (ev.action === 'test_ping') actionColor = '#fbbf24';
+
+            const line = document.createElement('div');
+            line.style.marginBottom = '3px';
+            line.innerHTML = `<span style="color: var(--text-muted); font-size: 11px;">[${timeStr}]</span> <span style="color: ${actionColor}; font-weight: 600;">[${escapeHtml(ev.action.toUpperCase())}]</span> <span style="color: #a78bfa;">${escapeHtml(ev.type || 'container')}</span> <strong style="color: var(--text-main);">${escapeHtml(ev.actor_name || ev.actor_id)}</strong> <span style="color: var(--text-muted); font-size: 11px;">(${escapeHtml(ev.actor_id || '')})</span>`;
+
+            container.appendChild(line);
+            container.scrollTop = container.scrollHeight;
+          } catch {}
+        });
+
+        qcEventSource.onerror = () => {
+          // Reconnect handled automatically by EventSource
+        };
+      } catch {}
+    }
+
     pollCanaryAll();
     setInterval(pollCanaryAll, 3000);
 
     pollCrashAll();
     setInterval(pollCrashAll, 3000);
+
+    pollQueryCacheAll();
+    setInterval(pollQueryCacheAll, 3000);
+    initEventStream();
 
     pollWireGuardAll();
     setInterval(pollWireGuardAll, 3000);

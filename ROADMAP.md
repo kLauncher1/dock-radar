@@ -163,9 +163,9 @@ This document outlines the architectural milestones and engineering priorities f
 ---
 
 ## Milestone 25: v3.0.0 (Self-Optimizing Query Cache & Event Ingestion Pipeline)
-- [ ] In-memory adaptive query cache for high-frequency Prometheus scraping and telemetry feeds.
-- [ ] Non-blocking Docker engine event multiplexer (`/events`) with dynamic backpressure regulation.
-- [ ] Distributed event deduplication across mesh peers.
+- [x] In-memory adaptive query cache for high-frequency Prometheus scraping and telemetry feeds.
+- [x] Non-blocking Docker engine event multiplexer (`/events`) with dynamic backpressure regulation.
+- [x] Distributed event deduplication across mesh peers.
 
 ---
 
@@ -285,6 +285,13 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Low-overhead kernel slab allocator tracking and unreclaimed dentry/inode cache prober.
 - [ ] Userspace memory leak forecasting via allocation call-site stack backtrace sampling.
 - [ ] Automated container dirty page cache throttling and drop-caches kernel trigger.
+
+---
+
+## Milestone 43: v4.8.0 (Autonomous Dynamic CPU Throttling & CFS Bandwidth Optimizer)
+- [ ] Real-time CFS quota latency and throttled period tracking via `cpu.stat`.
+- [ ] Dynamic CPU quota bursting relieving temporary container compute spikes without noisy-neighbor degradation.
+- [ ] Automated CPU limit right-sizing recommendations based on kernel scheduling delays.
 
 
 

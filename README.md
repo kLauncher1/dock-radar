@@ -10,7 +10,7 @@
 
 **Ultra-lightweight single-binary container & system metrics monitor with embedded real-time dark-mode web dashboard.**
 
-[![Release](https://img.shields.io/badge/Release-v2.9.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
+[![Release](https://img.shields.io/badge/Release-v3.0.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg?style=flat&logo=go)](https://golang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6%2B-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
@@ -27,6 +27,7 @@
 
 - **Single Executable Deployment**: The web dashboard is baked directly into the Go binary via `//go:embed`. No Node.js runtime, external assets, or separate frontend servers needed.
 - **Ultra-Low Memory Footprint**: Runs persistently under **15 MB of RAM** with bounded circular ring buffers, making it ideal for low-spec VPS, Raspberry Pi, and homelab environments.
+- **Self-Optimizing Query Cache & Event Ingestion Pipeline**: In-memory adaptive query cache designed for high-frequency Prometheus scraping and telemetry feeds. Features single-flight request coalescing eliminating thundering herd stampedes, adaptive TTL tuning scaling from 500ms to 10s based on scrape velocity, and bounded capacity with LRU eviction keeping memory under 64 MB. Includes a non-blocking Docker engine event multiplexer (`/events`, `/api/events/stream` SSE) with dynamic backpressure regulation (drop oldest/newest policies preventing slow subscriber lag), sliding-window distributed event deduplication suppressing redundant mesh broadcasts, Prometheus query cache & multiplexer metrics, and a dedicated glassmorphism management console in the embedded web UI.
 - **Distributed Core Dump & Crash Analysis Pipeline**: Automatic container crash kernel core dump interception and ELF 64-bit core file parsing (`PT_NOTE`, `NT_PRSTATUS`, register parsing) with intelligent text backtrace fallback (GDB, LLDB, Go panics). Features in-memory symbol resolution, heuristic root cause classification (null pointer dereferences, heap corruption, memory aborts, OOM termination, stack overflow, arithmetic faults), deterministic SHA-256 crash signature deduplication with sliding-window alert throttling, Prometheus crash metrics, and dedicated glassmorphism diagnostics console in the embedded web UI.
 - **Autonomous Canary Deployment & Traffic Mirroring Engine**: Dynamic traffic percentage splitting with zero packet loss across container revisions using atomic weight transitions and sticky session header affinity (FNV-1a hashing). Features asynchronous shadow traffic mirroring duplicating ingress workloads to pre-release canary containers via an isolated bounded worker pool without impacting client latency, and real-time divergence detection tracking error rates and P95 latency ratios with automatic rollback triggers tripping upon statistical threshold violations.
 - **Zero-Trust WireGuard Mesh Tunneling & Peer Gateway**: Pure standard-library userspace WireGuard overlay protocol engine with RFC 7748 Curve25519 (X25519) Diffie-Hellman key exchange (`crypto/ecdh`) and symmetric AEAD encryption. Features dynamic overlay IP address leasing (`IPPool`) managing virtual CIDR subnets with collision detection and lease expiration reclamation, zero-trust cryptokey routing table (`Router`) validating packet source IPs against peer AllowedIPs prefixes and performing dynamic NAT hole punching with endpoint roaming, 64-packet bitmap anti-replay window protection, and embedded glassmorphism peer management, dynamic lease pool, and keypair provisioning in the web console.
@@ -251,6 +252,14 @@ go build -ldflags="-s -w" -o dock-radar .
 | `/api/crash/ingest` | `POST` | `admin` | Ingests raw core dump binary payload or formatted text backtrace for analysis |
 | `/api/crash/test` | `POST` | `admin` | Dispatches simulated synthetic crash event to test root-cause classifier and alerts |
 | `/api/crash/config` | `GET` / `POST` | `viewer` / `admin` | Fetches or updates crash pipeline configuration and deduplication settings |
+| `/api/cache/status` | `GET` | `viewer` | Query cache engine status, hit ratio, memory consumption, item count, and multiplexer stats |
+| `/api/cache/keys` | `GET` | `viewer` | Lists active cached query keys with hit counts, byte sizes, and remaining TTL durations |
+| `/api/cache/purge` | `POST` | `admin` | Purges all or prefix-matched cache entries with audit logging (`{"prefix":"docker:"}`) |
+| `/api/cache/config` | `GET` / `POST` | `viewer` / `admin` | Reads or updates query cache tuning parameters, default TTL, item limits, and memory caps |
+| `/api/events/status` | `GET` | `viewer` | Event multiplexer subscriber counts, total ingested, dispatched, and backpressure drop metrics |
+| `/api/events/stream` | `GET` (SSE) | `viewer` | Live Server-Sent Events stream with filter query parameters (`?container=&type=&action=`) |
+| `/api/events/publish` | `POST` | `admin` | Ingests custom or synthetic Docker lifecycle events into the multiplexer and deduplicator |
+| `/api/events/test` | `POST` | `admin` | Dispatches a synthetic test event to verify subscriber queues and backpressure regulation |
 | `/api/ratelimit/status` | `GET` | `viewer` | Overall rate limiter engine status, tenant counts, active bans, and sync metrics |
 | `/api/ratelimit/tenants` | `GET` / `POST` / `DELETE` | `viewer` / `admin` | Lists, configures, or removes per-tenant RPS, burst limits, and bandwidth throttles |
 | `/api/ratelimit/bans` | `GET` / `POST` / `DELETE` | `viewer` / `admin` | Lists active IP ban records, manually bans an IP, or unbans an IP address |

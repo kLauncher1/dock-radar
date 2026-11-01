@@ -5,6 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-11-01
+
+### Added
+- Self-Optimizing Query Cache & Event Ingestion Pipeline (`internal/querycache/`):
+  - In-memory adaptive query cache designed for high-frequency Prometheus scraping and dashboard feeds, keeping memory consumption bounded under 64 MB with LRU eviction (`internal/querycache/cache.go`, `internal/querycache/cache_test.go`).
+  - Single-flight request coalescing (`GetOrCompute`) eliminating duplicate backend executions and protecting Docker engine sockets from thundering herd scrape storms.
+  - Dynamic adaptive TTL scaling automatically extending cached query lifetimes under intense scrape bursts to maintain system responsiveness.
+  - Non-blocking Docker engine event multiplexer (`internal/querycache/multiplexer.go`, `internal/querycache/multiplexer_test.go`) broadcasting daemon lifecycle events across multiple subscribers with configurable backpressure drop policies (`DropOldest`, `DropNewest`) and zero queue blocking.
+  - Sliding-window distributed event deduplicator (`internal/querycache/dedup.go`, `internal/querycache/dedup_test.go`) suppressing redundant event transmissions across mesh peers and socket reconnect cycles.
+  - Master `Engine` coordinator (`internal/querycache/engine.go`, `internal/querycache/engine_test.go`) wiring cache maintenance, selective event-driven cache invalidation, audit logging, and critical alert dispatches.
+  - Core domain models, configuration builders, and field validators (`internal/querycache/types.go`, `internal/querycache/types_test.go`).
+- Query Cache & Event Pipeline REST APIs (`internal/api/querycache.go`, `internal/api/querycache_test.go`):
+  - `GET /api/cache/status`: Queries aggregated cache performance, hit ratio, memory usage, and multiplexer telemetry (requires `RoleViewer`).
+  - `GET /api/cache/keys`: Lists active cached keys with hit counts, byte sizes, and remaining TTL durations (requires `RoleViewer`).
+  - `POST /api/cache/purge`: Invalidates all or prefix-matched cache entries with audit logging (requires `RoleAdmin`).
+  - `GET /api/cache/config` & `POST /api/cache/config`: Reads and updates cache configuration and memory bounds (requires `RoleViewer` / `RoleAdmin`).
+  - `GET /api/events/status`: Inspects active subscriber counts, ingestion rates, and backpressure drop telemetry (requires `RoleViewer`).
+  - `GET /api/events/stream`: Live Server-Sent Events (SSE) stream delivering real-time lifecycle events with optional container/action/type filters (requires `RoleViewer`).
+  - `POST /api/events/publish`: Ingests custom or cluster events into the multiplexer and deduplicator (requires `RoleAdmin`).
+  - `POST /api/events/test`: Dispatches a synthetic test event to verify subscriber pipelines (requires `RoleAdmin`).
+- Prometheus Metrics Exporter Extension (`internal/metrics/querycache.go`, `internal/metrics/prometheus.go`):
+  - Exposes `dock_radar_querycache_enabled`, `dock_radar_querycache_hits_total`, `dock_radar_querycache_misses_total`, `dock_radar_querycache_hit_ratio`, `dock_radar_querycache_items`, `dock_radar_querycache_bytes`, `dock_radar_querycache_evictions_total`, `dock_radar_querycache_coalesced_total`, `dock_radar_event_multiplexer_subscribers`, `dock_radar_event_multiplexer_ingested_total`, `dock_radar_event_multiplexer_dropped_total`, and `dock_radar_event_dedup_deduped_total`.
+- Embedded Glassmorphism Web Console (`web/dist/index.html`):
+  - Header Cache status badge (`#querycache-badge`) displaying live hit ratio with direct modal launch.
+  - Dedicated Query Cache & Event Pipeline dashboard section with 6 live KPI cards (Hit Ratio %, Cached Items, Memory Footprint, Ingested Events, Active Subscribers, Deduplicated Events).
+  - Interactive tabs for Cache Keys & Telemetry, Live Event Stream (SSE feed with auto-scroll), and Backpressure & Deduplication Metrics.
+  - Interactive Management Modal (`#querycache-modal`) featuring 3 tabs (Broadcast Event, Simulation Burst Drill, Tuning & Memory Bounds).
+- Command-Line Flags & Environment Variables (`main.go`):
+  - Added `--query-cache`, `--query-cache-ttl`, `--query-cache-max-items`, `--query-cache-max-mb`, `--event-multiplexer`, `--event-buffer-size`, and `--event-dedup-window` flags with environment variable bindings (`DOCK_RADAR_QUERY_CACHE_ENABLED`, `DOCK_RADAR_QUERY_CACHE_TTL`, `DOCK_RADAR_QUERY_CACHE_MAX_ITEMS`, `DOCK_RADAR_QUERY_CACHE_MAX_MB`, `DOCK_RADAR_EVENT_MULTIPLEXER_ENABLED`, `DOCK_RADAR_EVENT_BUFFER_SIZE`, `DOCK_RADAR_EVENT_DEDUP_WINDOW`).
+
 ## [2.9.0] - 2026-11-01
 
 ### Added

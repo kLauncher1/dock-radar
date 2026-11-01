@@ -14,6 +14,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
 	"github.com/kLauncher1/dock-radar/internal/metrics"
+	"github.com/kLauncher1/dock-radar/internal/querycache"
 	"github.com/kLauncher1/dock-radar/internal/raft"
 	"github.com/kLauncher1/dock-radar/internal/ratelimit"
 	"github.com/kLauncher1/dock-radar/internal/rolling"
@@ -158,6 +159,12 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		crashStatus = &st
 	}
 
+	var queryCacheStatus *querycache.QueryCacheStatus
+	if h.QueryCacheEngine != nil {
+		st := h.QueryCacheEngine.Status()
+		queryCacheStatus = &st
+	}
+
 	text := metrics.FormatMetricsAll(
 		sysMetrics,
 		dockerStatus,
@@ -185,6 +192,7 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		canaryStatus,
 		canaryDeployments,
 		crashStatus,
+		queryCacheStatus,
 		version,
 	)
 

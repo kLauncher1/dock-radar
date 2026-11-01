@@ -17,6 +17,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/healing"
 	"github.com/kLauncher1/dock-radar/internal/logs"
 	"github.com/kLauncher1/dock-radar/internal/mesh"
+	"github.com/kLauncher1/dock-radar/internal/querycache"
 	"github.com/kLauncher1/dock-radar/internal/raft"
 	"github.com/kLauncher1/dock-radar/internal/ratelimit"
 	"github.com/kLauncher1/dock-radar/internal/rolling"
@@ -104,7 +105,7 @@ func FormatMetricsFull(
 	return FormatMetricsAll(
 		sys, dock, ringBuffer, alertDispatcher, auditLogger,
 		meshSummary, meshNodes, healingStats, anomalySummary, anomalyPreds,
-		discStatus, gossipSummary, gossipMembers, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, appVersion,
+		discStatus, gossipSummary, gossipMembers, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, appVersion,
 	)
 }
 
@@ -136,6 +137,7 @@ func FormatMetricsAll(
 	canaryStatus *canary.CanaryStatus,
 	canaryDeployments []*canary.CanaryDeployment,
 	crashStatus *crash.CrashStatus,
+	queryCacheStatus *querycache.QueryCacheStatus,
 	appVersion string,
 ) string {
 	var b strings.Builder
@@ -496,6 +498,9 @@ func FormatMetricsAll(
 
 	// 24. Distributed Core Dump & Crash Analysis Telemetry
 	AppendCrashMetrics(&b, crashStatus)
+
+	// 25. Self-Optimizing Query Cache & Event Pipeline Telemetry
+	AppendQueryCacheMetrics(&b, queryCacheStatus)
 
 	return b.String()
 }
