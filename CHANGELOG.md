@@ -5,6 +5,34 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.9.0] - 2026-11-01
+
+### Added
+- Distributed Core Dump & Crash Analysis Pipeline (`internal/crash/`):
+  - In-line container crash kernel core dump interception and ELF 64-bit core file parser extracting `PT_NOTE`, `NT_PRSTATUS`, POSIX signal codes, and x86_64 register states (`internal/crash/elf_parser.go`, `internal/crash/elf_parser_test.go`).
+  - Unified backtrace parser with automatic detection of ELF magic binaries (`\x7fELF`) and resilient fallback parsing for formatted text backtraces (GDB, LLDB, and Go runtime panics).
+  - In-memory symbol resolver and heuristic root-cause classifier categorizing null pointer dereferences, heap/memory corruption, assertions/aborts, OOM termination (`exit 137`), stack overflow recursion, arithmetic exceptions, and thread timeouts (`internal/crash/symbolizer.go`, `internal/crash/symbolizer_test.go`).
+  - Deterministic SHA-256 crash signature fingerprinting (`ComputeCrashSignature`), sliding-window deduplication (`DedupEngine`), capacity-bounded LRU eviction, and milestone alert throttling (1st, 5th, 25th, every 100th occurrence, or 30m cooldown) preventing webhook alert storms (`internal/crash/dedup.go`, `internal/crash/dedup_test.go`).
+  - Central `Engine` orchestrating background directory scanning (`data/cores`), bounded circular in-memory buffer, audit logger integration (`container_crash_intercepted`), and webhook alert dispatch via `alert.Dispatcher` (`internal/crash/engine.go`, `internal/crash/engine_test.go`).
+  - Core domain data models, configuration validator, and signal name mapping (`internal/crash/types.go`, `internal/crash/types_test.go`).
+- Crash Analysis REST APIs (`internal/api/crash.go`, `internal/api/crash_test.go`):
+  - `GET /api/crash/status`: Queries crash pipeline status, total crashes, unique signatures, and root-cause breakdown (requires `RoleViewer`).
+  - `GET /api/crash/reports`: Lists recent crash reports with pagination and filtering by container or severity (requires `RoleViewer`).
+  - `GET /api/crash/reports/detail`: Retrieves full backtrace, stack frames, and CPU registers for a crash ID (requires `RoleViewer`).
+  - `POST /api/crash/ingest`: Ingests raw core dump binary payload or formatted text backtrace for analysis (requires `RoleAdmin`).
+  - `POST /api/crash/test`: Dispatches simulated synthetic crash event to test root-cause classifier and alerts (requires `RoleAdmin`).
+  - `GET /api/crash/config` & `POST /api/crash/config`: Reads and updates crash pipeline configuration (requires `RoleViewer` / `RoleAdmin`).
+  - `DELETE /api/crash/reports`: Clears stored in-memory crash diagnostic reports buffer (requires `RoleAdmin`).
+- Prometheus Metrics Exporter Extension (`internal/metrics/crash.go`, `internal/metrics/prometheus.go`):
+  - Exposes `dock_radar_crash_enabled`, `dock_radar_crash_total_crashes`, `dock_radar_crash_unique_signatures`, `dock_radar_crash_reports_stored`, `dock_radar_crash_deduped_total`, and per-category `dock_radar_crash_root_cause_total`.
+- Embedded Glassmorphism Web Console (`web/dist/index.html`):
+  - Header Crash status badge (`#crash-badge`) displaying crash count with direct modal launch.
+  - Distributed Core Dump & Crash Analysis dashboard section with 6 live KPI cards (Total Crashes, Unique Signatures, Deduplicated Crashes, Diagnostic Dumps, Leading Root Cause, Interceptor Status).
+  - Interactive tabs for Crash Reports & Backtraces, Root Cause & Signal Breakdown, and Deduplication & Signatures.
+  - Interactive Crash Management Modal (`#crash-modal`) with 3 tabs (Ingest Dump, Simulation Drill, Pipeline Settings) and Detailed Stack Trace Modal (`#crash-detail-modal`).
+- Command-Line Flags & Environment Variables (`main.go`):
+  - Added `--crash`, `--crash-dir`, `--crash-dedup-window`, and `--crash-max-reports` flags with environment variable bindings (`DOCK_RADAR_CRASH`, `DOCK_RADAR_CRASH_DIR`, `DOCK_RADAR_CRASH_DEDUP_WINDOW`, `DOCK_RADAR_CRASH_MAX_REPORTS`).
+
 ## [2.8.0] - 2026-10-31
 
 ### Added

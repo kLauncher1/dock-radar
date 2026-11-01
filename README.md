@@ -10,7 +10,7 @@
 
 **Ultra-lightweight single-binary container & system metrics monitor with embedded real-time dark-mode web dashboard.**
 
-[![Release](https://img.shields.io/badge/Release-v2.8.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
+[![Release](https://img.shields.io/badge/Release-v2.9.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg?style=flat&logo=go)](https://golang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6%2B-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
@@ -27,6 +27,7 @@
 
 - **Single Executable Deployment**: The web dashboard is baked directly into the Go binary via `//go:embed`. No Node.js runtime, external assets, or separate frontend servers needed.
 - **Ultra-Low Memory Footprint**: Runs persistently under **15 MB of RAM** with bounded circular ring buffers, making it ideal for low-spec VPS, Raspberry Pi, and homelab environments.
+- **Distributed Core Dump & Crash Analysis Pipeline**: Automatic container crash kernel core dump interception and ELF 64-bit core file parsing (`PT_NOTE`, `NT_PRSTATUS`, register parsing) with intelligent text backtrace fallback (GDB, LLDB, Go panics). Features in-memory symbol resolution, heuristic root cause classification (null pointer dereferences, heap corruption, memory aborts, OOM termination, stack overflow, arithmetic faults), deterministic SHA-256 crash signature deduplication with sliding-window alert throttling, Prometheus crash metrics, and dedicated glassmorphism diagnostics console in the embedded web UI.
 - **Autonomous Canary Deployment & Traffic Mirroring Engine**: Dynamic traffic percentage splitting with zero packet loss across container revisions using atomic weight transitions and sticky session header affinity (FNV-1a hashing). Features asynchronous shadow traffic mirroring duplicating ingress workloads to pre-release canary containers via an isolated bounded worker pool without impacting client latency, and real-time divergence detection tracking error rates and P95 latency ratios with automatic rollback triggers tripping upon statistical threshold violations.
 - **Zero-Trust WireGuard Mesh Tunneling & Peer Gateway**: Pure standard-library userspace WireGuard overlay protocol engine with RFC 7748 Curve25519 (X25519) Diffie-Hellman key exchange (`crypto/ecdh`) and symmetric AEAD encryption. Features dynamic overlay IP address leasing (`IPPool`) managing virtual CIDR subnets with collision detection and lease expiration reclamation, zero-trust cryptokey routing table (`Router`) validating packet source IPs against peer AllowedIPs prefixes and performing dynamic NAT hole punching with endpoint roaming, 64-packet bitmap anti-replay window protection, and embedded glassmorphism peer management, dynamic lease pool, and keypair provisioning in the web console.
 - **High-Availability Raft Cluster Consensus Engine**: Embedded pure standard-library Raft consensus algorithm implementation with zero external dependencies. Features randomized election timeout jitter, automated leader election with periodic heartbeats, strict majority quorum validation (`(N/2) + 1`) providing split-brain immunity across network partitions, monotonic 1-based log indexing with conflict suffix truncation, replicated state machine (`StateMachine`) synchronizing autonomous self-healing policies, container quarantine blacklists, cluster node states, and cluster key-values, on-demand checkpoint log compaction, and glassmorphism consensus topology and state machine views in the web console.
@@ -135,6 +136,14 @@ go build -ldflags="-s -w" -o dock-radar .
 | `--gitops-strict-signatures` | `DOCK_RADAR_GITOPS_STRICT_SIGNATURES` | `false` | Reject commits with missing or invalid cryptographic signatures |
 | `--gitops-auto-rollback` | `DOCK_RADAR_GITOPS_AUTO_ROLLBACK` | `true` | Automatically rollback deployments failing post-deploy health check |
 | `--gitops-webhook-secret` | `DOCK_RADAR_GITOPS_WEBHOOK_SECRET` | `""` | Default HMAC secret for incoming Git webhooks |
+| `--canary` | `DOCK_RADAR_CANARY_ENABLED` | `false` | Enable autonomous canary deployment and shadow traffic mirroring |
+| `--canary-eval-interval` | `DOCK_RADAR_CANARY_EVAL_INTERVAL` | `10s` | Periodic divergence evaluation interval for canary rollouts |
+| `--canary-auto-rollback` | `DOCK_RADAR_CANARY_AUTO_ROLLBACK` | `true` | Automatically rollback canary rollouts upon divergence threshold violation |
+| `--canary-shadow-mirror` | `DOCK_RADAR_CANARY_SHADOW_MIRROR` | `false` | Enable asynchronous background shadow traffic mirroring to canary targets |
+| `--crash` | `DOCK_RADAR_CRASH` | `false` | Enable distributed core dump and crash analysis pipeline |
+| `--crash-dir` | `DOCK_RADAR_CRASH_DIR` | `"data/cores"` | Directory scanned for raw core dump files |
+| `--crash-dedup-window` | `DOCK_RADAR_CRASH_DEDUP_WINDOW` | `30m` | Sliding-window deduplication cooldown for recurring crash signatures |
+| `--crash-max-reports` | `DOCK_RADAR_CRASH_MAX_REPORTS` | `200` | Maximum crash diagnostic reports stored in memory ring buffer |
 | `--version` | — | — | Print dock-radar version and exit |
 
 ---
@@ -171,6 +180,11 @@ go build -ldflags="-s -w" -o dock-radar .
 │   • Jitter & Backoff     │      • SWIM Gossip Protocol │
 │   • Circuit Breaker      │      • UDP Broadcast Beacon │
 ├──────────────────────────┼─────────────────────────────┤
+│   internal/canary        │      internal/crash         │
+│   • Dynamic Weight Split │      • Kernel Core Intercept│
+│   • Shadow Traffic Mirror│      • ELF Backtrace Parser │
+│   • Divergence Guard     │      • Deduplication Engine │
+├──────────────────────────┼─────────────────────────────┤
 │   internal/metrics       │      net/http Router        │
 │   • Standard Prometheus  │      • /metrics (Prometheus)│
 │   • Exposition Formatter │      • /api/docker/*        │
@@ -182,8 +196,8 @@ go build -ldflags="-s -w" -o dock-radar .
 │   • RBAC (Admin/Viewer)  │      • /api/ebpf/*          │
 │   internal/firewall      │      • /api/healing/*       │
 │   • eBPF Packet Filter   │      • /api/gitops/*        │
-│   • Zero-Trust Isolator  │                             │
-│   • DDoS Rate Throttler  │                             │
+│   • Zero-Trust Isolator  │      • /api/canary/*        │
+│   • DDoS Rate Throttler  │      • /api/crash/*         │
 ├──────────────────────────┤      • /api/raft/*          │
 │   internal/gitops        │      • /api/wireguard/*     │
 │   • Repo Branch Tracking │                             │
@@ -224,6 +238,19 @@ go build -ldflags="-s -w" -o dock-radar .
 | `/api/docker/logs` | `WS` / `GET` | `viewer` | Real-time WebSocket log feed or JSON snapshot (`?id=<id>&stream=<stdout\|stderr\|system>&tail=100`) |
 | `/api/docker/restart` | `POST` | `admin` | Safely restarts a container by ID or name (`{"id":"<name_or_id>","timeout":10}`) |
 | `/api/docker/stop` | `POST` | `admin` | Safely stops a running container (`{"id":"<name_or_id>","timeout":10}`) |
+| `/api/canary/status` | `GET` | `viewer` | Canary engine summary, active rollouts, and routed request counters |
+| `/api/canary/deployments` | `GET` / `POST` | `viewer` / `admin` | Lists active canary rollouts or provisions a new canary deployment |
+| `/api/canary/deployments/detail` | `GET` / `DELETE` | `viewer` / `admin` | Queries deployment divergence telemetry or terminates canary rollout |
+| `/api/canary/deployments/weight` | `POST` | `admin` | Dynamically updates traffic split percentage weights with zero packet loss |
+| `/api/canary/deployments/promote` | `POST` | `admin` | Promotes canary deployment to 100% production traffic |
+| `/api/canary/deployments/rollback` | `POST` | `admin` | Manually or automatically rolls back canary traffic to 0% baseline |
+| `/api/canary/config` | `GET` / `POST` | `viewer` / `admin` | Reads or updates canary subsystem configuration and divergence thresholds |
+| `/api/crash/status` | `GET` | `viewer` | Crash pipeline engine status, total crashes, unique signatures, and root-cause breakdown |
+| `/api/crash/reports` | `GET` / `DELETE` | `viewer` / `admin` | Lists recent crash reports (`?container=&severity=&limit=50`) or clears stored buffer |
+| `/api/crash/reports/detail` | `GET` | `viewer` | Retrieves full backtrace, stack frames, and CPU registers for a crash ID (`?id=`) |
+| `/api/crash/ingest` | `POST` | `admin` | Ingests raw core dump binary payload or formatted text backtrace for analysis |
+| `/api/crash/test` | `POST` | `admin` | Dispatches simulated synthetic crash event to test root-cause classifier and alerts |
+| `/api/crash/config` | `GET` / `POST` | `viewer` / `admin` | Fetches or updates crash pipeline configuration and deduplication settings |
 | `/api/ratelimit/status` | `GET` | `viewer` | Overall rate limiter engine status, tenant counts, active bans, and sync metrics |
 | `/api/ratelimit/tenants` | `GET` / `POST` / `DELETE` | `viewer` / `admin` | Lists, configures, or removes per-tenant RPS, burst limits, and bandwidth throttles |
 | `/api/ratelimit/bans` | `GET` / `POST` / `DELETE` | `viewer` / `admin` | Lists active IP ban records, manually bans an IP, or unbans an IP address |
