@@ -3,6 +3,7 @@ package api
 import (
 	"net/http"
 
+	"github.com/kLauncher1/dock-radar/internal/acme"
 	"github.com/kLauncher1/dock-radar/internal/anomaly"
 	"github.com/kLauncher1/dock-radar/internal/canary"
 	"github.com/kLauncher1/dock-radar/internal/crash"
@@ -172,6 +173,12 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		vaultStatus = &st
 	}
 
+	var acmeStatus *acme.ACMEStatus
+	if h.ACMEEngine != nil {
+		st := h.ACMEEngine.Status()
+		acmeStatus = &st
+	}
+
 	text := metrics.FormatMetricsAll(
 		sysMetrics,
 		dockerStatus,
@@ -201,6 +208,7 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		crashStatus,
 		queryCacheStatus,
 		vaultStatus,
+		acmeStatus,
 		version,
 	)
 

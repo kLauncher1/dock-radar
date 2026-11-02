@@ -659,6 +659,7 @@
       <button id="crash-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.15); color: #f87171; display: inline-flex; align-items: center; gap: 4px;" onclick="openCrashModal()" title="Distributed Core Dump & Crash Analysis Pipeline">💥 Crash: <span id="crash-badge-text">0 Crashes</span></button>
       <button id="querycache-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: inline-flex; align-items: center; gap: 4px;" onclick="openCacheModal()" title="Self-Optimizing Query Cache & Event Ingestion Pipeline">⚡ Cache: <span id="cache-badge-text">100% Hit</span></button>
       <button id="vault-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(168, 85, 247, 0.4); background: rgba(168, 85, 247, 0.15); color: #c084fc; display: inline-flex; align-items: center; gap: 4px;" onclick="openVaultModal()" title="Zero-Knowledge Distributed Configuration Vault">🔐 Vault: <span id="vault-badge-text">0 Secrets</span></button>
+      <button id="acme-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(16, 185, 129, 0.4); background: rgba(16, 185, 129, 0.15); color: #34d399; display: inline-flex; align-items: center; gap: 4px;" onclick="openACMEModal()" title="Automated TLS ACME Let's Encrypt Certbot & Dynamic SNI">📜 ACME/TLS: <span id="acme-badge-text">0 Certs</span></button>
       <button id="btn-export-audit" class="status-pill" style="font-size: 11px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;" onclick="exportAuditTrail()" title="Export Audit Trail in NDJSON format">📋 Export Audit</button>
       <span>•</span>
       <span id="host-badge">Loading...</span>
@@ -2929,6 +2930,155 @@
         </div>
       </div>
     </div>
+
+    <!-- Automated TLS ACME Let's Encrypt Certbot & Dynamic SNI Section -->
+    <div class="card" id="acme-section" style="margin-top: 24px;">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div>
+            <div class="card-title">Automated TLS ACME Let's Encrypt Certbot &amp; Dynamic SNI</div>
+            <div class="card-subtitle">RFC 8555 automated certificate issuance, HTTP-01/DNS-01 verification, dynamic SNI routing &amp; zero-downtime rotation</div>
+          </div>
+          <span id="acme-status-pill" class="status-pill status-running" style="font-size: 11px;">Active</span>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn-action btn-logs" onclick="openACMEModal(); switchACMEModalTab('order');" style="color: #34d399; border-color: rgba(16, 185, 129, 0.4);">+ Issue Certificate</button>
+          <button class="btn-action btn-logs" onclick="openACMEModal(); switchACMEModalTab('dns');" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">⚡ DNS-01 Helper</button>
+          <button class="btn-action btn-logs" onclick="triggerACMERenewalSweep()" style="color: #fbbf24; border-color: rgba(245, 158, 11, 0.4);">🔄 Renewal Sweep</button>
+          <button class="btn-action btn-logs" onclick="openACMEModal(); switchACMEModalTab('config');" style="color: var(--text-muted); border-color: var(--border-subtle);">⚙️ Settings</button>
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px;">
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #10b981;">
+          <div style="font-size: 11px; color: #10b981; font-weight: 600; text-transform: uppercase;">Managed Certificates</div>
+          <div id="acme-kpi-certs" style="font-size: 18px; font-weight: 700; color: #34d399; margin-top: 4px;">0 Certs</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">ECDSA P-256 TLS</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #38bdf8;">
+          <div style="font-size: 11px; color: #38bdf8; font-weight: 600; text-transform: uppercase;">Valid Certificates</div>
+          <div id="acme-kpi-valid" style="font-size: 18px; font-weight: 700; color: #38bdf8; margin-top: 4px;">0 Valid</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Active in TLS router</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #fbbf24;">
+          <div style="font-size: 11px; color: #fbbf24; font-weight: 600; text-transform: uppercase;">Expiring Soon</div>
+          <div id="acme-kpi-expiring" style="font-size: 18px; font-weight: 700; color: #fbbf24; margin-top: 4px;">0 Expiring</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Within renew window</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #c084fc;">
+          <div style="font-size: 11px; color: #c084fc; font-weight: 600; text-transform: uppercase;">Dynamic SNI Routes</div>
+          <div id="acme-kpi-sni-routes" style="font-size: 18px; font-weight: 700; color: #c084fc; margin-top: 4px;">0 Routes</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Exact &amp; wildcard hosts</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #6366f1;">
+          <div style="font-size: 11px; color: #6366f1; font-weight: 600; text-transform: uppercase;">Auto-Renewals</div>
+          <div id="acme-kpi-renewals" style="font-size: 18px; font-weight: 700; color: #818cf8; margin-top: 4px;">0 Renewed</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Zero-downtime hot swap</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #f43f5e;">
+          <div style="font-size: 11px; color: #f43f5e; font-weight: 600; text-transform: uppercase;">Active Challenges</div>
+          <div id="acme-kpi-challenges" style="font-size: 18px; font-weight: 700; color: #fb7185; margin-top: 4px;">0 In-Flight</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">HTTP-01 &amp; DNS-01</div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div style="display: flex; border-bottom: 1px solid var(--border-subtle); margin-bottom: 16px; gap: 8px;">
+        <button id="acme-tab-btn-certs" class="tab-btn active" onclick="switchACMEMainTab('certs')">Managed Certificates &amp; SNI</button>
+        <button id="acme-tab-btn-challenges" class="tab-btn" onclick="switchACMEMainTab('challenges')">Verification Challenges</button>
+        <button id="acme-tab-btn-sni" class="tab-btn" onclick="switchACMEMainTab('sni')">Dynamic SNI Routing Table</button>
+      </div>
+
+      <!-- Tab 1: Managed Certificates Table -->
+      <div id="acme-tab-certs">
+        <div style="overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: 8px; background: #090d16;">
+          <table class="alert-events-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th>Primary Domain</th>
+                <th>SAN Identifiers</th>
+                <th>Provider / Issuer</th>
+                <th>SHA-256 Fingerprint</th>
+                <th>Expires In</th>
+                <th>Status</th>
+                <th>Auto-Renew</th>
+                <th style="text-align: right;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="acme-certs-tbody">
+              <tr>
+                <td colspan="8" style="text-align: center; color: var(--text-muted); padding: 18px;">Loading managed TLS certificates...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 2: Verification Challenges -->
+      <div id="acme-tab-challenges" style="display: none;">
+        <div style="overflow-x: auto; border: 1px solid var(--border-subtle); border-radius: 8px; background: #090d16;">
+          <table class="alert-events-table" style="width: 100%;">
+            <thead>
+              <tr>
+                <th>Target Domain</th>
+                <th>Type</th>
+                <th>Challenge Token</th>
+                <th>DNS Record / HTTP-01 Endpoint</th>
+                <th>Key Auth Digest</th>
+                <th>Verified</th>
+                <th>Created / Expiry</th>
+              </tr>
+            </thead>
+            <tbody id="acme-challenges-tbody">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 18px;">No active verification challenges.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 3: Dynamic SNI Routing Table -->
+      <div id="acme-tab-sni" style="display: none;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+          <div class="alert-card-sub" style="padding: 14px;">
+            <div style="font-size: 12px; font-weight: 700; color: #34d399; margin-bottom: 10px; text-transform: uppercase;">Active SNI Hostname Mappings</div>
+            <div style="max-height: 240px; overflow-y: auto;">
+              <table class="alert-events-table" style="width: 100%; font-size: 11px;">
+                <thead>
+                  <tr>
+                    <th>SNI Hostname</th>
+                    <th>Target Certificate</th>
+                    <th>Type</th>
+                  </tr>
+                </thead>
+                <tbody id="acme-sni-tbody">
+                  <tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 12px;">Loading SNI mappings...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="alert-card-sub" style="padding: 14px;">
+            <div style="font-size: 12px; font-weight: 700; color: #38bdf8; margin-bottom: 10px; text-transform: uppercase;">ACME Directory &amp; Protocol Info</div>
+            <div style="font-size: 12px; line-height: 1.8; color: var(--text-main);">
+              <div style="display: flex; justify-content: space-between;"><span>ACME Protocol:</span><strong style="color: #38bdf8;">RFC 8555 (ACME v2)</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span>Active Directory:</span><strong id="acme-stat-directory" style="font-family: monospace; font-size: 11px; color: #c084fc;">-</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span>Account Contact:</span><strong id="acme-stat-email">-</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span>Default Challenge:</span><strong id="acme-stat-challenge" style="color: #fbbf24;">HTTP-01</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span>Renewal Threshold:</span><strong id="acme-stat-renew-threshold">30 days</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span>HTTP-01 Responder:</span><strong style="color: #10b981;">/.well-known/acme-challenge/</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- Lifecycle Action Confirmation Modal -->
@@ -5030,6 +5180,200 @@
 
       <div class="modal-actions" style="display: flex; justify-content: flex-end;">
         <button class="btn btn-secondary" onclick="closeVaultSecretModal()">Close &amp; Clear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Automated TLS ACME Let's Encrypt Certbot & Dynamic SNI Modal -->
+  <div class="modal-backdrop" id="acme-modal">
+    <div class="modal-card" style="max-width: 760px; width: 95%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div class="modal-title" style="color: #38bdf8; margin-bottom: 0;">ACME Certificate Manager &amp; Dynamic SNI</div>
+        <button class="btn-action" onclick="closeACMEModal()" style="padding: 4px 10px;">✕</button>
+      </div>
+
+      <!-- Modal Tab Navigation -->
+      <div style="display: flex; border-bottom: 1px solid var(--border-subtle); margin-bottom: 18px; gap: 8px;">
+        <button id="acme-mtab-btn-order" class="tab-btn active" onclick="switchACMEModalTab('order')">Issue Certificate</button>
+        <button id="acme-mtab-btn-dns" class="tab-btn" onclick="switchACMEModalTab('dns')">DNS-01 Helper</button>
+        <button id="acme-mtab-btn-config" class="tab-btn" onclick="switchACMEModalTab('config')">Engine Settings</button>
+      </div>
+
+      <!-- Modal Tab 1: Request & Issue Certificate Form -->
+      <div id="acme-mtab-order">
+        <form onsubmit="submitACMEOrderForm(event)">
+          <div class="alert-card-sub" style="padding: 14px; margin-bottom: 16px;">
+            <div style="font-size: 12px; font-weight: 700; color: #38bdf8; margin-bottom: 12px; text-transform: uppercase;">Request New TLS Certificate (RFC 8555)</div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <div class="form-col">
+                <label class="form-label" for="acme-order-domain">Primary Domain (Common Name)</label>
+                <input type="text" class="form-input" id="acme-order-domain" placeholder="example.com" required>
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="acme-order-challenge">Challenge Type</label>
+                <select class="form-input" id="acme-order-challenge">
+                  <option value="http-01" selected>http-01 (Automated HTTP Port 80/443)</option>
+                  <option value="dns-01">dns-01 (DNS TXT Record)</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <div class="form-col">
+                <label class="form-label" for="acme-order-sans">Subject Alternative Names (SANs, comma separated)</label>
+                <input type="text" class="form-input" id="acme-order-sans" placeholder="api.example.com, www.example.com">
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="acme-order-provider">Provider Authority</label>
+                <select class="form-input" id="acme-order-provider">
+                  <option value="" selected>Default Engine Provider</option>
+                  <option value="letsencrypt">Let's Encrypt (Production)</option>
+                  <option value="letsencrypt-staging">Let's Encrypt (Staging / Testing)</option>
+                  <option value="zerossl">ZeroSSL</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <div class="form-col">
+                <label class="form-label" for="acme-order-email">Contact / Recovery Email (Optional)</label>
+                <input type="email" class="form-input" id="acme-order-email" placeholder="admin@example.com">
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary-restart" style="padding: 8px 18px; font-size: 12px; font-weight: 600;">🚀 Submit Order &amp; Issue Certificate</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Modal Tab 2: DNS-01 Challenge Helper -->
+      <div id="acme-mtab-dns" style="display: none;">
+        <div class="alert-card-sub" style="padding: 14px; margin-bottom: 16px;">
+          <div style="font-size: 12px; font-weight: 700; color: #a78bfa; margin-bottom: 8px; text-transform: uppercase;">DNS-01 Record Configuration Helper</div>
+          <p style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px; line-height: 1.5;">
+            When using the <code>dns-01</code> challenge, create a TXT record in your DNS provider under <code>_acme-challenge.&lt;domain&gt;</code> with the SHA-256 digest calculated below, then signal completion to trigger CA verification.
+          </p>
+          <div class="form-row" style="margin-bottom: 12px;">
+            <div class="form-col">
+              <label class="form-label" for="acme-dns-domain">Target Domain</label>
+              <input type="text" class="form-input" id="acme-dns-domain" placeholder="example.com">
+            </div>
+            <div class="form-col">
+              <label class="form-label" for="acme-dns-token">Challenge Token</label>
+              <input type="text" class="form-input" id="acme-dns-token" placeholder="Token from pending challenge">
+            </div>
+          </div>
+          <div class="form-row" style="margin-bottom: 12px;">
+            <div class="form-col">
+              <label class="form-label" for="acme-dns-keyauth">Key Authorization (<code style="font-size: 10px;">token.thumbprint</code>)</label>
+              <input type="text" class="form-input" id="acme-dns-keyauth" placeholder="token.thumbprint string">
+            </div>
+          </div>
+          <button type="button" class="btn btn-primary-restart" onclick="submitACMEDNSComplete()" style="padding: 8px 18px; font-size: 12px; font-weight: 600;">✅ Mark DNS TXT Ready &amp; Verify</button>
+        </div>
+      </div>
+
+      <!-- Modal Tab 3: ACME Engine Settings -->
+      <div id="acme-mtab-config" style="display: none;">
+        <form onsubmit="submitACMEConfigForm(event)">
+          <div class="alert-card-sub" style="padding: 14px; margin-bottom: 16px;">
+            <div style="font-size: 12px; font-weight: 700; color: #34d399; margin-bottom: 12px; text-transform: uppercase;">ACME Engine Global Configuration</div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <div class="form-col">
+                <label class="form-label" for="acme-cfg-provider">Default Provider</label>
+                <select class="form-input" id="acme-cfg-provider">
+                  <option value="letsencrypt" selected>Let's Encrypt (Production)</option>
+                  <option value="letsencrypt-staging">Let's Encrypt (Staging)</option>
+                  <option value="zerossl">ZeroSSL</option>
+                  <option value="custom">Custom RFC 8555 Directory</option>
+                </select>
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="acme-cfg-directory">Directory URL (if Custom)</label>
+                <input type="url" class="form-input" id="acme-cfg-directory" placeholder="https://acme-v02.api.letsencrypt.org/directory">
+              </div>
+            </div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <div class="form-col">
+                <label class="form-label" for="acme-cfg-email">Admin Contact Email</label>
+                <input type="email" class="form-input" id="acme-cfg-email" placeholder="admin@example.com">
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="acme-cfg-renew-days">Auto-Renew Days Before Expiry</label>
+                <input type="number" class="form-input" id="acme-cfg-renew-days" min="1" max="60" value="30">
+              </div>
+            </div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <div class="form-col">
+                <label class="form-label" for="acme-cfg-challenge">Default Challenge Mode</label>
+                <select class="form-input" id="acme-cfg-challenge">
+                  <option value="http-01" selected>http-01</option>
+                  <option value="dns-01">dns-01</option>
+                </select>
+              </div>
+              <div class="form-col" style="display: flex; align-items: flex-end; padding-bottom: 4px;">
+                <label style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-secondary); cursor: pointer;">
+                  <input type="checkbox" id="acme-cfg-enabled" checked> Enable Automated ACME Engine
+                </label>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary-restart" style="padding: 8px 18px; font-size: 12px; font-weight: 600;">💾 Save ACME Configuration</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; margin-top: 16px;">
+        <button class="btn btn-secondary" onclick="closeACMEModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Certificate Details & X.509 Chain Modal -->
+  <div class="modal-backdrop" id="acme-cert-detail-modal">
+    <div class="modal-card" style="max-width: 680px; width: 90%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <div class="modal-title" style="color: #38bdf8; margin-bottom: 0;">Certificate Details &amp; X.509 Chain</div>
+        <button class="btn-action" onclick="closeACMEDetailModal()" style="padding: 4px 10px;">✕</button>
+      </div>
+
+      <div class="alert-card-sub" style="padding: 14px; margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <div>
+            <span style="font-size: 11px; color: var(--text-muted);">DOMAIN:</span>
+            <strong id="acme-detail-domain" style="font-family: monospace; color: #38bdf8; font-size: 14px; margin-left: 6px;"></strong>
+          </div>
+          <span id="acme-detail-status" class="status-pill status-running" style="font-size: 10px;">Valid</span>
+        </div>
+
+        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">
+          <span>SANs: </span><span id="acme-detail-sans" style="font-family: monospace; color: var(--text-secondary);"></span>
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">
+          <span>Issuer: </span><span id="acme-detail-issuer" style="color: var(--text-secondary);"></span>
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">
+          <span>Validity: </span><span id="acme-detail-validity" style="color: var(--text-secondary);"></span> (<strong id="acme-detail-days" style="color: #34d399;"></strong>)
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 6px;">
+          <span>Fingerprint (SHA-256): </span><code id="acme-detail-fingerprint" style="font-size: 10px; color: #a78bfa; word-break: break-all;"></code>
+        </div>
+        <div style="font-size: 11px; color: var(--text-muted); margin-bottom: 12px;">
+          <span>Serial Number: </span><code id="acme-detail-serial" style="font-size: 10px; color: var(--text-muted);"></code>
+        </div>
+
+        <div style="position: relative; margin-bottom: 12px;">
+          <label class="form-label" style="margin-bottom: 4px;">X.509 Certificate Chain (PEM)</label>
+          <textarea id="acme-detail-pem" readonly rows="7" style="width: 100%; font-family: monospace; font-size: 10px; background: var(--bg-surface); color: #38bdf8; border: 1px solid var(--border-subtle); border-radius: 4px; padding: 8px; resize: vertical;"></textarea>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: gap; gap: 8px;">
+          <button class="btn btn-action" onclick="copyACMEPEMChain()" style="font-size: 11px; padding: 6px 12px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">📋 Copy PEM Chain</button>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-action" id="acme-detail-renew-btn" onclick="forceRenewFromDetail()" style="font-size: 11px; padding: 6px 12px; color: #fbbf24; border-color: rgba(245, 158, 11, 0.4);">🔄 Force Renew Now</button>
+            <button class="btn btn-action" id="acme-detail-revoke-btn" onclick="revokeFromDetail()" style="font-size: 11px; padding: 6px 12px; color: #f87171; border-color: rgba(239, 68, 68, 0.4);">🗑️ Revoke Certificate</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="display: flex; justify-content: flex-end;">
+        <button class="btn btn-secondary" onclick="closeACMEDetailModal()">Close</button>
       </div>
     </div>
   </div>
@@ -12574,6 +12918,503 @@
       }
     }
 
+    // ==========================================
+    // Automated TLS ACME Let's Encrypt Certbot & Dynamic SNI
+    // ==========================================
+    let acmeCurrentDetailDomain = '';
+
+    function openACMEModal() {
+      const m = document.getElementById('acme-modal');
+      if (m) m.classList.add('active');
+      loadACMEConfigIntoModal();
+    }
+
+    function closeACMEModal() {
+      const m = document.getElementById('acme-modal');
+      if (m) m.classList.remove('active');
+    }
+
+    function openACMEDetailModal(domain) {
+      acmeCurrentDetailDomain = domain;
+      const m = document.getElementById('acme-cert-detail-modal');
+      if (m) m.classList.add('active');
+      loadACMEDetail(domain);
+    }
+
+    function closeACMEDetailModal() {
+      acmeCurrentDetailDomain = '';
+      const m = document.getElementById('acme-cert-detail-modal');
+      if (m) m.classList.remove('active');
+      const pem = document.getElementById('acme-detail-pem');
+      if (pem) pem.value = '';
+    }
+
+    function switchACMEMainTab(tab) {
+      const tabs = ['certs', 'challenges', 'sni'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`acme-tab-btn-${t}`);
+        const pane = document.getElementById(`acme-tab-${t}`);
+        if (btn) btn.classList.toggle('active', t === tab);
+        if (pane) pane.style.display = (t === tab) ? 'block' : 'none';
+      });
+      if (tab === 'certs') pollACMECertificates();
+      if (tab === 'challenges') pollACMEChallenges();
+      if (tab === 'sni') pollACMESNIRoutes();
+    }
+
+    function switchACMEModalTab(tab) {
+      const tabs = ['order', 'dns', 'config'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`acme-mtab-btn-${t}`);
+        const pane = document.getElementById(`acme-mtab-${t}`);
+        if (btn) btn.classList.toggle('active', t === tab);
+        if (pane) pane.style.display = (t === tab) ? 'block' : 'none';
+      });
+      if (tab === 'config') loadACMEConfigIntoModal();
+    }
+
+    async function pollACMEStatus() {
+      try {
+        const res = await authFetch('/api/acme/status');
+        if (!res.ok) return;
+        const st = await res.json();
+
+        const badgeText = document.getElementById('acme-badge-text');
+        if (badgeText) {
+          badgeText.textContent = st.enabled ? `${st.managed_certs || 0} Certs` : 'Disabled';
+        }
+
+        const pill = document.getElementById('acme-status-pill');
+        if (pill) {
+          pill.className = `status-pill ${st.enabled ? 'status-running' : 'status-stopped'}`;
+          pill.textContent = st.enabled ? 'Active' : 'Disabled';
+        }
+
+        const kpiCerts = document.getElementById('acme-kpi-certs');
+        if (kpiCerts) kpiCerts.textContent = `${st.managed_certs || 0} Certs`;
+
+        const kpiValid = document.getElementById('acme-kpi-valid');
+        if (kpiValid) kpiValid.textContent = `${st.valid_certs || 0} Valid`;
+
+        const kpiExpiring = document.getElementById('acme-kpi-expiring');
+        if (kpiExpiring) kpiExpiring.textContent = `${st.expiring_soon || 0} Expiring`;
+
+        const kpiSni = document.getElementById('acme-kpi-sni-routes');
+        if (kpiSni) kpiSni.textContent = `${st.sni_routes_count || 0} Routes`;
+
+        const kpiRenewals = document.getElementById('acme-kpi-renewals');
+        if (kpiRenewals) kpiRenewals.textContent = `${st.renewals_count || 0} Renewed`;
+
+        const kpiChallenges = document.getElementById('acme-kpi-challenges');
+        if (kpiChallenges) kpiChallenges.textContent = `${st.active_challenges || 0} In-Flight`;
+
+        const statDir = document.getElementById('acme-stat-directory');
+        if (statDir && st.directory_url) statDir.textContent = st.directory_url;
+
+        const statEmail = document.getElementById('acme-stat-email');
+        if (statEmail) statEmail.textContent = st.email || 'N/A';
+
+        const statRenew = document.getElementById('acme-stat-renew-threshold');
+        if (statRenew) statRenew.textContent = `${st.renew_before_days || 30} days`;
+      } catch {}
+    }
+
+    async function pollACMECertificates() {
+      try {
+        const res = await authFetch('/api/acme/certificates');
+        if (!res.ok) return;
+        const certs = await res.json();
+        const tbody = document.getElementById('acme-certs-tbody');
+        if (!tbody) return;
+
+        if (!Array.isArray(certs) || certs.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="8" style="text-align: center; color: var(--text-muted); padding: 18px;">No managed TLS certificates yet. Click "+ Issue Certificate" to order from Let's Encrypt / ZeroSSL.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = certs.map(c => {
+          let statusBadge = `<span class="status-pill status-running" style="font-size: 10px;">Valid</span>`;
+          if (c.status === 'expiring_soon') {
+            statusBadge = `<span class="status-pill" style="font-size: 10px; background: rgba(245, 158, 11, 0.2); color: #fbbf24; border-color: rgba(245, 158, 11, 0.4);">Expiring</span>`;
+          } else if (c.status === 'expired') {
+            statusBadge = `<span class="status-pill status-stopped" style="font-size: 10px;">Expired</span>`;
+          } else if (c.status === 'renewing') {
+            statusBadge = `<span class="status-pill" style="font-size: 10px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">Renewing</span>`;
+          }
+
+          const sansDisplay = Array.isArray(c.sans) && c.sans.length > 0 ? c.sans.join(', ') : 'none';
+          const fpShort = c.fingerprint ? (c.fingerprint.length > 20 ? c.fingerprint.substring(0, 20) + '...' : c.fingerprint) : '-';
+
+          return `
+            <tr>
+              <td><strong style="color: #38bdf8; font-family: monospace;">${escapeHtml(c.domain)}</strong></td>
+              <td style="font-size: 11px; color: var(--text-muted); font-family: monospace;">${escapeHtml(sansDisplay)}</td>
+              <td style="font-size: 11px; color: var(--text-secondary);">${escapeHtml(c.issuer || 'Automated CA')}</td>
+              <td><code style="font-size: 10px; color: #a78bfa;" title="${escapeHtml(c.fingerprint || '')}">${escapeHtml(fpShort)}</code></td>
+              <td><strong style="color: ${c.days_remaining <= 14 ? '#fbbf24' : '#34d399'};">${c.days_remaining}d</strong></td>
+              <td>${statusBadge}</td>
+              <td style="font-size: 11px; color: ${c.auto_renew ? '#34d399' : 'var(--text-muted)'};">${c.auto_renew ? '✓ Enabled' : 'Disabled'}</td>
+              <td style="text-align: right; white-space: nowrap;">
+                <button class="btn-action btn-logs" style="padding: 2px 8px; font-size: 11px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4); margin-right: 4px;" onclick="openACMEDetailModal('${escapeHtml(c.domain)}')">Details</button>
+                <button class="btn-action btn-logs" style="padding: 2px 8px; font-size: 11px; color: #fbbf24; border-color: rgba(245, 158, 11, 0.4); margin-right: 4px;" onclick="forceRenewCert('${escapeHtml(c.domain)}')">Renew</button>
+                <button class="btn-action btn-logs" style="padding: 2px 8px; font-size: 11px; color: #f87171; border-color: rgba(248, 113, 113, 0.4);" onclick="revokeCert('${escapeHtml(c.domain)}')">Revoke</button>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch {}
+    }
+
+    async function pollACMEChallenges() {
+      try {
+        const res = await authFetch('/api/acme/challenges');
+        if (!res.ok) return;
+        const challenges = await res.json();
+        const tbody = document.getElementById('acme-challenges-tbody');
+        if (!tbody) return;
+
+        if (!Array.isArray(challenges) || challenges.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 18px;">No active verification challenges in progress.</td></tr>`;
+          return;
+        }
+
+        tbody.innerHTML = challenges.map(ch => {
+          const typeBadge = ch.challenge_type === 'dns-01' ? 
+            `<span class="status-pill" style="font-size: 10px; background: rgba(167, 139, 250, 0.2); color: #c084fc; border-color: rgba(167, 139, 250, 0.4);">dns-01</span>` :
+            `<span class="status-pill" style="font-size: 10px; background: rgba(56, 189, 248, 0.2); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">http-01</span>`;
+
+          const verifiedBadge = ch.verified ?
+            `<span class="status-pill status-running" style="font-size: 10px;">Verified</span>` :
+            `<span class="status-pill" style="font-size: 10px; background: rgba(245, 158, 11, 0.2); color: #fbbf24; border-color: rgba(245, 158, 11, 0.4);">Pending</span>`;
+
+          const endpointOrTxt = ch.challenge_type === 'dns-01' ? 
+            (ch.dns_txt_record ? `_acme-challenge.${ch.domain} = ${ch.dns_txt_record}` : `_acme-challenge.${ch.domain}`) :
+            `/.well-known/acme-challenge/${ch.token}`;
+
+          const createdDate = ch.created_at ? new Date(ch.created_at).toLocaleTimeString() : '-';
+
+          return `
+            <tr>
+              <td><strong style="color: #38bdf8; font-family: monospace;">${escapeHtml(ch.domain)}</strong></td>
+              <td>${typeBadge}</td>
+              <td><code style="font-size: 10px; color: var(--text-muted);">${escapeHtml(ch.token || '')}</code></td>
+              <td><code style="font-size: 10px; color: #34d399; user-select: all;">${escapeHtml(endpointOrTxt)}</code></td>
+              <td><code style="font-size: 10px; color: #a78bfa; user-select: all;">${escapeHtml(ch.key_authorization || '')}</code></td>
+              <td>${verifiedBadge}</td>
+              <td style="font-size: 11px; color: var(--text-muted);">${createdDate}</td>
+            </tr>
+          `;
+        }).join('');
+      } catch {}
+    }
+
+    async function pollACMESNIRoutes() {
+      try {
+        const res = await authFetch('/api/acme/certificates');
+        if (!res.ok) return;
+        const certs = await res.json();
+        const tbody = document.getElementById('acme-sni-tbody');
+        if (!tbody) return;
+
+        if (!Array.isArray(certs) || certs.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: var(--text-muted); padding: 12px;">No SNI routes registered yet.</td></tr>`;
+          return;
+        }
+
+        const rows = [];
+        certs.forEach(c => {
+          rows.push(`
+            <tr>
+              <td><strong style="color: #34d399; font-family: monospace;">${escapeHtml(c.domain)}</strong></td>
+              <td style="color: #38bdf8; font-family: monospace;">${escapeHtml(c.domain)}</td>
+              <td><span class="status-pill status-running" style="font-size: 9px;">Exact</span></td>
+            </tr>
+          `);
+          if (Array.isArray(c.sans)) {
+            c.sans.forEach(san => {
+              if (san !== c.domain) {
+                const isWildcard = san.startsWith('*.');
+                rows.push(`
+                  <tr>
+                    <td><strong style="color: ${isWildcard ? '#c084fc' : '#34d399'}; font-family: monospace;">${escapeHtml(san)}</strong></td>
+                    <td style="color: #38bdf8; font-family: monospace;">${escapeHtml(c.domain)}</td>
+                    <td><span class="status-pill" style="font-size: 9px; ${isWildcard ? 'background: rgba(192, 132, 252, 0.2); color: #c084fc; border-color: rgba(192, 132, 252, 0.4);' : ''}">${isWildcard ? 'Wildcard' : 'SAN'}</span></td>
+                  </tr>
+                `);
+              }
+            });
+          }
+        });
+
+        tbody.innerHTML = rows.join('');
+      } catch {}
+    }
+
+    function pollACMEAll() {
+      pollACMEStatus();
+      const certsPane = document.getElementById('acme-tab-certs');
+      if (certsPane && certsPane.style.display !== 'none') {
+        pollACMECertificates();
+      }
+      const chalPane = document.getElementById('acme-tab-challenges');
+      if (chalPane && chalPane.style.display !== 'none') {
+        pollACMEChallenges();
+      }
+      const sniPane = document.getElementById('acme-tab-sni');
+      if (sniPane && sniPane.style.display !== 'none') {
+        pollACMESNIRoutes();
+      }
+    }
+
+    async function loadACMEDetail(domain) {
+      try {
+        const res = await authFetch(`/api/acme/certificates/detail?domain=${encodeURIComponent(domain)}`);
+        if (!res.ok) throw new Error(await res.text() || 'Failed to fetch certificate detail');
+        const d = await res.json();
+
+        const domElem = document.getElementById('acme-detail-domain');
+        if (domElem) domElem.textContent = d.domain;
+
+        const statElem = document.getElementById('acme-detail-status');
+        if (statElem) {
+          statElem.textContent = d.status || 'valid';
+          statElem.className = `status-pill ${d.status === 'valid' ? 'status-running' : 'status-stopped'}`;
+        }
+
+        const sansElem = document.getElementById('acme-detail-sans');
+        if (sansElem) sansElem.textContent = Array.isArray(d.sans) && d.sans.length > 0 ? d.sans.join(', ') : 'none';
+
+        const issElem = document.getElementById('acme-detail-issuer');
+        if (issElem) issElem.textContent = d.issuer || 'N/A';
+
+        const valElem = document.getElementById('acme-detail-validity');
+        if (valElem) {
+          const nb = d.not_before ? new Date(d.not_before).toLocaleDateString() : '';
+          const na = d.not_after ? new Date(d.not_after).toLocaleDateString() : '';
+          valElem.textContent = `${nb} ~ ${na}`;
+        }
+
+        const daysElem = document.getElementById('acme-detail-days');
+        if (daysElem && d.not_after) {
+          const msLeft = new Date(d.not_after).getTime() - Date.now();
+          const daysLeft = Math.max(0, Math.floor(msLeft / (1000 * 3600 * 24)));
+          daysElem.textContent = `${daysLeft} days remaining`;
+        }
+
+        const fpElem = document.getElementById('acme-detail-fingerprint');
+        if (fpElem) fpElem.textContent = d.fingerprint || 'N/A';
+
+        const serElem = document.getElementById('acme-detail-serial');
+        if (serElem) serElem.textContent = d.serial_number || 'N/A';
+
+        const pemElem = document.getElementById('acme-detail-pem');
+        if (pemElem) pemElem.value = d.cert_pem || '';
+      } catch (err) {
+        showToast(`Load cert detail failed: ${err.message}`);
+      }
+    }
+
+    function copyACMEPEMChain() {
+      const pemElem = document.getElementById('acme-detail-pem');
+      if (pemElem && pemElem.value) {
+        navigator.clipboard.writeText(pemElem.value).then(() => {
+          showToast('✓ X.509 Certificate Chain copied to clipboard');
+        });
+      }
+    }
+
+    async function forceRenewFromDetail() {
+      if (!acmeCurrentDetailDomain) return;
+      await forceRenewCert(acmeCurrentDetailDomain);
+      loadACMEDetail(acmeCurrentDetailDomain);
+    }
+
+    async function revokeFromDetail() {
+      if (!acmeCurrentDetailDomain) return;
+      const dom = acmeCurrentDetailDomain;
+      closeACMEDetailModal();
+      await revokeCert(dom);
+    }
+
+    async function submitACMEOrderForm(e) {
+      e.preventDefault();
+      const domain = document.getElementById('acme-order-domain').value.trim();
+      const chalType = document.getElementById('acme-order-challenge').value;
+      const sansRaw = document.getElementById('acme-order-sans').value.trim();
+      const provider = document.getElementById('acme-order-provider').value.trim();
+      const email = document.getElementById('acme-order-email').value.trim();
+
+      const sans = sansRaw ? sansRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+      showToast(`Initiating ACME order for ${domain}...`);
+      try {
+        const res = await authFetch('/api/acme/order', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            domain: domain,
+            sans: sans,
+            challenge_type: chalType,
+            provider: provider,
+            email: email
+          })
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(errText || 'Failed to order certificate');
+        }
+
+        const data = await res.json();
+        showToast(`✓ ACME certificate issued for ${domain}`);
+        closeACMEModal();
+        pollACMEAll();
+      } catch (err) {
+        showToast(`ACME order failed: ${err.message}`);
+      }
+    }
+
+    async function submitACMEDNSComplete() {
+      const domain = document.getElementById('acme-dns-domain').value.trim();
+      const token = document.getElementById('acme-dns-token').value.trim();
+      const keyAuth = document.getElementById('acme-dns-keyauth').value.trim();
+
+      if (!domain || !token || !keyAuth) {
+        showToast('Please specify domain, token, and key authorization');
+        return;
+      }
+
+      try {
+        const res = await authFetch('/api/acme/challenges/dns', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            domain: domain,
+            token: token,
+            key_authorization: keyAuth
+          })
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(errText || 'Failed to verify DNS challenge');
+        }
+
+        showToast(`✓ DNS challenge marked ready for ${domain}`);
+        closeACMEModal();
+        pollACMEAll();
+      } catch (err) {
+        showToast(`DNS challenge failed: ${err.message}`);
+      }
+    }
+
+    async function forceRenewCert(domain) {
+      if (!confirm(`Force zero-downtime certificate renewal for ${domain}?`)) return;
+      try {
+        const res = await authFetch('/api/acme/renew', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain: domain })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ Renewal successful for ${domain}`);
+        pollACMEAll();
+      } catch (err) {
+        showToast(`Renewal failed: ${err.message}`);
+      }
+    }
+
+    async function revokeCert(domain) {
+      if (!confirm(`Revoke and unbind TLS certificate for ${domain}? This cannot be undone.`)) return;
+      try {
+        const res = await authFetch('/api/acme/revoke', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ domain: domain, reason: 'unspecified' })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ Certificate for ${domain} revoked`);
+        pollACMEAll();
+      } catch (err) {
+        showToast(`Revoke failed: ${err.message}`);
+      }
+    }
+
+    async function triggerACMERenewalSweep() {
+      try {
+        showToast('Running automated TLS renewal check...');
+        const res = await authFetch('/api/acme/renew', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        showToast(`✓ Renewal sweep complete (${data.renewed_count || 0} renewed)`);
+        pollACMEAll();
+      } catch (err) {
+        showToast(`Renewal sweep failed: ${err.message}`);
+      }
+    }
+
+    async function loadACMEConfigIntoModal() {
+      try {
+        const res = await authFetch('/api/acme/config');
+        if (!res.ok) return;
+        const cfg = await res.json();
+
+        const provElem = document.getElementById('acme-cfg-provider');
+        if (provElem && cfg.provider) provElem.value = cfg.provider;
+
+        const dirElem = document.getElementById('acme-cfg-directory');
+        if (dirElem && cfg.directory_url) dirElem.value = cfg.directory_url;
+
+        const emailElem = document.getElementById('acme-cfg-email');
+        if (emailElem && cfg.email) emailElem.value = cfg.email;
+
+        const renewElem = document.getElementById('acme-cfg-renew-days');
+        if (renewElem && cfg.renew_before_days) renewElem.value = cfg.renew_before_days;
+
+        const chalElem = document.getElementById('acme-cfg-challenge');
+        if (chalElem && cfg.default_challenge) chalElem.value = cfg.default_challenge;
+
+        const enElem = document.getElementById('acme-cfg-enabled');
+        if (enElem) enElem.checked = !!cfg.enabled;
+      } catch {}
+    }
+
+    async function submitACMEConfigForm(e) {
+      e.preventDefault();
+      try {
+        const prov = document.getElementById('acme-cfg-provider').value;
+        const dir = document.getElementById('acme-cfg-directory').value.trim();
+        const email = document.getElementById('acme-cfg-email').value.trim();
+        const renewDays = parseInt(document.getElementById('acme-cfg-renew-days').value) || 30;
+        const chal = document.getElementById('acme-cfg-challenge').value;
+        const enabled = document.getElementById('acme-cfg-enabled').checked;
+
+        const res = await authFetch('/api/acme/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            enabled: enabled,
+            provider: prov,
+            directory_url: dir,
+            email: email,
+            renew_before_days: renewDays,
+            default_challenge: chal
+          })
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+        showToast('✓ ACME configuration saved');
+        closeACMEModal();
+        pollACMEStatus();
+      } catch (err) {
+        showToast(`Config save failed: ${err.message}`);
+      }
+    }
+
     pollCanaryAll();
     setInterval(pollCanaryAll, 3000);
 
@@ -12589,6 +13430,9 @@
 
     pollWireGuardAll();
     setInterval(pollWireGuardAll, 3000);
+
+    pollACMEAll();
+    setInterval(pollACMEAll, 3000);
   </script>
 </body>
 </html>

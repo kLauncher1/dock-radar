@@ -5,6 +5,38 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.2.0] - 2026-11-02
+
+### Added
+- Automated TLS ACME Let's Encrypt Certbot & Dynamic SNI (`internal/acme/`):
+  - Pure standard-library RFC 8555 ACME protocol client (`internal/acme/client.go`, `internal/acme/client_test.go`) supporting directory discovery, replay nonce management with automatic `badNonce` retry, account creation, order submission, authorization retrieval, challenge triggers, CSR finalization, and PEM chain download.
+  - Cryptographic key management and JWS signing (`internal/acme/crypto.go`, `internal/acme/crypto_test.go`): ECDSA P-256 keypair generation, RFC 7638 JWK thumbprints, RFC 8555 key authorization (`token.thumbprint`), DNS-01 SHA-256 digest computation, X.509 CSR generation, RFC 7515/8555 ES256 JWS signing with embedded JWK/KID headers, fallback self-signed certificate synthesis, and SHA-256 fingerprint formatting.
+  - Dynamic Server Name Indication (SNI) multiplexer (`internal/acme/sni.go`, `internal/acme/sni_test.go`): Thread-safe `SNIRouter` with exact and wildcard domain matching (`*.domain.com`), default fallback delegation, and zero-downtime hot-swappable certificate resolution via `tls.Config.GetCertificate` over port 443 without application restarts.
+  - Automated certificate rotation scheduler (`internal/acme/rotation.go`, `internal/acme/rotation_test.go`): Background lifecycle evaluation, expiration window tracking, proactive renewal triggers, and renewal sweep operations.
+  - ACME Master Engine (`internal/acme/engine.go`, `internal/acme/engine_test.go`): Central coordinator linking SNI routing, HTTP-01 challenge responder (`/.well-known/acme-challenge/{token}`), client issuance, rotation scheduler, and security audit log integration.
+  - Domain types and bounds validation (`internal/acme/types.go`, `internal/acme/types_test.go`): Provider directories (`letsencrypt`, `letsencrypt-staging`, `zerossl`, `custom`), challenge types (`http-01`, `dns-01`), and certificate metadata models.
+- ACME REST APIs (`internal/api/acme.go`, `internal/api/acme_test.go`):
+  - `GET /api/acme/status`: Real-time engine health, provider directory, managed certs count, and dynamic SNI route stats (`RoleViewer`).
+  - `GET /api/acme/certificates`: Lists metadata summaries for all managed TLS certificates (`RoleViewer`).
+  - `GET /api/acme/certificates/detail`: Detailed X.509 certificate parameters, serial number, and full PEM chain (`RoleViewer`).
+  - `POST /api/acme/order`: Submits ACME order and issues certificates with HTTP-01 or DNS-01 challenges (`RoleAdmin`).
+  - `POST /api/acme/renew`: Initiates on-demand certificate renewal for a specific domain or all expiring certificates (`RoleAdmin`).
+  - `POST /api/acme/revoke`: Revokes certificates from CA and unbinds them from dynamic SNI routing (`RoleAdmin`).
+  - `GET /api/acme/challenges`: Lists pending and active verification challenges (`RoleViewer`).
+  - `POST /api/acme/challenges/dns`: Manually marks DNS TXT records as published and signals CA verification (`RoleAdmin`).
+  - `GET /api/acme/config` & `POST /api/acme/config`: Retrieves or updates global ACME engine configuration (`RoleViewer` / `RoleAdmin`).
+  - `GET /.well-known/acme-challenge/{token}`: RFC 8555 HTTP-01 challenge response endpoint accessible without authentication.
+- Prometheus Metrics Exporter Extension (`internal/metrics/acme.go`, `internal/metrics/prometheus.go`):
+  - Exposes `dock_radar_acme_enabled`, `dock_radar_acme_certs_managed`, `dock_radar_acme_certs_valid`, `dock_radar_acme_certs_expiring_soon`, `dock_radar_acme_challenges_active`, `dock_radar_acme_sni_routes_active`, `dock_radar_acme_renewals_total`, `dock_radar_acme_orders_total`, `dock_radar_acme_revocations_total`, and `dock_radar_acme_errors_total`.
+- Embedded Glassmorphism Web Console (`web/dist/index.html`):
+  - Header ACME TLS badge (`#acme-badge`) displaying live managed certificate count with direct modal launch.
+  - Dedicated Automated TLS ACME Let's Encrypt Certbot & Dynamic SNI dashboard panel with 6 live KPI cards (Managed Certificates, Valid Certificates, Expiring Soon, Dynamic SNI Routes, Auto-Renewals, Active Challenges).
+  - 3 Interactive tabs for Managed Certificates & SNI, Verification Challenges, and Dynamic SNI Routing Table.
+  - Interactive Management Modal (`#acme-modal`) with 3 tabs: Issue Certificate, DNS-01 Helper, and Engine Settings.
+  - Certificate Details & X.509 Chain Modal (`#acme-cert-detail-modal`) with full PEM chain display, clipboard copy, and renewal/revocation triggers.
+- Command-Line Flags & Environment Variables (`main.go`):
+  - Added `--acme`, `--acme-provider`, `--acme-email`, `--acme-domains`, `--acme-renew-days`, and `--acme-challenge` flags with environment variable bindings (`DOCK_RADAR_ACME`, `DOCK_RADAR_ACME_PROVIDER`, `DOCK_RADAR_ACME_EMAIL`, `DOCK_RADAR_ACME_DOMAINS`, `DOCK_RADAR_ACME_RENEW_DAYS`, `DOCK_RADAR_ACME_CHALLENGE`).
+
 ## [3.1.0] - 2026-11-02
 
 ### Added

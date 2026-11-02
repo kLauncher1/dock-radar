@@ -177,9 +177,9 @@ This document outlines the architectural milestones and engineering priorities f
 ---
 
 ## Milestone 27: v3.2.0 (Automated TLS ACME Let's Encrypt Certbot & Dynamic SNI)
-- [ ] Automated ACME HTTP-01/DNS-01 challenge automation with Let's Encrypt and ZeroSSL.
-- [ ] Dynamic SNI multiplexing routing multiple domain names over single 443 port.
-- [ ] Ephemeral zero-downtime certificate rotation before expiration.
+- [x] Automated ACME HTTP-01/DNS-01 challenge automation with Let's Encrypt and ZeroSSL.
+- [x] Dynamic SNI multiplexing routing multiple domain names over single 443 port.
+- [x] Ephemeral zero-downtime certificate rotation before expiration.
 
 ---
 
@@ -299,6 +299,14 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Userspace VRF (Virtual Routing and Forwarding) table management isolating multi-tenant container traffic.
 - [ ] Real-time Linux network namespace route divergence and routing loop detector.
 - [ ] Automated cross-namespace policy reconciliation with instant quarantine isolation.
+
+---
+
+## Milestone 45: v5.0.0 (Autonomous eBPF Container Syscall Profiler & Seccomp Enforcer)
+- [ ] Real-time eBPF syscall trace capture generating least-privilege seccomp profile recommendations.
+- [ ] Dynamic seccomp-bpf filter synthesizer with zero application restart.
+- [ ] Autonomous syscall anomaly blocking and security incident audit dispatcher.
+
 
 
 

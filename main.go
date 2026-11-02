@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kLauncher1/dock-radar/internal/acme"
 	"github.com/kLauncher1/dock-radar/internal/api"
 	"github.com/kLauncher1/dock-radar/internal/canary"
 	"github.com/kLauncher1/dock-radar/internal/docker"
@@ -31,7 +32,7 @@ import (
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "3.1.0"
+const AppVersion = "3.2.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -109,6 +110,12 @@ func main() {
 	vaultLeaseTTLFlag := flag.Duration("vault-lease-ttl", 1*time.Hour, "Default TTL for ephemeral secret leases (env: DOCK_RADAR_VAULT_LEASE_TTL)")
 	vaultMaxSecretsFlag := flag.Int("vault-max-secrets", 1000, "Maximum secret storage capacity (env: DOCK_RADAR_VAULT_MAX_SECRETS)")
 	vaultHWRootFlag := flag.Bool("vault-hardware-root", true, "Enable hardware-rooted key derivation (env: DOCK_RADAR_VAULT_HARDWARE_ROOT)")
+	acmeFlag := flag.Bool("acme", true, "Enable Automated TLS ACME Let's Encrypt Certbot & Dynamic SNI (env: DOCK_RADAR_ACME_ENABLED)")
+	acmeProviderFlag := flag.String("acme-provider", "letsencrypt-staging", "ACME provider (letsencrypt, letsencrypt-staging, zerossl, custom) (env: DOCK_RADAR_ACME_PROVIDER)")
+	acmeEmailFlag := flag.String("acme-email", "", "Contact email for ACME account registration (env: DOCK_RADAR_ACME_EMAIL)")
+	acmeDomainsFlag := flag.String("acme-domains", "", "Comma-separated domain list for automatic ACME provisioning (env: DOCK_RADAR_ACME_DOMAINS)")
+	acmeRenewDaysFlag := flag.Int("acme-renew-days", 30, "Days before expiration to trigger auto-renewal (env: DOCK_RADAR_ACME_RENEW_DAYS)")
+	acmeChallengeFlag := flag.String("acme-challenge", "http-01", "ACME challenge type: http-01 or dns-01 (env: DOCK_RADAR_ACME_CHALLENGE)")
 	versionFlag := flag.Bool("version", false, "Print dock-radar version and exit")
 	flag.Parse()
 
@@ -787,6 +794,58 @@ func main() {
 				handlerCfg.VaultEngine.Start(vaultCtx)
 			}
 		}
+
+		// Launch Automated TLS ACME Let's Encrypt Certbot & Dynamic SNI Engine
+		acmeEnabled := *acmeFlag
+		if envACME := os.Getenv("DOCK_RADAR_ACME_ENABLED"); envACME != "" {
+			acmeEnabled = strings.EqualFold(envACME, "true") || envACME == "1"
+		}
+		acmeProvider := *acmeProviderFlag
+		if envProv := os.Getenv("DOCK_RADAR_ACME_PROVIDER"); envProv != "" {
+			acmeProvider = envProv
+		}
+		acmeEmail := *acmeEmailFlag
+		if envMail := os.Getenv("DOCK_RADAR_ACME_EMAIL"); envMail != "" {
+			acmeEmail = envMail
+		}
+		acmeDomains := *acmeDomainsFlag
+		if envDoms := os.Getenv("DOCK_RADAR_ACME_DOMAINS"); envDoms != "" {
+			acmeDomains = envDoms
+		}
+		acmeRenewDays := *acmeRenewDaysFlag
+		if envDays := os.Getenv("DOCK_RADAR_ACME_RENEW_DAYS"); envDays != "" {
+			if d, err := strconv.Atoi(envDays); err == nil && d > 0 {
+				acmeRenewDays = d
+			}
+		}
+		acmeChallenge := *acmeChallengeFlag
+		if envChal := os.Getenv("DOCK_RADAR_ACME_CHALLENGE"); envChal != "" {
+			acmeChallenge = envChal
+		}
+
+		if handlerCfg.ACMEEngine != nil {
+			aCfg := handlerCfg.ACMEEngine.Config()
+			aCfg.Enabled = acmeEnabled
+			aCfg.Provider = acme.ACMEProvider(acmeProvider)
+			aCfg.Email = acmeEmail
+			aCfg.RenewThresholdDays = acmeRenewDays
+			aCfg.ChallengeType = acme.ChallengeType(acmeChallenge)
+			if acmeDomains != "" {
+				for _, d := range strings.Split(acmeDomains, ",") {
+					d = strings.TrimSpace(d)
+					if d != "" {
+						aCfg.AutoProvisionSANs = append(aCfg.AutoProvisionSANs, d)
+					}
+				}
+			}
+			_ = handlerCfg.ACMEEngine.UpdateConfig(aCfg, "main-init", "127.0.0.1")
+
+			if acmeEnabled {
+				acmeCtx, acmeCancel := context.WithCancel(context.Background())
+				defer acmeCancel()
+				handlerCfg.ACMEEngine.Start(acmeCtx)
+			}
+		}
 	}
 
 	scheme := "http"
@@ -802,14 +861,35 @@ func main() {
 
 	if useTLS {
 		scheme = "https"
-		tlsConfig, err := security.LoadOrGenerateTLSConfig(tlsCertPath, tlsKeyPath, true, []string{"localhost"})
-		if err != nil {
-			log.Fatalf("TLS initialization failed: %v", err)
-		}
-		server.TLSConfig = tlsConfig
-		if tlsCertPath != "" && tlsKeyPath != "" {
-			tlsStatus = "Custom Certificate Active"
+		if handlerCfg != nil && handlerCfg.ACMEEngine != nil && handlerCfg.ACMEEngine.Router() != nil {
+			if tlsCertPath != "" && tlsKeyPath != "" {
+				certPEM, err := os.ReadFile(tlsCertPath)
+				keyPEM, kErr := os.ReadFile(tlsKeyPath)
+				if err == nil && kErr == nil {
+					x509Cert, tlsCert, pErr := acme.ParseCertificatePEM(certPEM, keyPEM)
+					if pErr == nil {
+						handlerCfg.ACMEEngine.Router().SetFallbackCertificate(tlsCert)
+						_ = handlerCfg.ACMEEngine.Router().Register(&acme.ManagedCert{
+							Domain:     x509Cert.Subject.CommonName,
+							SANs:       x509Cert.DNSNames,
+							TLSCert:    tlsCert,
+							ParsedX509: x509Cert,
+							Status:     acme.CertStatusValid,
+						})
+						tlsStatus = "Custom Certificate Active with Dynamic SNI"
+					}
+				}
+			}
+			if tlsStatus == "Inactive (Plain HTTP)" {
+				tlsStatus = "ACME Auto-TLS & Dynamic SNI Multiplexing Active"
+			}
+			server.TLSConfig = handlerCfg.ACMEEngine.Router().BuildTLSConfig()
 		} else {
+			tlsConfig, err := security.LoadOrGenerateTLSConfig(tlsCertPath, tlsKeyPath, true, []string{"localhost"})
+			if err != nil {
+				log.Fatalf("TLS initialization failed: %v", err)
+			}
+			server.TLSConfig = tlsConfig
 			tlsStatus = "Auto-Generated ECDSA P-256 Self-Signed Active"
 		}
 	}
@@ -1015,6 +1095,15 @@ func main() {
 		}
 	}
 
+	acmeStatusDesc := "Disabled"
+	if handlerCfg != nil && handlerCfg.ACMEEngine != nil {
+		st := handlerCfg.ACMEEngine.Status()
+		if st.Enabled {
+			acmeStatusDesc = fmt.Sprintf("Active (%d certs · %d SNI routes · %d renewals · Provider: %s)",
+				st.TotalCertificates, st.SNIRoutesCount, st.TotalRenewals, st.Provider)
+		}
+	}
+
 	fmt.Println("=========================================================")
 	fmt.Printf(" 🚀 Dock-Radar v%s · Single-Binary Container & System Monitor\n", AppVersion)
 	fmt.Printf(" 📡 Web Dashboard Live at %s://localhost:%s\n", scheme, port)
@@ -1040,6 +1129,7 @@ func main() {
 	fmt.Printf(" 💥 Crash Analysis     : %s\n", crashStatusDesc)
 	fmt.Printf(" ⚡ Query Cache/Events : %s\n", queryCacheStatusDesc)
 	fmt.Printf(" 🔐 Config Vault       : %s\n", vaultStatusDesc)
+	fmt.Printf(" 📜 ACME & Dynamic SNI : %s\n", acmeStatusDesc)
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")
 	fmt.Println("=========================================================")
 

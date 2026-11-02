@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/kLauncher1/dock-radar/internal/acme"
 	"github.com/kLauncher1/dock-radar/internal/alert"
 	"github.com/kLauncher1/dock-radar/internal/anomaly"
 	"github.com/kLauncher1/dock-radar/internal/audit"
@@ -106,7 +107,7 @@ func FormatMetricsFull(
 	return FormatMetricsAll(
 		sys, dock, ringBuffer, alertDispatcher, auditLogger,
 		meshSummary, meshNodes, healingStats, anomalySummary, anomalyPreds,
-		discStatus, gossipSummary, gossipMembers, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, appVersion,
+		discStatus, gossipSummary, gossipMembers, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, appVersion,
 	)
 }
 
@@ -140,6 +141,7 @@ func FormatMetricsAll(
 	crashStatus *crash.CrashStatus,
 	queryCacheStatus *querycache.QueryCacheStatus,
 	vaultStatus *vault.VaultStatus,
+	acmeStatus *acme.ACMEStatus,
 	appVersion string,
 ) string {
 	var b strings.Builder
@@ -506,6 +508,9 @@ func FormatMetricsAll(
 
 	// 26. Zero-Knowledge Distributed Configuration Vault Telemetry
 	AppendVaultMetrics(&b, vaultStatus)
+
+	// 27. Automated TLS ACME Let's Encrypt Certbot & Dynamic SNI Telemetry
+	AppendACMEMetrics(&b, acmeStatus)
 
 	return b.String()
 }

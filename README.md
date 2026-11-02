@@ -10,7 +10,7 @@
 
 **Ultra-lightweight single-binary container & system metrics monitor with embedded real-time dark-mode web dashboard.**
 
-[![Release](https://img.shields.io/badge/Release-v3.1.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
+[![Release](https://img.shields.io/badge/Release-v3.2.0-38bdf8.svg?style=flat)](https://github.com/kLauncher1/dock-radar/releases)
 [![Go Version](https://img.shields.io/badge/Go-1.22%2B-00ADD8.svg?style=flat&logo=go)](https://golang.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.6%2B-3178C6.svg?style=flat&logo=typescript)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](./LICENSE)
@@ -27,6 +27,7 @@
 
 - **Single Executable Deployment**: The web dashboard is baked directly into the Go binary via `//go:embed`. No Node.js runtime, external assets, or separate frontend servers needed.
 - **Ultra-Low Memory Footprint**: Runs persistently under **15 MB of RAM** with bounded circular ring buffers, making it ideal for low-spec VPS, Raspberry Pi, and homelab environments.
+- **Automated TLS ACME Let's Encrypt Certbot & Dynamic SNI**: Pure standard-library RFC 8555 ACME protocol client supporting Let's Encrypt and ZeroSSL directory authorities. Features automated HTTP-01 (`/.well-known/acme-challenge/`) and DNS-01 verification, dynamic Server Name Indication (SNI) multiplexing routing multiple custom hostnames and wildcards over a single 443 port with zero application restart, background expiration evaluation and ephemeral zero-downtime certificate rotation, Prometheus ACME metrics exporter, and dedicated dark-mode glassmorphism dashboard controls and certificate inspector in the embedded web UI.
 - **Zero-Knowledge Distributed Configuration Vault**: End-to-end encrypted cluster secret sharing and synchronized configuration replication using pure standard-library AES-256-GCM AEAD encryption and HMAC-SHA256 authenticated synchronization with 60-second replay defense. Features hardware-backed key derivation (`DeriveHardwareRootKey`) using multi-round PBKDF2/HMAC-SHA256 stretching from machine hardware seeds, seamless zero-downtime master key rotation re-encrypting all active secrets, ephemeral secret leases with hard MaxTTL ceilings and automated cryptographic shredding (memory zeroization) upon expiration or revocation, revocable cluster join tokens (`ClusterJoinToken`) gating peer admission without exposing root keys, and a dedicated glassmorphism secrets and lease manager in the embedded web UI.
 - **Self-Optimizing Query Cache & Event Ingestion Pipeline**: In-memory adaptive query cache designed for high-frequency Prometheus scraping and telemetry feeds. Features single-flight request coalescing eliminating thundering herd stampedes, adaptive TTL tuning scaling from 500ms to 10s based on scrape velocity, and bounded capacity with LRU eviction keeping memory under 64 MB. Includes a non-blocking Docker engine event multiplexer (`/events`, `/api/events/stream` SSE) with dynamic backpressure regulation (drop oldest/newest policies preventing slow subscriber lag), sliding-window distributed event deduplication suppressing redundant mesh broadcasts, Prometheus query cache & multiplexer metrics, and a dedicated glassmorphism management console in the embedded web UI.
 - **Distributed Core Dump & Crash Analysis Pipeline**: Automatic container crash kernel core dump interception and ELF 64-bit core file parsing (`PT_NOTE`, `NT_PRSTATUS`, register parsing) with intelligent text backtrace fallback (GDB, LLDB, Go panics). Features in-memory symbol resolution, heuristic root cause classification (null pointer dereferences, heap corruption, memory aborts, OOM termination, stack overflow, arithmetic faults), deterministic SHA-256 crash signature deduplication with sliding-window alert throttling, Prometheus crash metrics, and dedicated glassmorphism diagnostics console in the embedded web UI.
@@ -146,6 +147,12 @@ go build -ldflags="-s -w" -o dock-radar .
 | `--crash-dir` | `DOCK_RADAR_CRASH_DIR` | `"data/cores"` | Directory scanned for raw core dump files |
 | `--crash-dedup-window` | `DOCK_RADAR_CRASH_DEDUP_WINDOW` | `30m` | Sliding-window deduplication cooldown for recurring crash signatures |
 | `--crash-max-reports` | `DOCK_RADAR_CRASH_MAX_REPORTS` | `200` | Maximum crash diagnostic reports stored in memory ring buffer |
+| `--acme` | `DOCK_RADAR_ACME` | `false` | Enable automated ACME TLS certificate manager and dynamic SNI router |
+| `--acme-provider` | `DOCK_RADAR_ACME_PROVIDER` | `letsencrypt` | ACME directory authority (`letsencrypt`, `letsencrypt-staging`, `zerossl`) |
+| `--acme-email` | `DOCK_RADAR_ACME_EMAIL` | `""` | Contact email registered with ACME provider account |
+| `--acme-domains` | `DOCK_RADAR_ACME_DOMAINS` | `""` | Comma-separated list of initial domains to provision on startup |
+| `--acme-renew-days` | `DOCK_RADAR_ACME_RENEW_DAYS` | `30` | Auto-renewal threshold window in days before certificate expiration |
+| `--acme-challenge` | `DOCK_RADAR_ACME_CHALLENGE` | `http-01` | Default ACME challenge type (`http-01` or `dns-01`) |
 | `--version` | — | — | Print dock-radar version and exit |
 
 ---
@@ -298,6 +305,16 @@ go build -ldflags="-s -w" -o dock-radar .
 | `/api/wireguard/routes` | `GET` | `viewer` | Queries userspace cryptokey routing table and endpoint roaming entries |
 | `/api/wireguard/keygen` | `POST` | `admin` | Generates fresh X25519 Curve25519 keypair and symmetric preshared key |
 | `/api/wireguard/config` | `GET` | `viewer` | Retrieves gateway interface settings with masked private key |
+| `/api/acme/status` | `GET` | `viewer` | ACME engine status, provider directory, certificate counts, and SNI routes |
+| `/api/acme/certificates` | `GET` | `viewer` | List all managed TLS certificates, fingerprints, and validity windows |
+| `/api/acme/certificates/detail` | `GET` | `viewer` | Full X.509 certificate details, serial number, and PEM chain (`?domain=`) |
+| `/api/acme/order` | `POST` | `admin` | Orders and issues a new TLS certificate via RFC 8555 protocol |
+| `/api/acme/renew` | `POST` | `admin` | Triggers zero-downtime certificate renewal or full sweep |
+| `/api/acme/revoke` | `POST` | `admin` | Revokes an existing certificate and removes from dynamic SNI router |
+| `/api/acme/challenges` | `GET` | `viewer` | Active in-flight HTTP-01 and DNS-01 verification challenges |
+| `/api/acme/challenges/dns` | `POST` | `admin` | Signals completion of DNS-01 TXT record propagation to CA |
+| `/api/acme/config` | `GET` / `POST` | `viewer` / `admin` | Fetches or updates ACME engine settings, provider, and renewal policy |
+| `/.well-known/acme-challenge/{token}` | `GET` | `none` | Automated RFC 8555 HTTP-01 challenge verification responder |
 | `/api/scanner/status` | `GET` | `viewer` | Overall vulnerability scanner engine status, scan counts, and gating metrics |
 | `/api/scanner/reports` | `GET` | `viewer` | Recent container image vulnerability scan reports (`?container=&image=&limit=50`) |
 | `/api/scanner/report` | `GET` | `viewer` | Detailed vulnerability report for a specific container or image (`?id=&image=`) |
