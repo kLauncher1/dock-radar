@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/kLauncher1/dock-radar/internal/acme"
 	"github.com/kLauncher1/dock-radar/internal/alert"
 	"github.com/kLauncher1/dock-radar/internal/anomaly"
 	"github.com/kLauncher1/dock-radar/internal/audit"
@@ -79,6 +80,7 @@ type HandlerConfig struct {
 	CrashEngine      *crash.Engine
 	QueryCacheEngine *querycache.Engine
 	VaultEngine      *vault.Engine
+	ACMEEngine       *acme.Engine
 	AppVersion       string
 	TokenAuth        *security.TokenAuth
 	AllowRemote      bool
@@ -128,6 +130,7 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	crashEngine := crash.NewEngine(crash.DefaultCrashConfig(), alertDispatcher, auditLogger, dockerClient)
 	queryCacheEngine := querycache.NewEngine(querycache.DefaultCacheConfig(), querycache.DefaultMultiplexerConfig(), querycache.DefaultDedupConfig(), auditLogger, alertDispatcher, dockerClient, "local-node")
 	vaultEngine, _ := vault.NewEngine(vault.DefaultVaultConfig(), auditLogger, alertDispatcher, "local-node")
+	acmeEngine, _ := acme.NewEngine(acme.DefaultACMEConfig(), auditLogger, alertDispatcher)
 
 	cfg := &HandlerConfig{
 		DockerClient:     dockerClient,
@@ -151,7 +154,8 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 		CrashEngine:      crashEngine,
 		QueryCacheEngine: queryCacheEngine,
 		VaultEngine:      vaultEngine,
-		AppVersion:       "3.1.0",
+		ACMEEngine:       acmeEngine,
+		AppVersion:       "3.2.0",
 		TokenAuth:        tokenAuth,
 		AllowRemote:      allowRemote,
 	}
@@ -343,6 +347,18 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	mux.HandleFunc("/api/vault/tokens", cfg.handleVaultTokens)
 	mux.HandleFunc("/api/vault/config", cfg.handleVaultConfig)
 	mux.HandleFunc("/api/vault/sync", cfg.handleVaultSync)
+
+	// Automated TLS ACME Let's Encrypt Certbot & Dynamic SNI
+	mux.HandleFunc("/api/acme/status", cfg.handleACMEStatus)
+	mux.HandleFunc("/api/acme/certificates", cfg.handleACMECertificates)
+	mux.HandleFunc("/api/acme/certificates/detail", cfg.handleACMECertificateDetail)
+	mux.HandleFunc("/api/acme/order", cfg.handleACMEOrder)
+	mux.HandleFunc("/api/acme/renew", cfg.handleACMERenew)
+	mux.HandleFunc("/api/acme/revoke", cfg.handleACMERevoke)
+	mux.HandleFunc("/api/acme/challenges", cfg.handleACMEChallenges)
+	mux.HandleFunc("/api/acme/challenges/dns", cfg.handleACMEDNSChallengeComplete)
+	mux.HandleFunc("/api/acme/config", cfg.handleACMEConfig)
+	mux.HandleFunc("/.well-known/acme-challenge/", cfg.handleACMEHTTP01Challenge)
 
 	// Embedded Static UI
 	if staticFS != nil {
