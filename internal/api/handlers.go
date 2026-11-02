@@ -31,6 +31,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/security"
 	"github.com/kLauncher1/dock-radar/internal/storage"
 	"github.com/kLauncher1/dock-radar/internal/system"
+	"github.com/kLauncher1/dock-radar/internal/vault"
 	"github.com/kLauncher1/dock-radar/internal/wireguard"
 )
 
@@ -77,6 +78,7 @@ type HandlerConfig struct {
 	CanaryEngine     *canary.Engine
 	CrashEngine      *crash.Engine
 	QueryCacheEngine *querycache.Engine
+	VaultEngine      *vault.Engine
 	AppVersion       string
 	TokenAuth        *security.TokenAuth
 	AllowRemote      bool
@@ -125,6 +127,7 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	canaryEngine := canary.NewEngine(canary.DefaultCanaryConfig(), auditLogger, alertDispatcher)
 	crashEngine := crash.NewEngine(crash.DefaultCrashConfig(), alertDispatcher, auditLogger, dockerClient)
 	queryCacheEngine := querycache.NewEngine(querycache.DefaultCacheConfig(), querycache.DefaultMultiplexerConfig(), querycache.DefaultDedupConfig(), auditLogger, alertDispatcher, dockerClient, "local-node")
+	vaultEngine, _ := vault.NewEngine(vault.DefaultVaultConfig(), auditLogger, alertDispatcher, "local-node")
 
 	cfg := &HandlerConfig{
 		DockerClient:     dockerClient,
@@ -147,7 +150,8 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 		CanaryEngine:     canaryEngine,
 		CrashEngine:      crashEngine,
 		QueryCacheEngine: queryCacheEngine,
-		AppVersion:       "3.0.0",
+		VaultEngine:      vaultEngine,
+		AppVersion:       "3.1.0",
 		TokenAuth:        tokenAuth,
 		AllowRemote:      allowRemote,
 	}
@@ -327,6 +331,18 @@ func RegisterRoutesWithSecurity(mux *http.ServeMux, dockerClient *docker.Client,
 	mux.HandleFunc("/api/events/stream", cfg.handleEventsStream)
 	mux.HandleFunc("/api/events/publish", cfg.handleEventsPublish)
 	mux.HandleFunc("/api/events/test", cfg.handleEventsTest)
+
+	// Zero-Knowledge Distributed Configuration Vault
+	mux.HandleFunc("/api/vault/status", cfg.handleVaultStatus)
+	mux.HandleFunc("/api/vault/secrets", cfg.handleVaultSecrets)
+	mux.HandleFunc("/api/vault/secrets/read", cfg.handleVaultReadSecret)
+	mux.HandleFunc("/api/vault/rotate", cfg.handleVaultRotate)
+	mux.HandleFunc("/api/vault/leases", cfg.handleVaultLeases)
+	mux.HandleFunc("/api/vault/leases/renew", cfg.handleVaultLeaseRenew)
+	mux.HandleFunc("/api/vault/leases/revoke", cfg.handleVaultLeaseRevoke)
+	mux.HandleFunc("/api/vault/tokens", cfg.handleVaultTokens)
+	mux.HandleFunc("/api/vault/config", cfg.handleVaultConfig)
+	mux.HandleFunc("/api/vault/sync", cfg.handleVaultSync)
 
 	// Embedded Static UI
 	if staticFS != nil {

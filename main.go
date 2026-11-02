@@ -31,7 +31,7 @@ import (
 //go:embed web/dist/*
 var embeddedWeb embed.FS
 
-const AppVersion = "3.0.0"
+const AppVersion = "3.1.0"
 
 func main() {
 	portFlag := flag.String("port", "", "Server listening port (env: PORT, default: 9080)")
@@ -104,6 +104,11 @@ func main() {
 	eventMuxFlag := flag.Bool("event-multiplexer", true, "Enable non-blocking event multiplexer (env: DOCK_RADAR_EVENT_MULTIPLEXER_ENABLED)")
 	eventBufSizeFlag := flag.Int("event-buffer-size", 1024, "Buffer capacity for event subscribers (env: DOCK_RADAR_EVENT_BUFFER_SIZE)")
 	eventDedupWindowFlag := flag.Duration("event-dedup-window", 30*time.Second, "Sliding window for event deduplication (env: DOCK_RADAR_EVENT_DEDUP_WINDOW)")
+	vaultFlag := flag.Bool("vault", true, "Enable Zero-Knowledge Distributed Configuration Vault (env: DOCK_RADAR_VAULT_ENABLED)")
+	vaultRotationFlag := flag.Duration("vault-rotation-interval", 24*time.Hour, "Automatic master key rotation interval (env: DOCK_RADAR_VAULT_ROTATION_INTERVAL)")
+	vaultLeaseTTLFlag := flag.Duration("vault-lease-ttl", 1*time.Hour, "Default TTL for ephemeral secret leases (env: DOCK_RADAR_VAULT_LEASE_TTL)")
+	vaultMaxSecretsFlag := flag.Int("vault-max-secrets", 1000, "Maximum secret storage capacity (env: DOCK_RADAR_VAULT_MAX_SECRETS)")
+	vaultHWRootFlag := flag.Bool("vault-hardware-root", true, "Enable hardware-rooted key derivation (env: DOCK_RADAR_VAULT_HARDWARE_ROOT)")
 	versionFlag := flag.Bool("version", false, "Print dock-radar version and exit")
 	flag.Parse()
 
@@ -738,6 +743,50 @@ func main() {
 				handlerCfg.QueryCacheEngine.Start(qcCtx)
 			}
 		}
+
+		// Launch Zero-Knowledge Distributed Configuration Vault
+		vaultEnabled := *vaultFlag
+		if envVault := os.Getenv("DOCK_RADAR_VAULT_ENABLED"); envVault != "" {
+			vaultEnabled = strings.EqualFold(envVault, "true") || envVault == "1"
+		}
+		vaultRotation := *vaultRotationFlag
+		if envRot := os.Getenv("DOCK_RADAR_VAULT_ROTATION_INTERVAL"); envRot != "" {
+			if d, err := time.ParseDuration(envRot); err == nil && d > 0 {
+				vaultRotation = d
+			}
+		}
+		vaultLeaseTTL := *vaultLeaseTTLFlag
+		if envTTL := os.Getenv("DOCK_RADAR_VAULT_LEASE_TTL"); envTTL != "" {
+			if d, err := time.ParseDuration(envTTL); err == nil && d > 0 {
+				vaultLeaseTTL = d
+			}
+		}
+		vaultMaxSecrets := *vaultMaxSecretsFlag
+		if envMax := os.Getenv("DOCK_RADAR_VAULT_MAX_SECRETS"); envMax != "" {
+			if m, err := strconv.Atoi(envMax); err == nil && m > 0 {
+				vaultMaxSecrets = m
+			}
+		}
+		vaultHWRoot := *vaultHWRootFlag
+		if envHW := os.Getenv("DOCK_RADAR_VAULT_HARDWARE_ROOT"); envHW != "" {
+			vaultHWRoot = strings.EqualFold(envHW, "true") || envHW == "1"
+		}
+
+		if handlerCfg.VaultEngine != nil {
+			vCfg := handlerCfg.VaultEngine.Config()
+			vCfg.Enabled = vaultEnabled
+			vCfg.RotationInterval = vaultRotation
+			vCfg.DefaultLeaseTTL = vaultLeaseTTL
+			vCfg.MaxSecrets = vaultMaxSecrets
+			vCfg.HardwareRootEnabled = vaultHWRoot
+			_ = handlerCfg.VaultEngine.UpdateConfig(vCfg, "main-init", "127.0.0.1")
+
+			if vaultEnabled {
+				vaultCtx, vaultCancel := context.WithCancel(context.Background())
+				defer vaultCancel()
+				handlerCfg.VaultEngine.Start(vaultCtx)
+			}
+		}
 	}
 
 	scheme := "http"
@@ -957,6 +1006,15 @@ func main() {
 		}
 	}
 
+	vaultStatusDesc := "Disabled"
+	if handlerCfg != nil && handlerCfg.VaultEngine != nil {
+		st := handlerCfg.VaultEngine.Status()
+		if st.Enabled {
+			vaultStatusDesc = fmt.Sprintf("Active (%d secrets · %d leases · %d shredded · Key: %s)",
+				st.TotalSecrets, st.ActiveLeases, st.ShreddedLeases, st.ActiveKeyID)
+		}
+	}
+
 	fmt.Println("=========================================================")
 	fmt.Printf(" 🚀 Dock-Radar v%s · Single-Binary Container & System Monitor\n", AppVersion)
 	fmt.Printf(" 📡 Web Dashboard Live at %s://localhost:%s\n", scheme, port)
@@ -981,6 +1039,7 @@ func main() {
 	fmt.Printf(" 🐤 Canary Rollouts    : %s\n", canaryStatusDesc)
 	fmt.Printf(" 💥 Crash Analysis     : %s\n", crashStatusDesc)
 	fmt.Printf(" ⚡ Query Cache/Events : %s\n", queryCacheStatusDesc)
+	fmt.Printf(" 🔐 Config Vault       : %s\n", vaultStatusDesc)
 	fmt.Println(" 💡 Embed Mode: 100% Self-Contained Zero-Dependency Binary")
 	fmt.Println("=========================================================")
 

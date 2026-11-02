@@ -658,6 +658,7 @@
       <button id="canary-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(245, 158, 11, 0.4); background: rgba(245, 158, 11, 0.15); color: #fbbf24; display: inline-flex; align-items: center; gap: 4px;" onclick="openCanaryModal()" title="Autonomous Canary Deployment & Traffic Mirroring">🐤 Canary: <span id="canary-badge-text">0 Active</span></button>
       <button id="crash-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(239, 68, 68, 0.15); color: #f87171; display: inline-flex; align-items: center; gap: 4px;" onclick="openCrashModal()" title="Distributed Core Dump & Crash Analysis Pipeline">💥 Crash: <span id="crash-badge-text">0 Crashes</span></button>
       <button id="querycache-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(56, 189, 248, 0.4); background: rgba(56, 189, 248, 0.15); color: #38bdf8; display: inline-flex; align-items: center; gap: 4px;" onclick="openCacheModal()" title="Self-Optimizing Query Cache & Event Ingestion Pipeline">⚡ Cache: <span id="cache-badge-text">100% Hit</span></button>
+      <button id="vault-badge" class="status-pill status-running" style="font-size: 11px; cursor: pointer; border: 1px solid rgba(168, 85, 247, 0.4); background: rgba(168, 85, 247, 0.15); color: #c084fc; display: inline-flex; align-items: center; gap: 4px;" onclick="openVaultModal()" title="Zero-Knowledge Distributed Configuration Vault">🔐 Vault: <span id="vault-badge-text">0 Secrets</span></button>
       <button id="btn-export-audit" class="status-pill" style="font-size: 11px; cursor: pointer; border: 1px solid var(--border-subtle); background: var(--bg-surface-elevated); color: var(--text-main); display: inline-flex; align-items: center; gap: 4px;" onclick="exportAuditTrail()" title="Export Audit Trail in NDJSON format">📋 Export Audit</button>
       <span>•</span>
       <span id="host-badge">Loading...</span>
@@ -2790,6 +2791,144 @@
         </div>
       </div>
     </div>
+    <!-- Zero-Knowledge Distributed Configuration Vault Section -->
+    <div class="card" id="vault-section" style="margin-top: 24px;">
+      <div class="card-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px;">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <div>
+            <div class="card-title">Zero-Knowledge Distributed Configuration Vault</div>
+            <div class="card-subtitle">End-to-end encrypted cluster secret sharing, hardware-backed key derivation &amp; ephemeral lease shredding</div>
+          </div>
+          <span id="vault-status-pill" class="status-pill status-running" style="font-size: 11px;">Active</span>
+        </div>
+        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+          <button class="btn-action btn-logs" onclick="openVaultModal(); switchVaultModalTab('store');" style="color: #c084fc; border-color: rgba(168, 85, 247, 0.4);">+ New Secret</button>
+          <button class="btn-action btn-logs" onclick="openVaultModal(); switchVaultModalTab('token');" style="color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">🎟️ Join Token</button>
+          <button class="btn-action btn-logs" onclick="rotateVaultKey()" style="color: #fbbf24; border-color: rgba(245, 158, 11, 0.4);">🔑 Rotate Master Key</button>
+          <button class="btn-action btn-logs" onclick="openVaultModal(); switchVaultModalTab('config');" style="color: var(--text-muted); border-color: var(--border-subtle);">⚙️ Configure</button>
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 20px;">
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #c084fc;">
+          <div style="font-size: 11px; color: #c084fc; font-weight: 600; text-transform: uppercase;">Encrypted Secrets</div>
+          <div id="vault-kpi-secrets" style="font-size: 18px; font-weight: 700; color: #c084fc; margin-top: 4px;">0 Secrets</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">AES-256-GCM sealed</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #10b981;">
+          <div style="font-size: 11px; color: #10b981; font-weight: 600; text-transform: uppercase;">Active Leases</div>
+          <div id="vault-kpi-leases" style="font-size: 18px; font-weight: 700; color: #34d399; margin-top: 4px;">0 Leases</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Time-bounded access</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #f43f5e;">
+          <div style="font-size: 11px; color: #f43f5e; font-weight: 600; text-transform: uppercase;">Shredded Leases</div>
+          <div id="vault-kpi-shredded" style="font-size: 18px; font-weight: 700; color: #fb7185; margin-top: 4px;">0 Shredded</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Memory zeroized</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #38bdf8;">
+          <div style="font-size: 11px; color: #38bdf8; font-weight: 600; text-transform: uppercase;">Active Master Key</div>
+          <div id="vault-kpi-keyid" style="font-size: 15px; font-weight: 700; color: #38bdf8; margin-top: 6px; font-family: monospace;">key_root</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Auto-rotated ring</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #f59e0b;">
+          <div style="font-size: 11px; color: #f59e0b; font-weight: 600; text-transform: uppercase;">Cluster Join Tokens</div>
+          <div id="vault-kpi-tokens" style="font-size: 18px; font-weight: 700; color: #fbbf24; margin-top: 4px;">0 Tokens</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Revocable peer tickets</div>
+        </div>
+
+        <div class="alert-card-sub" style="padding: 12px; border-left: 3px solid #6366f1;">
+          <div style="font-size: 11px; color: #6366f1; font-weight: 600; text-transform: uppercase;">Hardware Root KDF</div>
+          <div id="vault-kpi-hwroot" style="font-size: 18px; font-weight: 700; color: #818cf8; margin-top: 4px;">Active</div>
+          <div style="font-size: 10px; color: var(--text-muted); margin-top: 2px;">Machine-rooted salt</div>
+        </div>
+      </div>
+
+      <!-- Tab Navigation -->
+      <div style="display: flex; border-bottom: 1px solid var(--border-subtle); margin-bottom: 16px; gap: 8px;">
+        <button id="vault-tab-btn-secrets" class="tab-btn active" onclick="switchVaultMainTab('secrets')">Encrypted Secrets &amp; Leases</button>
+        <button id="vault-tab-btn-tokens" class="tab-btn" onclick="switchVaultMainTab('tokens')">Cluster Join Tokens</button>
+        <button id="vault-tab-btn-rotation" class="tab-btn" onclick="switchVaultMainTab('rotation')">Key Derivation &amp; Rotation</button>
+      </div>
+
+      <!-- Tab 1: Secrets Table -->
+      <div id="vault-tab-secrets">
+        <div style="overflow-x: auto;">
+          <table class="table" style="width: 100%; font-size: 12px;">
+            <thead>
+              <tr>
+                <th>Secret Key</th>
+                <th>Type</th>
+                <th>Rev</th>
+                <th>Key ID</th>
+                <th>Active Leases</th>
+                <th>Updated</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="vault-secrets-tbody">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 16px;">Loading vault secrets...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 2: Join Tokens Table -->
+      <div id="vault-tab-tokens" style="display: none;">
+        <div style="overflow-x: auto;">
+          <table class="table" style="width: 100%; font-size: 12px;">
+            <thead>
+              <tr>
+                <th>Token ID</th>
+                <th>Target Role</th>
+                <th>Usage</th>
+                <th>Expires At</th>
+                <th>Status</th>
+                <th>Created By</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="vault-tokens-tbody">
+              <tr>
+                <td colspan="7" style="text-align: center; color: var(--text-muted); padding: 16px;">Loading cluster join tokens...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Tab 3: Key Rotation & Security -->
+      <div id="vault-tab-rotation" style="display: none;">
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px;">
+          <div class="alert-card-sub" style="padding: 14px;">
+            <div style="font-size: 12px; font-weight: 700; color: #c084fc; margin-bottom: 10px; text-transform: uppercase;">Master Key Lifecycle &amp; Age</div>
+            <div style="font-size: 12px; line-height: 1.8; color: var(--text-main);">
+              <div style="display: flex; justify-content: space-between;"><span>Active Key Identifier:</span><strong id="vault-stat-active-key" style="font-family: monospace; color: #38bdf8;">-</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span>Current Key Age:</span><strong id="vault-stat-key-age">0s</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span>Next Scheduled Rotation:</span><strong id="vault-stat-next-rotation" style="color: #fbbf24;">-</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span>Total Key Rotations:</span><strong id="vault-stat-total-rotations">1</strong></div>
+            </div>
+            <button class="btn btn-primary-restart" onclick="rotateVaultKey()" style="margin-top: 12px; padding: 6px 14px; font-size: 11px;">🔑 Trigger Immediate Re-Encryption</button>
+          </div>
+
+          <div class="alert-card-sub" style="padding: 14px;">
+            <div style="font-size: 12px; font-weight: 700; color: #10b981; margin-bottom: 10px; text-transform: uppercase;">Zero-Knowledge Replication Mesh</div>
+            <div style="font-size: 12px; line-height: 1.8; color: var(--text-main);">
+              <div style="display: flex; justify-content: space-between;"><span>Cluster Replications Synced:</span><strong id="vault-stat-replications">0</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span>End-to-End Encryption:</span><strong style="color: #10b981;">AES-256-GCM AEAD</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span>Tamper &amp; Replay Defense:</span><strong style="color: #38bdf8;">HMAC-SHA256 (60s Window)</strong></div>
+              <div style="display: flex; justify-content: space-between;"><span>Hardware Root Derivation:</span><strong id="vault-stat-hw-status" style="color: #818cf8;">Active</strong></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <!-- Lifecycle Action Confirmation Modal -->
@@ -4730,6 +4869,167 @@
 
       <div class="modal-actions" style="display: flex; justify-content: flex-end; margin-top: 16px;">
         <button class="btn btn-secondary" onclick="closeCacheModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Zero-Knowledge Distributed Vault Management Modal -->
+  <div class="modal-backdrop" id="vault-modal">
+    <div class="modal-card" style="max-width: 760px; width: 95%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+        <div class="modal-title" style="color: #c084fc; margin-bottom: 0;">Configuration Vault Management</div>
+        <button class="btn-action" onclick="closeVaultModal()" style="padding: 4px 10px;">✕</button>
+      </div>
+
+      <!-- Modal Tab Navigation -->
+      <div style="display: flex; border-bottom: 1px solid var(--border-subtle); margin-bottom: 18px; gap: 8px;">
+        <button id="vault-mtab-btn-store" class="tab-btn active" onclick="switchVaultModalTab('store')">Store Secret</button>
+        <button id="vault-mtab-btn-token" class="tab-btn" onclick="switchVaultModalTab('token')">Issue Join Token</button>
+        <button id="vault-mtab-btn-config" class="tab-btn" onclick="switchVaultModalTab('config')">Vault Settings</button>
+      </div>
+
+      <!-- Modal Tab 1: Store Secret Form -->
+      <div id="vault-mtab-store">
+        <form onsubmit="submitStoreSecretForm(event)">
+          <div class="alert-card-sub" style="padding: 14px; margin-bottom: 16px;">
+            <div style="font-size: 12px; font-weight: 700; color: #c084fc; margin-bottom: 12px; text-transform: uppercase;">Encrypt &amp; Store New Secret</div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <div class="form-col">
+                <label class="form-label" for="vault-store-key">Secret Key / Path</label>
+                <input type="text" class="form-input" id="vault-store-key" placeholder="DATABASE_URL or auth/jwt_secret" required>
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="vault-store-type">Secret Type</label>
+                <select class="form-input" id="vault-store-type">
+                  <option value="generic" selected>generic</option>
+                  <option value="env_var">env_var</option>
+                  <option value="tls_cert">tls_cert</option>
+                  <option value="auth_token">auth_token</option>
+                </select>
+              </div>
+            </div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <div class="form-col">
+                <label class="form-label" for="vault-store-val">Plaintext Secret Value</label>
+                <textarea class="form-input" id="vault-store-val" placeholder="Paste sensitive credentials or keys here..." rows="3" style="resize: vertical; font-family: monospace;" required></textarea>
+              </div>
+            </div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <div class="form-col">
+                <label class="form-label" for="vault-store-ttl">Expiry Duration (Seconds, 0 = Permanent)</label>
+                <input type="number" class="form-input" id="vault-store-ttl" placeholder="0" min="0" value="0">
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="vault-store-tags">Tags (Key=Val, comma separated)</label>
+                <input type="text" class="form-input" id="vault-store-tags" placeholder="env=prod, tier=database">
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary-restart" style="padding: 8px 18px; font-size: 12px; font-weight: 600;">🔒 Encrypt &amp; Save Secret</button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Modal Tab 2: Issue Join Token Form -->
+      <div id="vault-mtab-token" style="display: none;">
+        <form onsubmit="submitIssueTokenForm(event)">
+          <div class="alert-card-sub" style="padding: 14px; margin-bottom: 16px;">
+            <div style="font-size: 12px; font-weight: 700; color: #38bdf8; margin-bottom: 12px; text-transform: uppercase;">Issue Cluster Join Ticket</div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <div class="form-col">
+                <label class="form-label" for="vault-token-role">Node Role</label>
+                <select class="form-input" id="vault-token-role">
+                  <option value="viewer">viewer (Read-Only)</option>
+                  <option value="worker" selected>worker (Cluster Node)</option>
+                  <option value="admin">admin (Full Control)</option>
+                </select>
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="vault-token-ttl">Validity TTL (Seconds)</label>
+                <input type="number" class="form-input" id="vault-token-ttl" placeholder="3600" min="60" value="3600" required>
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="vault-token-uses">Max Allowed Uses</label>
+                <input type="number" class="form-input" id="vault-token-uses" placeholder="1" min="1" value="1" required>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary-restart" style="padding: 8px 18px; font-size: 12px; font-weight: 600;">🎟️ Generate Join Token</button>
+          </div>
+        </form>
+        <div id="vault-token-result" style="display: none; padding: 12px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; margin-top: 10px;">
+          <div style="font-size: 11px; font-weight: 700; color: #34d399; margin-bottom: 6px; text-transform: uppercase;">Generated Token (Copy Now — Not Saved in Plaintext)</div>
+          <div id="vault-token-display" style="font-family: monospace; font-size: 13px; word-break: break-all; color: var(--text-main); background: var(--bg-surface-elevated); padding: 8px; border-radius: 4px; user-select: all;"></div>
+        </div>
+      </div>
+
+      <!-- Modal Tab 3: Settings Form -->
+      <div id="vault-mtab-config" style="display: none;">
+        <form onsubmit="submitVaultConfigForm(event)">
+          <div class="alert-card-sub" style="padding: 14px; margin-bottom: 16px;">
+            <div style="font-size: 12px; font-weight: 700; color: #a78bfa; margin-bottom: 12px; text-transform: uppercase;">Vault Engine &amp; Shredding Policies</div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <div class="form-col">
+                <label class="form-label" for="vault-cfg-rotation">Master Key Rotation Interval</label>
+                <input type="text" class="form-input" id="vault-cfg-rotation" placeholder="24h" value="24h" required>
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="vault-cfg-lease-ttl">Default Lease TTL</label>
+                <input type="text" class="form-input" id="vault-cfg-lease-ttl" placeholder="1h" value="1h" required>
+              </div>
+            </div>
+            <div class="form-row" style="margin-bottom: 12px;">
+              <div class="form-col">
+                <label class="form-label" for="vault-cfg-max-lease">Max Hard Lease TTL</label>
+                <input type="text" class="form-input" id="vault-cfg-max-lease" placeholder="24h" value="24h" required>
+              </div>
+              <div class="form-col">
+                <label class="form-label" for="vault-cfg-max-secrets">Max Secrets Capacity</label>
+                <input type="number" class="form-input" id="vault-cfg-max-secrets" placeholder="1000" min="10" max="50000" value="1000" required>
+              </div>
+            </div>
+            <button type="submit" class="btn btn-primary-restart" style="padding: 8px 18px; font-size: 12px; font-weight: 600;">Save Configuration</button>
+          </div>
+        </form>
+      </div>
+
+      <div class="modal-actions" style="display: flex; justify-content: flex-end; margin-top: 16px;">
+        <button class="btn btn-secondary" onclick="closeVaultModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Decrypted Secret Inspection Modal -->
+  <div class="modal-backdrop" id="vault-secret-modal">
+    <div class="modal-card" style="max-width: 600px; width: 90%;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;">
+        <div class="modal-title" style="color: #38bdf8; margin-bottom: 0;">Decrypted Secret Inspector</div>
+        <button class="btn-action" onclick="closeVaultSecretModal()" style="padding: 4px 10px;">✕</button>
+      </div>
+
+      <div class="alert-card-sub" style="padding: 14px; margin-bottom: 14px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+          <div>
+            <span style="font-size: 11px; color: var(--text-muted);">SECRET KEY:</span>
+            <strong id="vault-view-key" style="font-family: monospace; color: #c084fc; font-size: 13px; margin-left: 6px;"></strong>
+          </div>
+          <span id="vault-view-countdown" class="status-pill status-running" style="font-size: 10px; background: rgba(245, 158, 11, 0.2); color: #fbbf24; border-color: rgba(245, 158, 11, 0.4);">Auto-Clearing: 15s</span>
+        </div>
+
+        <div style="position: relative; margin-bottom: 10px;">
+          <textarea id="vault-view-val" readonly rows="4" style="width: 100%; font-family: monospace; font-size: 12px; background: var(--bg-surface); color: #34d399; border: 1px solid var(--border-subtle); border-radius: 4px; padding: 10px; resize: none;"></textarea>
+        </div>
+
+        <div id="vault-view-lease-info" style="font-size: 11px; color: var(--text-muted); margin-bottom: 10px; display: none;">
+          <span>Active Ephemeral Lease: </span><strong id="vault-view-lease-id" style="font-family: monospace; color: #38bdf8;"></strong>
+        </div>
+
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <button class="btn btn-action" onclick="copyDecryptedValue()" style="font-size: 11px; padding: 6px 12px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);">📋 Copy to Clipboard</button>
+          <button class="btn btn-action" id="vault-view-shred-btn" style="font-size: 11px; padding: 6px 12px; color: #f87171; border-color: rgba(239, 68, 68, 0.4);">🗑️ Shred &amp; Delete</button>
+        </div>
+      </div>
+
+      <div class="modal-actions" style="display: flex; justify-content: flex-end;">
+        <button class="btn btn-secondary" onclick="closeVaultSecretModal()">Close &amp; Clear</button>
       </div>
     </div>
   </div>
@@ -11856,6 +12156,424 @@
       } catch {}
     }
 
+    // ==========================================
+    // Zero-Knowledge Distributed Vault UI Logic
+    // ==========================================
+    let vaultSecretTimer = null;
+    let vaultSecretCountdownVal = 15;
+
+    function openVaultModal() {
+      const m = document.getElementById('vault-modal');
+      if (m) m.classList.add('active');
+      loadVaultConfigIntoModal();
+    }
+
+    function closeVaultModal() {
+      const m = document.getElementById('vault-modal');
+      if (m) m.classList.remove('active');
+    }
+
+    function switchVaultMainTab(tab) {
+      const tabs = ['secrets', 'tokens', 'rotation'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`vault-tab-btn-${t}`);
+        const pane = document.getElementById(`vault-tab-${t}`);
+        if (btn) btn.classList.toggle('active', t === tab);
+        if (pane) pane.style.display = (t === tab) ? 'block' : 'none';
+      });
+
+      if (tab === 'secrets') pollVaultSecrets();
+      if (tab === 'tokens') pollVaultTokens();
+      if (tab === 'rotation') pollVaultStatus();
+    }
+
+    function switchVaultModalTab(tab) {
+      const tabs = ['store', 'token', 'config'];
+      tabs.forEach(t => {
+        const btn = document.getElementById(`vault-mtab-btn-${t}`);
+        const pane = document.getElementById(`vault-mtab-${t}`);
+        if (btn) btn.classList.toggle('active', t === tab);
+        if (pane) pane.style.display = (t === tab) ? 'block' : 'none';
+      });
+    }
+
+    async function pollVaultStatus() {
+      try {
+        const res = await authFetch('/api/vault/status');
+        if (!res.ok) return;
+        const st = await res.json();
+
+        const badgeText = document.getElementById('vault-badge-text');
+        if (badgeText) badgeText.textContent = `${st.total_secrets} Secrets`;
+
+        const pill = document.getElementById('vault-status-pill');
+        if (pill) {
+          pill.textContent = st.enabled ? 'Active' : 'Disabled';
+          pill.className = `status-pill ${st.enabled ? 'status-running' : 'status-stopped'}`;
+        }
+
+        const kpiSecrets = document.getElementById('vault-kpi-secrets');
+        if (kpiSecrets) kpiSecrets.textContent = `${st.total_secrets} Secrets`;
+
+        const kpiLeases = document.getElementById('vault-kpi-leases');
+        if (kpiLeases) kpiLeases.textContent = `${st.active_leases} Leases`;
+
+        const kpiShredded = document.getElementById('vault-kpi-shredded');
+        if (kpiShredded) kpiShredded.textContent = `${st.shredded_leases} Shredded`;
+
+        const kpiKeyID = document.getElementById('vault-kpi-keyid');
+        if (kpiKeyID) kpiKeyID.textContent = st.active_key_id ? (st.active_key_id.length > 14 ? st.active_key_id.slice(0, 14) + '...' : st.active_key_id) : '-';
+
+        const kpiTokens = document.getElementById('vault-kpi-tokens');
+        if (kpiTokens) kpiTokens.textContent = `${st.join_tokens_count} Tokens`;
+
+        const kpiHw = document.getElementById('vault-kpi-hwroot');
+        if (kpiHw) kpiHw.textContent = st.hardware_root_active ? 'Active' : 'Software Root';
+
+        const statKey = document.getElementById('vault-stat-active-key');
+        if (statKey) statKey.textContent = st.active_key_id || '-';
+
+        const statAge = document.getElementById('vault-stat-key-age');
+        if (statAge) statAge.textContent = `${st.key_age_seconds}s`;
+
+        const statNextRot = document.getElementById('vault-stat-next-rotation');
+        if (statNextRot) statNextRot.textContent = `${Math.round(st.next_rotation_seconds / 60)} min remaining`;
+
+        const statRep = document.getElementById('vault-stat-replications');
+        if (statRep) statRep.textContent = `${st.replications_synced} payloads`;
+
+        const statHW = document.getElementById('vault-stat-hw-status');
+        if (statHW) statHW.textContent = st.hardware_root_active ? 'Active (KDF Machine-Rooted)' : 'Disabled';
+      } catch {}
+    }
+
+    async function pollVaultSecrets() {
+      try {
+        const res = await authFetch('/api/vault/secrets');
+        if (!res.ok) return;
+        const data = await res.json();
+        const tbody = document.getElementById('vault-secrets-tbody');
+        if (!tbody) return;
+
+        const secrets = data.secrets || [];
+        if (secrets.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 16px;">No encrypted secrets stored in vault. Click "+ New Secret" above.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = secrets.map(s => {
+          const updatedStr = new Date(s.updated_at).toLocaleTimeString();
+          return `
+            <tr>
+              <td style="font-family: monospace; font-weight: 600; color: #c084fc;">${escapeHtml(s.key)}</td>
+              <td><span class="status-pill status-running" style="font-size: 10px; background: rgba(56, 189, 248, 0.15); color: #38bdf8;">${escapeHtml(s.type)}</span></td>
+              <td><span style="font-size: 11px; color: var(--text-muted);">v${s.version}</span></td>
+              <td style="font-family: monospace; font-size: 11px; color: var(--text-muted);">${escapeHtml(s.key_id.slice(0, 10))}...</td>
+              <td><strong style="color: #34d399;">${s.lease_count || 0} active</strong></td>
+              <td style="font-size: 11px; color: var(--text-muted);">${updatedStr}</td>
+              <td>
+                <div style="display: flex; gap: 4px;">
+                  <button class="btn-action btn-logs" style="padding: 2px 8px; font-size: 11px; color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);" onclick="readVaultSecret('${escapeHtml(s.key)}', false)">🔓 Inspect</button>
+                  <button class="btn-action btn-logs" style="padding: 2px 8px; font-size: 11px; color: #34d399; border-color: rgba(52, 211, 153, 0.4);" onclick="readVaultSecret('${escapeHtml(s.key)}', true)">⏱️ Lease</button>
+                  <button class="btn-action btn-logs" style="padding: 2px 8px; font-size: 11px; color: #f87171; border-color: rgba(248, 113, 113, 0.4);" onclick="shredVaultSecret('${escapeHtml(s.id)}')">🗑️ Shred</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch {}
+    }
+
+    async function pollVaultTokens() {
+      try {
+        const res = await authFetch('/api/vault/tokens');
+        if (!res.ok) return;
+        const data = await res.json();
+        const tbody = document.getElementById('vault-tokens-tbody');
+        if (!tbody) return;
+
+        const tokens = data.tokens || [];
+        if (tokens.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="7" style="text-align: center; color: var(--text-muted); padding: 16px;">No cluster join tokens issued. Click "🎟️ Join Token" to issue one.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = tokens.map(t => {
+          const expStr = new Date(t.expires_at).toLocaleString();
+          const isExpired = new Date(t.expires_at) < new Date();
+          let statusBadge = `<span class="status-pill status-running" style="font-size: 10px;">Valid</span>`;
+          if (t.revoked) {
+            statusBadge = `<span class="status-pill status-stopped" style="font-size: 10px;">Revoked</span>`;
+          } else if (isExpired) {
+            statusBadge = `<span class="status-pill status-stopped" style="font-size: 10px;">Expired</span>`;
+          } else if (t.max_uses > 0 && t.uses_count >= t.max_uses) {
+            statusBadge = `<span class="status-pill status-stopped" style="font-size: 10px;">Exhausted</span>`;
+          }
+
+          return `
+            <tr>
+              <td style="font-family: monospace; font-size: 11px; color: #38bdf8;">${escapeHtml(t.token_id)}</td>
+              <td><strong style="color: #fbbf24;">${escapeHtml(t.node_role)}</strong></td>
+              <td>${t.uses_count} / ${t.max_uses}</td>
+              <td style="font-size: 11px; color: var(--text-muted);">${expStr}</td>
+              <td>${statusBadge}</td>
+              <td style="font-size: 11px; color: var(--text-muted);">${escapeHtml(t.created_by)}</td>
+              <td>
+                ${!t.revoked && !isExpired ? `<button class="btn-action btn-logs" style="padding: 2px 8px; font-size: 11px; color: #f87171; border-color: rgba(248, 113, 113, 0.4);" onclick="revokeVaultToken('${escapeHtml(t.token_id)}')">Revoke</button>` : `<span style="color: var(--text-muted); font-size: 11px;">-</span>`}
+              </td>
+            </tr>
+          `;
+        }).join('');
+      } catch {}
+    }
+
+    function pollVaultAll() {
+      pollVaultStatus();
+      const secPane = document.getElementById('vault-tab-secrets');
+      if (secPane && secPane.style.display !== 'none') {
+        pollVaultSecrets();
+      }
+      const tokPane = document.getElementById('vault-tab-tokens');
+      if (tokPane && tokPane.style.display !== 'none') {
+        pollVaultTokens();
+      }
+    }
+
+    async function submitStoreSecretForm(e) {
+      e.preventDefault();
+      const key = document.getElementById('vault-store-key').value.trim();
+      const type = document.getElementById('vault-store-type').value;
+      const value = document.getElementById('vault-store-val').value;
+      const ttlSec = parseInt(document.getElementById('vault-store-ttl').value) || 0;
+      const tagsRaw = document.getElementById('vault-store-tags').value.trim();
+
+      const tags = {};
+      if (tagsRaw) {
+        tagsRaw.split(',').forEach(part => {
+          const kv = part.split('=');
+          if (kv.length === 2) tags[kv[0].trim()] = kv[1].trim();
+        });
+      }
+
+      try {
+        const res = await authFetch('/api/vault/secrets', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            key: key,
+            type: type,
+            value: value,
+            ttl_seconds: ttlSec,
+            tags: tags
+          })
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(errText || 'Failed to store secret');
+        }
+
+        showToast(`✓ Secret "${key}" encrypted and saved`);
+        document.getElementById('vault-store-key').value = '';
+        document.getElementById('vault-store-val').value = '';
+        closeVaultModal();
+        pollVaultAll();
+      } catch (err) {
+        showToast(`Store secret failed: ${err.message}`);
+      }
+    }
+
+    async function submitIssueTokenForm(e) {
+      e.preventDefault();
+      const role = document.getElementById('vault-token-role').value;
+      const ttl = parseInt(document.getElementById('vault-token-ttl').value) || 3600;
+      const uses = parseInt(document.getElementById('vault-token-uses').value) || 1;
+
+      try {
+        const res = await authFetch('/api/vault/tokens', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            role: role,
+            ttl_seconds: ttl,
+            max_uses: uses
+          })
+        });
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(errText || 'Failed to issue join token');
+        }
+
+        const data = await res.json();
+        const resBox = document.getElementById('vault-token-result');
+        const disp = document.getElementById('vault-token-display');
+        if (resBox && disp) {
+          resBox.style.display = 'block';
+          disp.textContent = data.token;
+        }
+
+        showToast(`✓ Join token generated for role ${role}`);
+        pollVaultTokens();
+      } catch (err) {
+        showToast(`Token generation failed: ${err.message}`);
+      }
+    }
+
+    async function revokeVaultToken(tokenID) {
+      if (!confirm(`Revoke join token ${tokenID}?`)) return;
+      try {
+        const res = await authFetch(`/api/vault/tokens?id=${encodeURIComponent(tokenID)}`, {
+          method: 'DELETE'
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ Join token ${tokenID} revoked`);
+        pollVaultTokens();
+      } catch (err) {
+        showToast(`Revocation failed: ${err.message}`);
+      }
+    }
+
+    async function readVaultSecret(key, issueLease) {
+      try {
+        const url = `/api/vault/secrets/read?key=${encodeURIComponent(key)}&lease=${issueLease ? 'true' : 'false'}&ttl=300`;
+        const res = await authFetch(url);
+        if (!res.ok) {
+          throw new Error(await res.text() || 'Failed to decrypt secret');
+        }
+        const data = await res.json();
+
+        const modal = document.getElementById('vault-secret-modal');
+        const keyElem = document.getElementById('vault-view-key');
+        const valElem = document.getElementById('vault-view-val');
+        const leaseInfo = document.getElementById('vault-view-lease-info');
+        const leaseIdElem = document.getElementById('vault-view-lease-id');
+        const shredBtn = document.getElementById('vault-view-shred-btn');
+
+        if (keyElem) keyElem.textContent = data.key;
+        if (valElem) valElem.value = data.value;
+
+        if (data.lease && data.lease.lease_id) {
+          if (leaseInfo) leaseInfo.style.display = 'block';
+          if (leaseIdElem) leaseIdElem.textContent = `${data.lease.lease_id} (Expires in 5m)`;
+        } else {
+          if (leaseInfo) leaseInfo.style.display = 'none';
+        }
+
+        if (shredBtn) {
+          shredBtn.onclick = () => {
+            closeVaultSecretModal();
+            shredVaultSecret(data.key);
+          };
+        }
+
+        if (modal) modal.classList.add('active');
+
+        // Start 15s self-destruct timer for in-browser plaintext
+        vaultSecretCountdownVal = 15;
+        const countdownElem = document.getElementById('vault-view-countdown');
+        if (countdownElem) countdownElem.textContent = `Auto-Clearing: ${vaultSecretCountdownVal}s`;
+
+        if (vaultSecretTimer) clearInterval(vaultSecretTimer);
+        vaultSecretTimer = setInterval(() => {
+          vaultSecretCountdownVal--;
+          if (countdownElem) countdownElem.textContent = `Auto-Clearing: ${vaultSecretCountdownVal}s`;
+          if (vaultSecretCountdownVal <= 0) {
+            closeVaultSecretModal();
+          }
+        }, 1000);
+
+      } catch (err) {
+        showToast(`Decrypt secret failed: ${err.message}`);
+      }
+    }
+
+    function closeVaultSecretModal() {
+      if (vaultSecretTimer) {
+        clearInterval(vaultSecretTimer);
+        vaultSecretTimer = null;
+      }
+      const valElem = document.getElementById('vault-view-val');
+      if (valElem) valElem.value = ''; // Zeroize client-side memory
+      const m = document.getElementById('vault-secret-modal');
+      if (m) m.classList.remove('active');
+    }
+
+    function copyDecryptedValue() {
+      const valElem = document.getElementById('vault-view-val');
+      if (valElem && valElem.value) {
+        navigator.clipboard.writeText(valElem.value).then(() => {
+          showToast('✓ Decrypted secret copied to clipboard');
+        });
+      }
+    }
+
+    async function shredVaultSecret(idOrKey) {
+      if (!confirm(`Permanently shred and delete secret "${idOrKey}"? This cannot be undone.`)) return;
+      try {
+        const res = await authFetch(`/api/vault/secrets?id=${encodeURIComponent(idOrKey)}`, {
+          method: 'DELETE'
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`✓ Secret "${idOrKey}" shredded and deleted`);
+        pollVaultAll();
+      } catch (err) {
+        showToast(`Shred secret failed: ${err.message}`);
+      }
+    }
+
+    async function rotateVaultKey() {
+      if (!confirm('Rotate master key and re-encrypt all stored secrets with fresh AES-256-GCM nonces?')) return;
+      try {
+        const res = await authFetch('/api/vault/rotate', { method: 'POST' });
+        if (!res.ok) throw new Error(await res.text());
+        const data = await res.json();
+        showToast(`✓ Master key rotated to ${data.key_id}`);
+        pollVaultAll();
+      } catch (err) {
+        showToast(`Key rotation failed: ${err.message}`);
+      }
+    }
+
+    async function loadVaultConfigIntoModal() {
+      try {
+        const res = await authFetch('/api/vault/config');
+        if (!res.ok) return;
+        const cfg = await res.json();
+        const rotElem = document.getElementById('vault-cfg-rotation');
+        if (rotElem && cfg.rotation_interval) rotElem.value = `${cfg.rotation_interval / (1000000000 * 3600)}h`;
+        const leaseElem = document.getElementById('vault-cfg-lease-ttl');
+        if (leaseElem && cfg.default_lease_ttl) leaseElem.value = `${cfg.default_lease_ttl / (1000000000 * 3600)}h`;
+        const maxSecretsElem = document.getElementById('vault-cfg-max-secrets');
+        if (maxSecretsElem && cfg.max_secrets) maxSecretsElem.value = cfg.max_secrets;
+      } catch {}
+    }
+
+    async function submitVaultConfigForm(e) {
+      e.preventDefault();
+      try {
+        const maxSec = parseInt(document.getElementById('vault-cfg-max-secrets').value) || 1000;
+        const res = await authFetch('/api/vault/config', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            enabled: true,
+            hardware_root_enabled: true,
+            rotation_interval: 24 * 3600 * 1000000000,
+            default_lease_ttl: 3600 * 1000000000,
+            max_lease_ttl: 24 * 3600 * 1000000000,
+            max_secrets: maxSec
+          })
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast('✓ Vault configuration updated');
+        closeVaultModal();
+        pollVaultStatus();
+      } catch (err) {
+        showToast(`Config save failed: ${err.message}`);
+      }
+    }
+
     pollCanaryAll();
     setInterval(pollCanaryAll, 3000);
 
@@ -11865,6 +12583,9 @@
     pollQueryCacheAll();
     setInterval(pollQueryCacheAll, 3000);
     initEventStream();
+
+    pollVaultAll();
+    setInterval(pollVaultAll, 3000);
 
     pollWireGuardAll();
     setInterval(pollWireGuardAll, 3000);

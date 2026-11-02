@@ -5,6 +5,40 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-11-02
+
+### Added
+- Zero-Knowledge Distributed Configuration Vault (`internal/vault/`):
+  - End-to-end encrypted cluster secret sharing and synchronized configuration replication with pure standard-library AES-256-GCM AEAD encryption and HMAC-SHA256 authentication (`internal/vault/crypto.go`, `internal/vault/replication.go`).
+  - Hardware-backed key derivation (`DeriveHardwareRootKey`) using multi-round PBKDF2/HMAC-SHA256 stretching against machine hardware identity seeds, paired with seamless automated master key rotation re-encrypting all stored secrets without service disruption (`internal/vault/engine.go`, `internal/vault/store.go`).
+  - Ephemeral secret leases (`internal/vault/lease.go`) with configurable TTLs, hard MaxTTL ceilings, and automatic cryptographic shredding (memory zeroization) upon expiration or revocation.
+  - Revocable single-use and multi-use cluster join tokens (`ClusterJoinToken`) for authenticating mesh peer nodes without transmitting master secrets.
+  - Core domain models, configuration builders, and field validators (`internal/vault/types.go`, `internal/vault/types_test.go`).
+- Vault REST APIs (`internal/api/vault.go`, `internal/api/vault_test.go`):
+  - `GET /api/vault/status`: Real-time vault health, active key age, and lease counts (`RoleViewer`).
+  - `GET /api/vault/secrets`: Lists public metadata summaries for all stored secrets (`RoleViewer`).
+  - `POST /api/vault/secrets`: Encrypts and stores new configuration secrets with optional TTL and tagging (`RoleAdmin`).
+  - `GET /api/vault/secrets/read`: Decrypts secret payloads, optionally issuing time-bounded ephemeral leases (`RoleAdmin`).
+  - `DELETE /api/vault/secrets`: Cryptographically shreds and purges secrets (`RoleAdmin`).
+  - `POST /api/vault/rotate`: Manually triggers immediate master key rotation and transparent re-encryption (`RoleAdmin`).
+  - `GET /api/vault/leases`: Lists active ephemeral secret access grants (`RoleViewer`).
+  - `POST /api/vault/leases/renew` & `POST /api/vault/leases/revoke`: Manages lease renewal and instant revocation (`RoleAdmin`).
+  - `GET /api/vault/tokens`: Lists active and historical cluster join tokens (`RoleViewer`).
+  - `POST /api/vault/tokens`: Issues revocable join tokens (`RoleAdmin`).
+  - `DELETE /api/vault/tokens`: Revokes join tokens (`RoleAdmin`).
+  - `GET /api/vault/config` & `POST /api/vault/config`: Inspects and tunes vault parameters (`RoleViewer` / `RoleAdmin`).
+  - `POST /api/vault/sync`: Ingests authenticated replication payloads from peer nodes (`RoleAdmin`).
+- Prometheus Metrics Exporter Extension (`internal/metrics/vault.go`, `internal/metrics/prometheus.go`):
+  - Exposes `dock_radar_vault_enabled`, `dock_radar_vault_secrets_total`, `dock_radar_vault_leases_active`, `dock_radar_vault_leases_shredded_total`, `dock_radar_vault_join_tokens_active`, `dock_radar_vault_replications_synced_total`, `dock_radar_vault_hardware_root_active`, `dock_radar_vault_key_age_seconds`, and `dock_radar_vault_next_rotation_seconds`.
+- Embedded Glassmorphism Web Console (`web/dist/index.html`):
+  - Header Vault status badge (`#vault-badge`) displaying encrypted secret count with direct modal launch.
+  - Dedicated Zero-Knowledge Configuration Vault dashboard panel with 6 live KPI cards (Encrypted Secrets, Active Leases, Shredded Leases, Active Key ID, Cluster Join Tokens, Hardware Root Status).
+  - 3 Interactive tabs for Encrypted Secrets & Leases, Cluster Join Tokens, and Key Derivation & Rotation Security.
+  - Interactive Management Modal (`#vault-modal`) with 3 tabs: Store Secret, Issue Join Token, and Vault Settings.
+  - Decrypted Secret Inspector Modal (`#vault-secret-modal`) with syntax-styled view, temporary 15-second reveal countdown, clipboard copy, and instant shred trigger.
+- Command-Line Flags & Environment Variables (`main.go`):
+  - Added `--vault`, `--vault-rotation-interval`, `--vault-lease-ttl`, `--vault-max-secrets`, and `--vault-hardware-root` flags with environment variable bindings (`DOCK_RADAR_VAULT_ENABLED`, `DOCK_RADAR_VAULT_ROTATION_INTERVAL`, `DOCK_RADAR_VAULT_LEASE_TTL`, `DOCK_RADAR_VAULT_MAX_SECRETS`, `DOCK_RADAR_VAULT_HARDWARE_ROOT`).
+
 ## [3.0.0] - 2026-11-01
 
 ### Added

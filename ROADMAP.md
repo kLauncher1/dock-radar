@@ -170,9 +170,9 @@ This document outlines the architectural milestones and engineering priorities f
 ---
 
 ## Milestone 26: v3.1.0 (Zero-Knowledge Distributed Configuration Vault)
-- [ ] End-to-end encrypted cluster secret sharing and synchronized configuration replication.
-- [ ] Hardware-backed key derivation with automatic rotation and revocable cluster join tokens.
-- [ ] Ephemeral secret leases with automated audit shredding.
+- [x] End-to-end encrypted cluster secret sharing and synchronized configuration replication.
+- [x] Hardware-backed key derivation with automatic rotation and revocable cluster join tokens.
+- [x] Ephemeral secret leases with automated audit shredding.
 
 ---
 
@@ -292,6 +292,13 @@ This document outlines the architectural milestones and engineering priorities f
 - [ ] Real-time CFS quota latency and throttled period tracking via `cpu.stat`.
 - [ ] Dynamic CPU quota bursting relieving temporary container compute spikes without noisy-neighbor degradation.
 - [ ] Automated CPU limit right-sizing recommendations based on kernel scheduling delays.
+
+---
+
+## Milestone 44: v4.9.0 (Autonomous Dynamic Network Namespace & VRF Route Isolator)
+- [ ] Userspace VRF (Virtual Routing and Forwarding) table management isolating multi-tenant container traffic.
+- [ ] Real-time Linux network namespace route divergence and routing loop detector.
+- [ ] Automated cross-namespace policy reconciliation with instant quarantine isolation.
 
 
 
