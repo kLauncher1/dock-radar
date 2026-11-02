@@ -25,6 +25,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/scanner"
 	"github.com/kLauncher1/dock-radar/internal/storage"
 	"github.com/kLauncher1/dock-radar/internal/system"
+	"github.com/kLauncher1/dock-radar/internal/vault"
 	"github.com/kLauncher1/dock-radar/internal/wireguard"
 )
 
@@ -445,7 +446,7 @@ func TestFormatMetrics_RollingRestarts(t *testing.T) {
 		TotalRollbacks:           1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, rollingStats, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, "1.8.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, rollingStats, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, "1.8.0")
 
 	expectedMetrics := []string{
 		"dock_radar_rolling_operations_total 5",
@@ -475,7 +476,7 @@ func TestFormatMetrics_Storage(t *testing.T) {
 		S3Enabled:       true,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, storageStatus, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, "1.9.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, storageStatus, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, "1.9.0")
 
 	expectedMetrics := []string{
 		"dock_radar_log_storage_chunks_total 20",
@@ -509,7 +510,7 @@ func TestFormatMetrics_EBPF(t *testing.T) {
 		CPUOverheadPercent:  0.04,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, ebpfStatus, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, "2.0.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, ebpfStatus, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, "2.0.0")
 
 	expectedMetrics := []string{
 		"dock_radar_ebpf_flows_active 15",
@@ -544,7 +545,7 @@ func TestFormatMetrics_Federation(t *testing.T) {
 		FailoverCount:   1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fedStatus, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, "2.1.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, fedStatus, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, "2.1.0")
 
 	expectedMetrics := []string{
 		"dock_radar_federation_regions_total 3",
@@ -581,7 +582,7 @@ func TestFormatMetrics_Scanner(t *testing.T) {
 		GatingBlockedCount:   1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, scannerStatus, nil, nil, nil, nil, nil, nil, nil, nil, nil, "2.2.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, scannerStatus, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, "2.2.0")
 
 	expectedMetrics := []string{
 		"dock_radar_scanner_enabled 1",
@@ -615,7 +616,7 @@ func TestFormatMetrics_RateLimit(t *testing.T) {
 		SyncedPeersCount:        4,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, limiterStatus, nil, nil, nil, nil, nil, nil, nil, nil, "2.3.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, limiterStatus, nil, nil, nil, nil, nil, nil, nil, nil, nil, "2.3.0")
 
 	expectedMetrics := []string{
 		"dock_radar_ratelimit_enabled 1",
@@ -655,7 +656,7 @@ func TestFormatMetrics_Firewall(t *testing.T) {
 		ActiveDDoSAlerts:      1,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, firewallStatus, nil, nil, nil, nil, nil, nil, nil, "2.4.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, firewallStatus, nil, nil, nil, nil, nil, nil, nil, nil, "2.4.0")
 
 	expectedMetrics := []string{
 		"dock_radar_firewall_enabled 1",
@@ -695,7 +696,7 @@ func TestFormatMetrics_GitOps(t *testing.T) {
 		LastSyncTime:           time.Unix(1710000000, 0),
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, gitopsStatus, nil, nil, nil, nil, nil, nil, "2.5.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, gitopsStatus, nil, nil, nil, nil, nil, nil, nil, "2.5.0")
 
 	expectedMetrics := []string{
 		"dock_radar_gitops_enabled 1",
@@ -737,7 +738,7 @@ func TestFormatMetrics_Raft(t *testing.T) {
 		UptimeSeconds:        120,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, raftStatus, nil, nil, nil, nil, nil, "2.6.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, raftStatus, nil, nil, nil, nil, nil, nil, "2.6.0")
 
 	expectedMetrics := []string{
 		`dock_radar_raft_is_leader{node_id="raft-node-1"} 1`,
@@ -774,7 +775,7 @@ func TestFormatMetrics_WireGuard(t *testing.T) {
 		RoutingRulesCount: 8,
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, wgStatus, nil, nil, nil, nil, "2.7.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, wgStatus, nil, nil, nil, nil, nil, "2.7.0")
 
 	expectedMetrics := []string{
 		`dock_radar_wireguard_enabled{interface="wg-radar0"} 1`,
@@ -817,7 +818,7 @@ func TestFormatMetrics_CanaryEngine(t *testing.T) {
 		},
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, canaryStatus, canaryDeployments, nil, nil, "2.8.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, canaryStatus, canaryDeployments, nil, nil, nil, "2.8.0")
 
 	expectedMetrics := []string{
 		"dock_radar_canary_enabled 1",
@@ -853,7 +854,7 @@ func TestFormatMetrics_CrashPipeline(t *testing.T) {
 		},
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, crashStatus, nil, "2.9.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, crashStatus, nil, nil, "2.9.0")
 
 	expectedMetrics := []string{
 		"dock_radar_crash_enabled 1",
@@ -900,7 +901,7 @@ func TestFormatMetrics_QueryCache(t *testing.T) {
 		},
 	}
 
-	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, qcStatus, "3.0.0")
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, qcStatus, nil, "3.0.0")
 
 	expectedMetrics := []string{
 		"dock_radar_querycache_enabled 1",
@@ -915,6 +916,45 @@ func TestFormatMetrics_QueryCache(t *testing.T) {
 		"dock_radar_event_multiplexer_ingested_total 200",
 		"dock_radar_event_multiplexer_dropped_total 2",
 		"dock_radar_event_dedup_deduped_total 15",
+	}
+
+	for _, m := range expectedMetrics {
+		if !strings.Contains(output, m) {
+			t.Errorf("expected output to contain %q, but was missing:\n%s", m, output)
+		}
+	}
+}
+
+func TestFormatMetrics_Vault(t *testing.T) {
+	sys := system.Metrics{OS: "linux", Arch: "amd64", Hostname: "node-vault"}
+	dock := docker.DaemonStatus{Available: true}
+
+	vStatus := &vault.VaultStatus{
+		Enabled:             true,
+		TotalSecrets:        8,
+		ActiveLeases:        2,
+		ShreddedLeases:      4,
+		ActiveKeyID:         "key_deadbeef1234",
+		KeyAgeSeconds:       1200,
+		NextRotationSeconds: 85200,
+		JoinTokensCount:     1,
+		ReplicationsSynced:  5,
+		HardwareRootActive:  true,
+		LastRotation:        time.Now().UTC(),
+	}
+
+	output := FormatMetricsAll(sys, dock, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, vStatus, "3.1.0")
+
+	expectedMetrics := []string{
+		"dock_radar_vault_enabled 1",
+		"dock_radar_vault_secrets_total 8",
+		"dock_radar_vault_leases_active 2",
+		"dock_radar_vault_leases_shredded_total 4",
+		"dock_radar_vault_join_tokens_active 1",
+		"dock_radar_vault_replications_synced_total 5",
+		"dock_radar_vault_hardware_root_active 1",
+		"dock_radar_vault_key_age_seconds 1200",
+		"dock_radar_vault_next_rotation_seconds 85200",
 	}
 
 	for _, m := range expectedMetrics {

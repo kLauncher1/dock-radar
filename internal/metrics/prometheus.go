@@ -24,6 +24,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/scanner"
 	"github.com/kLauncher1/dock-radar/internal/storage"
 	"github.com/kLauncher1/dock-radar/internal/system"
+	"github.com/kLauncher1/dock-radar/internal/vault"
 	"github.com/kLauncher1/dock-radar/internal/wireguard"
 )
 
@@ -105,7 +106,7 @@ func FormatMetricsFull(
 	return FormatMetricsAll(
 		sys, dock, ringBuffer, alertDispatcher, auditLogger,
 		meshSummary, meshNodes, healingStats, anomalySummary, anomalyPreds,
-		discStatus, gossipSummary, gossipMembers, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, appVersion,
+		discStatus, gossipSummary, gossipMembers, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, nil, appVersion,
 	)
 }
 
@@ -138,6 +139,7 @@ func FormatMetricsAll(
 	canaryDeployments []*canary.CanaryDeployment,
 	crashStatus *crash.CrashStatus,
 	queryCacheStatus *querycache.QueryCacheStatus,
+	vaultStatus *vault.VaultStatus,
 	appVersion string,
 ) string {
 	var b strings.Builder
@@ -501,6 +503,9 @@ func FormatMetricsAll(
 
 	// 25. Self-Optimizing Query Cache & Event Pipeline Telemetry
 	AppendQueryCacheMetrics(&b, queryCacheStatus)
+
+	// 26. Zero-Knowledge Distributed Configuration Vault Telemetry
+	AppendVaultMetrics(&b, vaultStatus)
 
 	return b.String()
 }

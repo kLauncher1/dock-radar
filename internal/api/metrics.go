@@ -22,6 +22,7 @@ import (
 	"github.com/kLauncher1/dock-radar/internal/security"
 	"github.com/kLauncher1/dock-radar/internal/storage"
 	"github.com/kLauncher1/dock-radar/internal/system"
+	"github.com/kLauncher1/dock-radar/internal/vault"
 	"github.com/kLauncher1/dock-radar/internal/wireguard"
 )
 
@@ -165,6 +166,12 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		queryCacheStatus = &st
 	}
 
+	var vaultStatus *vault.VaultStatus
+	if h.VaultEngine != nil {
+		st := h.VaultEngine.Status()
+		vaultStatus = &st
+	}
+
 	text := metrics.FormatMetricsAll(
 		sysMetrics,
 		dockerStatus,
@@ -193,6 +200,7 @@ func (h *HandlerConfig) handlePrometheusMetrics(w http.ResponseWriter, r *http.R
 		canaryDeployments,
 		crashStatus,
 		queryCacheStatus,
+		vaultStatus,
 		version,
 	)
 
